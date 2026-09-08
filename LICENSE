@@ -1,0 +1,39 @@
+﻿Social.wtf Community & Creator Source-Available License (v1.0)
+Copyright (c) 2026 RJRC Digital Development. All rights reserved.
+
+================================================================================
+1. PERMITTED PUBLIC USE (CREATOR SDK & CLIENT SANDBOX)
+================================================================================
+Permission is hereby granted, free of charge, to any individual or organization to
+inspect, utilize, modify, and build upon the Creator SDK (located in /creator-sdk)
+and client-side UI integration templates for the sole purpose of:
+  a) Building custom creator mini-apps, storefront pages, and social widgets;
+  b) Interacting with the public Cookie Chain (SVM) testnet/mainnet interfaces;
+  c) Contributing documentation, community discussions, and wiki articles.
+
+================================================================================
+2. PROPRIETARY RESERVED CORE (STRICTLY NON-REDISTRIBUTABLE)
+================================================================================
+The following components constitute proprietary, confidential trade secrets and
+intellectual property of RJRC Digital Development:
+  a) The Social.wtf Sentinel™ Biometric Neural Verification Models and weight tensors;
+  b) The Zero-Trace Ephemeral RAM Memory Scrubber and Hardware Enclave Provers;
+  c) The Zero-Knowledge (ZK) Adult Access Safeguard proof verification circuits;
+  d) The Automated Protocol Fee Treasury Routing multi-sig controllers and private keys;
+  e) The Social.wtf brand, visual assets, trademarks, and design marks.
+
+Except as expressly authorized in Section 1, NO LICENSE, express or implied, by
+estoppel or otherwise, is granted to reproduce, fork, commercialize, reverse engineer,
+decompile, or extract the proprietary core verification engine, enclave attestations,
+or production treasury mechanics for use in competing platforms or third-party products
+without a prior executed commercial agreement with RJRC Digital Development.
+
+================================================================================
+3. DISCLAIMER OF WARRANTIES & LIMITATION OF LIABILITY
+================================================================================
+THE SOFTWARE IS PROVIDED AS IS, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE
+OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.

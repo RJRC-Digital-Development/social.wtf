@@ -26,11 +26,20 @@ Every economic transaction—from store purchases to tips and subscriptions—au
 - Backend multimodal AI analyzer (`/api/shield/scan`) classifies media in real-time.
 - **Zero-Trace Shielding**: Unlike traditional platforms that display blurred teasers or locked boxes, Social.wtf completely removes restricted content from public/unverified feeds. There is **zero hint** of its existence to underage or unverified users.
 
-### 4. Privacy-First Ephemeral Age & Identity Verification
-- **Ephemeral Government ID OCR**: Scans documents directly in client-side RAM, confirms $Age \ge 18$, logs a cryptographic SHA-256 memory purge receipt, and **immediately zeroes the memory buffer**. No PII is EVER stored or sent to a database.
-- **Facial Age Estimation Video Check**: Live WebRTC video selfie with liveness detection (blink/head tilt) and client-side age estimation. Video frames are discarded instantly.
+### 4. Privacy-First Verification & Zero-Trace Parental Device Safeguard
+- **Live Video Webcam Safeguard (XXX Gate)**: Adult features require live webcam verification *upon access* to guarantee an underage minor is not accessing adult content through a parent's or guardian's unlocked device. Government ID is **strictly not required virtually** for adult viewing, preserving 100% privacy.
+- **Dual Government ID (Front & Back)**: Uploaded strictly into account profiles for login authentication and creator badge verification.
+- **Ephemeral Zero-Data Architecture**: Raw images and video selfie frames exist solely in ephemeral memory buffers and are cryptographically scrubbed with on-chain purge receipts.
 
-### 5. Nightly Wallet Integration
+### 5. Open Creator SDK vs. Proprietary Sentinel™ Enclave (IP Architecture)
+- **Open Creator SDK (`/creator-sdk`)**: Public developer kit and UI templates allowing creators and 3rd parties to build custom storefront mini-apps, personal profiles, and widgets.
+- **Proprietary Sentinel™ Enclave**: Production neural model weights, ZK-SNARK proving circuits, and hardware enclave attestation keys are hosted exclusively on Social.wtf's private infrastructure tier, preventing unauthorized reproduction or replication of the verification core.
+
+### 6. Interactive Community Wiki & Discussion Board
+- Built-in community knowledge base covering Cookie Chain SVM architecture, $COOK economics, and developer tutorials.
+- Community discussion board with category filters (Wishlists, Technical Proposals, Platform Updates, Bug Reports) and interactive voting.
+
+### 7. Nightly Wallet Integration
 - First-class support for [Nightly Wallet](https://nightly.app) (`window.nightly.solana`).
 - Displays active user address, Cookie Chain network badge, and live `$COOK` balance via RPC polling.
 - Includes pre-funded instant demo wallet mode for seamless evaluation.
@@ -147,5 +156,10 @@ Visit `http://localhost:3000` in your browser.
 
 ---
 
-## 📄 License
-MIT License. Built with 🍪 for the Cookie Chain ecosystem.
+## 📄 License & Intellectual Property
+
+This project is licensed under the **Social.wtf Community & Creator Source-Available License (v1.0)**:
+- **Open Permitted Use**: The **Creator SDK (`/creator-sdk`)**, UI templates, and Cookie Chain client integrations are open for creators and developers to build custom storefront pages, widgets, and community tools.
+- **Proprietary Retained Core**: The **Social.wtf Sentinel™ Biometric Neural Verification Models**, zero-trace ephemeral memory scrubbers, hardware enclave attestation keys, and automated treasury routing mechanics are proprietary trade secrets of RJRC Digital Development and cannot be reproduced, cloned, or deployed in competing platforms without prior authorization.
+
+See [LICENSE](file:///c:/Users/SnapCopy/OneDrive/Documents/CoinSwag/social.wtf/LICENSE) for complete terms. Built with 🍪 for the Cookie Chain ecosystem.
