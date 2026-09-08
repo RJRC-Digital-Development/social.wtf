@@ -15,13 +15,15 @@ import {
   Sparkles,
   ShoppingBag,
   TrendingUp,
+  Bot,
 } from 'lucide-react';
 
 interface NavbarProps {
   activeView: 'feed' | 'store' | 'creator' | 'analytics';
   onSelectView: (view: 'feed' | 'store' | 'creator' | 'analytics') => void;
-  onOpenVerifyModal: () => void;
+  onOpenVerifyModal: (tab?: 'video_liveness' | 'id_upload') => void;
   onOpenEcosystemModal?: (tab?: 'bridge' | 'cookieswap' | 'cookiebox' | 'das' | 'mcp') => void;
+  onOpenAiAgent?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -29,8 +31,9 @@ export const Navbar: React.FC<NavbarProps> = ({
   onSelectView,
   onOpenVerifyModal,
   onOpenEcosystemModal,
+  onOpenAiAgent,
 }) => {
-  const { isAgeVerified, unshieldedMode, toggleUnshieldedMode } = useShield();
+  const { isAgeVerified, isVideoVerified, isIdVerified, canAccessXxx, unshieldedMode, toggleUnshieldedMode } = useShield();
   const [currentSlot, setCurrentSlot] = useState<number | null>(null);
 
   // Poll Cookie Chain slot for live status
@@ -146,11 +149,22 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Right Header Action Items */}
         <div className="flex items-center gap-2.5">
-          {/* Privacy Age Gate Status & Toggle */}
-          {isAgeVerified ? (
+          {/* Sentinel AI Agent Conversation Launcher */}
+          {onOpenAiAgent && (
+            <button
+              onClick={onOpenAiAgent}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/15 to-yellow-500/15 border border-amber-500/35 text-amber-300 hover:brightness-125 text-xs font-semibold transition-all shadow-sm group"
+            >
+              <Bot className="w-3.5 h-3.5 text-amber-400 group-hover:scale-110 transition-transform" />
+              <span>AI Agent</span>
+            </button>
+          )}
+
+          {/* Privacy Verification Status & Toggle */}
+          {isVideoVerified ? (
             <button
               onClick={toggleUnshieldedMode}
-              title={unshieldedMode ? 'Unshielded 18+ mode active' : 'Click to unshield restricted feeds'}
+              title={unshieldedMode ? 'XXX unshielded stream active' : 'Click to unshield restricted feeds'}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
                 unshieldedMode
                   ? 'bg-red-500/15 border-red-500/40 text-red-300'
@@ -159,16 +173,16 @@ export const Navbar: React.FC<NavbarProps> = ({
             >
               {unshieldedMode ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
               <span className="hidden sm:inline">
-                {unshieldedMode ? '18+ Unshielded' : 'Shielded'}
+                {unshieldedMode ? 'XXX Unshielded' : 'Shielded'}
               </span>
             </button>
           ) : (
             <button
-              onClick={onOpenVerifyModal}
+              onClick={() => onOpenVerifyModal('video_liveness')}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-emerald-500/40 text-emerald-400 text-xs font-semibold transition-all shadow-sm"
             >
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-              <span className="hidden sm:inline">Verify Age (Zero-Data)</span>
+              <span className="hidden sm:inline">AI Sentinel Verify</span>
             </button>
           )}
 

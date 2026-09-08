@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { User, Product, Post, CreatorWidget } from '@/types';
+import { useShield } from '@/lib/shield/shieldContext';
 import { Storefront } from '../store/Storefront';
 import { PostCard } from '../feed/PostCard';
 import { AudioPlayer } from '../feed/AudioPlayer';
@@ -17,6 +18,12 @@ import {
   Sparkles,
   Code2,
   PlusCircle,
+  UserCheck,
+  Camera,
+  Upload,
+  Smartphone,
+  ShieldCheck,
+  Lock,
 } from 'lucide-react';
 
 interface CreatorProfileProps {
@@ -25,6 +32,7 @@ interface CreatorProfileProps {
   products: Product[];
   onAddProduct: (prod: Product) => void;
   onPostUpdated: (post: Post) => void;
+  onOpenVerifyModal?: (tab?: 'video_liveness' | 'id_upload') => void;
 }
 
 export const CreatorProfile: React.FC<CreatorProfileProps> = ({
@@ -33,7 +41,9 @@ export const CreatorProfile: React.FC<CreatorProfileProps> = ({
   products,
   onAddProduct,
   onPostUpdated,
+  onOpenVerifyModal,
 }) => {
+  const { isIdVerified, isVideoVerified, idCredential, canAccessXxx } = useShield();
   const [activeTab, setActiveTab] = useState<'store' | 'feed' | 'widgets'>('widgets');
   const [crowdfundRaised, setCrowdfundRaised] = useState(76.5);
   const [studioOpen, setStudioOpen] = useState(false);
@@ -140,6 +150,43 @@ setInterval(() => {
                 </span>
               </div>
               <p className="text-xs text-slate-400 font-mono">@{creator.handle}</p>
+
+              {/* Account Profile Verification & Sentinel AI Badges */}
+              <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                {isIdVerified ? (
+                  <span className="px-2 py-0.5 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-[10px] font-bold text-emerald-300 flex items-center gap-1">
+                    <UserCheck className="w-3 h-3 text-emerald-400" />
+                    <span>ID Verified Account (Front &amp; Back on Profile)</span>
+                  </span>
+                ) : (
+                  onOpenVerifyModal && (
+                    <button
+                      onClick={() => onOpenVerifyModal('id_upload')}
+                      className="px-2 py-0.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-[10px] font-semibold text-slate-300 flex items-center gap-1 transition-colors"
+                    >
+                      <Upload className="w-3 h-3 text-blue-400" />
+                      <span>Upload ID Front &amp; Back to Profile</span>
+                    </button>
+                  )
+                )}
+
+                {isVideoVerified ? (
+                  <span className="px-2 py-0.5 rounded-lg bg-purple-500/15 border border-purple-500/30 text-[10px] font-bold text-purple-300 flex items-center gap-1">
+                    <Camera className="w-3 h-3 text-purple-400" />
+                    <span>AI Sentinel Video Verified (XXX Unlocked)</span>
+                  </span>
+                ) : (
+                  onOpenVerifyModal && (
+                    <button
+                      onClick={() => onOpenVerifyModal('video_liveness')}
+                      className="px-2 py-0.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-[10px] font-semibold text-amber-300 flex items-center gap-1 transition-colors"
+                    >
+                      <Camera className="w-3 h-3 text-amber-400" />
+                      <span>Live Video Check (Access XXX Feature)</span>
+                    </button>
+                  )
+                )}
+              </div>
             </div>
           </div>
 
@@ -217,6 +264,36 @@ setInterval(() => {
           </button>
         </div>
       </div>
+
+      {/* Parental & Guardian Device Safeguard Alert for Mature Profiles */}
+      {!isVideoVerified && creator.handle === 'sol_vixen' && (
+        <div className="p-4 rounded-3xl bg-amber-950/40 border border-amber-500/40 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs shadow-xl animate-fade-in">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-2xl bg-amber-500/20 text-amber-400 border border-amber-500/30 shrink-0">
+              <Smartphone className="w-5 h-5" />
+            </div>
+            <div>
+              <strong className="text-amber-300 block text-sm font-bold">
+                Parental &amp; Guardian Device Safeguard Active
+              </strong>
+              <p className="text-slate-300 text-[11px] mt-0.5">
+                Verification is required upon access to guarantee that an underage child is not accessing mature content through a parent or guardian's device. 
+                <span className="text-emerald-300 font-semibold block sm:inline sm:ml-1">
+                  Verified by Sentinel AI Agent — no government ID required virtually.
+                </span>
+              </p>
+            </div>
+          </div>
+          {onOpenVerifyModal && (
+            <button
+              onClick={() => onOpenVerifyModal('video_liveness')}
+              className="shrink-0 px-4 py-2.5 rounded-2xl bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 font-bold text-xs hover:brightness-110 active:scale-95 transition-all shadow-md"
+            >
+              Verify Live Video Now
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Tab 1: Creator Storefront */}
       {activeTab === 'store' && (

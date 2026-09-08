@@ -35,7 +35,7 @@ export const Feed: React.FC<FeedProps> = ({
   onPostUpdated,
   onOpenVerifyModal,
 }) => {
-  const { filterFeedPosts, isAgeVerified, unshieldedMode } = useShield();
+  const { filterFeedPosts, canAccessXxx, isVideoVerified, isAgeVerified, isIdVerified } = useShield();
   const { connected, connect } = useWallet();
 
   const [activeFilter, setActiveFilter] = useState<'all' | 'trending' | 'audio' | 'video' | 'shielded'>(
@@ -102,6 +102,8 @@ export const Feed: React.FC<FeedProps> = ({
         bio: 'Building on Cookie Chain SVM.',
         verified: true,
         ageVerified: isAgeVerified,
+        isIdVerified: isIdVerified,
+        isVideoVerified: isVideoVerified,
         walletAddress: 'CookYou1111111111111111111111111111111111',
         followersCount: 1,
         followingCount: 42,
@@ -366,8 +368,8 @@ export const Feed: React.FC<FeedProps> = ({
             </button>
           ))}
 
-          {/* 18+ Unshielded Filter Tab */}
-          {isAgeVerified && unshieldedMode ? (
+          {/* XXX Unshielded Filter Tab - Rendered ONLY when Live Video Verified! Zero trace when unverified */}
+          {canAccessXxx && (
             <button
               onClick={() => setActiveFilter('shielded')}
               className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all ${
@@ -376,15 +378,7 @@ export const Feed: React.FC<FeedProps> = ({
                   : 'bg-red-500/10 border border-red-500/30 text-red-300 hover:bg-red-500/20'
               }`}
             >
-              🔥 18+ Unshielded Only
-            </button>
-          ) : (
-            <button
-              onClick={onOpenVerifyModal}
-              className="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-slate-900 border border-slate-700/60 text-slate-400 hover:text-amber-300 flex items-center gap-1.5 transition-all"
-            >
-              <ShieldAlert className="w-3.5 h-3.5 text-amber-400" />
-              <span>Unlock 18+ Shielded (Private)</span>
+              🔥 XXX Unshielded Only
             </button>
           )}
         </div>

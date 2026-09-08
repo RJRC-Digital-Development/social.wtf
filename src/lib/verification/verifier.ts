@@ -11,42 +11,51 @@
 export interface EphemeralVerificationProof {
   verified: boolean;
   age: number;
-  method: 'ephemeral_id_ocr' | 'facial_age_estimation';
+  method: 'ephemeral_id_ocr' | 'facial_age_estimation' | 'live_video_liveness';
   purgedHash: string;
   verifiedAt: number;
   expiresAt: number;
   sessionProof: string;
+  xxxUnlocked?: boolean;
+}
+
+export interface IdProfileCredential {
+  verified: boolean;
+  documentType: string;
+  frontHash: string;
+  backHash: string;
+  verifiedAt: string;
+  accountBadge: string;
+}
+
+export interface VideoVerificationProof {
+  verified: boolean;
+  method: 'live_video_liveness';
+  livenessVerified: boolean;
+  xxxUnlocked: boolean;
+  purgedHash: string;
+  verifiedAt: number;
+  expiresAt: number;
 }
 
 /**
- * Ephemeral Government ID OCR Verification
- * Analyzes document text in memory, confirms 18+ age, and immediately scrubs memory.
+ * Ephemeral Government ID OCR Verification (Legacy / Single Doc)
  */
 export async function verifyEphemeralGovId(
   imageBlobOrBase64: string,
   onPurgeComplete?: (hash: string) => void
 ): Promise<EphemeralVerificationProof> {
-  // Simulate client-side OCR pipeline in ephemeral memory buffer
-  await new Promise((resolve) => setTimeout(resolve, 1500));
-
-  // Ephemeral memory buffer placeholder
+  await new Promise((resolve) => setTimeout(resolve, 1200));
   let inMemoryBuffer: string | null = imageBlobOrBase64;
-
-  // Derive cryptographic confirmation hash before zeroing buffer
   const encoder = new TextEncoder();
   const data = encoder.encode(inMemoryBuffer.slice(0, 100) + Date.now());
   const hashBuffer = await crypto.subtle.digest('SHA-256', data);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   const purgedHash = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
-
-  // INSTANT MEMORY PURGE: Zero-out the reference
   inMemoryBuffer = null;
-  if (onPurgeComplete) {
-    onPurgeComplete(purgedHash);
-  }
 
+  if (onPurgeComplete) onPurgeComplete(purgedHash);
   const now = Date.now();
-  const validDurationMs = 24 * 60 * 60 * 1000; // 24-hour ephemeral session
 
   return {
     verified: true,
@@ -54,34 +63,108 @@ export async function verifyEphemeralGovId(
     method: 'ephemeral_id_ocr',
     purgedHash: `purge_proof_${purgedHash.slice(0, 16)}`,
     verifiedAt: now,
-    expiresAt: now + validDurationMs,
-    sessionProof: `zk_age_proof_${Math.random().toString(36).substring(2, 15)}`,
+    expiresAt: now + 24 * 60 * 60 * 1000,
+    sessionProof: `zk_id_proof_${Math.random().toString(36).substring(2, 15)}`,
   };
 }
 
 /**
- * Facial Age Estimation via Live Video Selfie
- * Detects facial landmarks, estimates adult age threshold, and immediately discards the frame.
+ * Dual Government ID Verification (Front & Back)
+ * Uploaded strictly for account profile identification and login authentication reasons.
+ * (Note: ID is NOT required virtually to access XXX content, which uses live video verification instead).
  */
-export async function verifyFacialAgeEstimation(
-  videoFrameDataUrl: string
-): Promise<EphemeralVerificationProof> {
-  // Simulate local ML inference (e.g. MobileNet / TensorFlow.js / BlazeFace landmark model)
+export async function verifyDualGovId(
+  frontData: string,
+  backData: string,
+  docType: string = "Driver's License",
+  onPurgeComplete?: (frontHash: string, backHash: string) => void
+): Promise<IdProfileCredential> {
+  // Simulate local client-side OCR parsing of front & back
+  await new Promise((resolve) => setTimeout(resolve, 1400));
+
+  let frontBuffer: string | null = frontData;
+  let backBuffer: string | null = backData;
+
+  const encoder = new TextEncoder();
+  const fData = encoder.encode('front_' + (frontBuffer || 'sample').slice(0, 100) + Date.now());
+  const bData = encoder.encode('back_' + (backBuffer || 'sample').slice(0, 100) + Date.now());
+
+  const fBuf = await crypto.subtle.digest('SHA-256', fData);
+  const bBuf = await crypto.subtle.digest('SHA-256', bData);
+
+  const frontHash = Array.from(new Uint8Array(fBuf))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('')
+    .slice(0, 16);
+  const backHash = Array.from(new Uint8Array(bBuf))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('')
+    .slice(0, 16);
+
+  // Instantly wipe memory buffers
+  frontBuffer = null;
+  backBuffer = null;
+
+  if (onPurgeComplete) {
+    onPurgeComplete(frontHash, backHash);
+  }
+
+  return {
+    verified: true,
+    documentType: docType,
+    frontHash: `sha256_front_${frontHash}`,
+    backHash: `sha256_back_${backHash}`,
+    verifiedAt: new Date().toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    }),
+    accountBadge: 'ID Verified Account (Front & Back on Profile for Login)',
+  };
+}
+
+/**
+ * Live Video Verification (Webcam Liveness)
+ * Exclusively required to access the XXX feature.
+ * Government ID is NOT required virtually, preserving 100% viewer privacy.
+ */
+export async function verifyLiveVideoLiveness(
+  videoFrameDataUrl: string = 'live_webcam_frame'
+): Promise<VideoVerificationProof> {
+  // Simulate client-side liveness detection & neural age estimation in ephemeral memory
   await new Promise((resolve) => setTimeout(resolve, 1800));
 
-  // Ephemeral scrub of input frame
   let frameRef: string | null = videoFrameDataUrl;
-  const hash = 'face_est_' + Math.random().toString(36).substring(2, 12);
-  frameRef = null; // Purged from memory
+  const hash = 'liveness_purge_' + Math.random().toString(36).substring(2, 14);
+  frameRef = null; // Zero memory immediately
 
   const now = Date.now();
   return {
     verified: true,
-    age: 24, // Estimated age
-    method: 'facial_age_estimation',
+    method: 'live_video_liveness',
+    livenessVerified: true,
+    xxxUnlocked: true,
     purgedHash: hash,
     verifiedAt: now,
-    expiresAt: now + 12 * 60 * 60 * 1000,
-    sessionProof: `live_liveness_verified_${Date.now()}`,
+    expiresAt: now + 24 * 60 * 60 * 1000,
+  };
+}
+
+/**
+ * Backward compatibility alias for facial age estimation
+ */
+export async function verifyFacialAgeEstimation(
+  videoFrameDataUrl: string
+): Promise<EphemeralVerificationProof> {
+  const videoResult = await verifyLiveVideoLiveness(videoFrameDataUrl);
+  return {
+    verified: true,
+    age: 23,
+    method: 'live_video_liveness',
+    purgedHash: videoResult.purgedHash,
+    verifiedAt: videoResult.verifiedAt,
+    expiresAt: videoResult.expiresAt,
+    sessionProof: `live_video_proof_${Date.now()}`,
+    xxxUnlocked: true,
   };
 }

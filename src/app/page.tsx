@@ -8,6 +8,7 @@ import { CreatorProfile } from '@/components/profile/CreatorProfile';
 import { CreatorDashboard } from '@/components/analytics/CreatorDashboard';
 import { AgeVerificationModal } from '@/components/verification/AgeVerificationModal';
 import { EcosystemHubModal } from '@/components/ecosystem/EcosystemHubModal';
+import { AiAgentModal } from '@/components/ai/AiAgentModal';
 import {
   INITIAL_POSTS,
   INITIAL_PRODUCTS,
@@ -29,6 +30,9 @@ import {
   Globe,
   HelpCircle,
   Lock,
+  Bot,
+  UserCheck,
+  Camera,
 } from 'lucide-react';
 
 export default function Home() {
@@ -43,9 +47,11 @@ export default function Home() {
   const [metrics, setMetrics] = useState<TreasuryMetrics>(INITIAL_TREASURY_METRICS);
 
   const [verifyModalOpen, setVerifyModalOpen] = useState(false);
+  const [verifyTab, setVerifyTab] = useState<'video_liveness' | 'id_upload'>('video_liveness');
+  const [aiAgentOpen, setAiAgentOpen] = useState(false);
   const [ecosystemModalOpen, setEcosystemModalOpen] = useState(false);
   const [ecosystemTab, setEcosystemTab] = useState<'bridge' | 'cookieswap' | 'cookiebox' | 'das' | 'mcp'>('bridge');
-  const { isAgeVerified, unshieldedMode } = useShield();
+  const { isAgeVerified, isVideoVerified, isIdVerified, canAccessXxx, unshieldedMode } = useShield();
   const { walletAddress } = useWallet();
 
   const handlePostCreated = (newPost: Post) => {
@@ -98,11 +104,15 @@ export default function Home() {
       <Navbar
         activeView={activeView}
         onSelectView={setActiveView}
-        onOpenVerifyModal={() => setVerifyModalOpen(true)}
+        onOpenVerifyModal={(tab) => {
+          setVerifyTab(tab || 'video_liveness');
+          setVerifyModalOpen(true);
+        }}
         onOpenEcosystemModal={(tab) => {
           setEcosystemTab(tab || 'bridge');
           setEcosystemModalOpen(true);
         }}
+        onOpenAiAgent={() => setAiAgentOpen(true)}
       />
 
       {/* Main Container */}
@@ -121,24 +131,35 @@ export default function Home() {
                 </span>
               </h2>
               <p className="text-xs text-slate-300 mt-0.5">
-                Every transaction automatically routes a 5% protocol fee to the platform treasury. Flagged mature media is completely shielded with zero trace.
+                Automated 5% protocol fee splitting on Cookie Chain. AI Sentinel verification ensures parent/guardian devices are guarded with zero trace.
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
-            {!isAgeVerified ? (
+            <button
+              onClick={() => setAiAgentOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-amber-500/20 to-yellow-500/20 hover:from-amber-500/30 hover:to-yellow-500/30 border border-amber-500/40 text-amber-300 text-xs font-semibold transition-all shadow-sm"
+            >
+              <Bot className="w-4 h-4 text-amber-400" />
+              <span>AI Agent</span>
+            </button>
+
+            {!isVideoVerified ? (
               <button
-                onClick={() => setVerifyModalOpen(true)}
+                onClick={() => {
+                  setVerifyTab('video_liveness');
+                  setVerifyModalOpen(true);
+                }}
                 className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-emerald-500/40 text-emerald-300 text-xs font-semibold transition-all shadow-sm"
               >
-                <Lock className="w-3.5 h-3.5" />
-                <span>Verify Age (Ephemeral OCR)</span>
+                <Camera className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Sentinel Live Video Check</span>
               </button>
             ) : (
-              <span className="px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold flex items-center gap-1.5">
-                <ShieldCheck className="w-4 h-4" />
-                <span>Age-Verified (Zero-Data)</span>
+              <span className="px-3 py-1.5 rounded-xl bg-purple-500/10 border border-purple-500/30 text-purple-300 text-xs font-semibold flex items-center gap-1.5">
+                <ShieldCheck className="w-4 h-4 text-purple-400" />
+                <span>AI Sentinel Verified (XXX Active)</span>
               </span>
             )}
           </div>
@@ -198,7 +219,20 @@ export default function Home() {
                 }`}
               >
                 <TrendingUp className="w-4 h-4" />
-                <span>Platform Analytics & 5% Split</span>
+                <span>Platform Analytics &amp; 5% Split</span>
+              </button>
+
+              <button
+                onClick={() => setAiAgentOpen(true)}
+                className="w-full flex items-center justify-between px-3 py-2.5 rounded-2xl bg-gradient-to-r from-amber-500/15 to-yellow-500/15 border border-amber-500/30 text-amber-300 hover:brightness-125 transition-all font-semibold"
+              >
+                <div className="flex items-center gap-2.5">
+                  <Bot className="w-4 h-4 text-amber-400" />
+                  <span>Sentinel AI Agent</span>
+                </div>
+                <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-mono">
+                  ACTIVE
+                </span>
               </button>
             </div>
 
@@ -281,6 +315,10 @@ export default function Home() {
                 products={products}
                 onAddProduct={handleAddProduct}
                 onPostUpdated={handlePostUpdated}
+                onOpenVerifyModal={(tab) => {
+                  setVerifyTab(tab || 'video_liveness');
+                  setVerifyModalOpen(true);
+                }}
               />
             )}
 
@@ -405,11 +443,39 @@ export default function Home() {
         </div>
       </main>
 
-      {/* Ephemeral Age Verification Modal */}
+      {/* Sentinel AI Verification Modal (Live Video Safeguard & ID Front/Back) */}
       <AgeVerificationModal
         isOpen={verifyModalOpen}
         onClose={() => setVerifyModalOpen(false)}
+        initialTab={verifyTab}
       />
+
+      {/* Sentinel AI Agent Conversation Modal / Drawer */}
+      <AiAgentModal
+        isOpen={aiAgentOpen}
+        onClose={() => setAiAgentOpen(false)}
+        onOpenVerifyModal={(tab) => {
+          setVerifyTab(tab || 'video_liveness');
+          setVerifyModalOpen(true);
+        }}
+        onOpenStore={handleOpenStore}
+        onSelectView={setActiveView}
+      />
+
+      {/* Floating Sentinel AI Agent Launcher */}
+      <div className="fixed bottom-6 right-6 z-40">
+        <button
+          onClick={() => setAiAgentOpen(true)}
+          className="flex items-center gap-2.5 px-4 py-3 rounded-2xl bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-500 text-slate-950 font-bold text-xs shadow-2xl shadow-amber-500/30 hover:scale-105 active:scale-95 transition-all border border-amber-300/40 group"
+        >
+          <div className="relative">
+            <Bot className="w-5 h-5 text-slate-950" />
+            <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-500 rounded-full border border-slate-950 animate-ping" />
+            <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-500 rounded-full border border-slate-950" />
+          </div>
+          <span className="hidden sm:inline font-sans">Sentinel AI Agent</span>
+        </button>
+      </div>
 
       {/* Ecosystem Hub Modal (Bridge, Cookieswap, Cookiebox, DAS, MCP) */}
       <EcosystemHubModal

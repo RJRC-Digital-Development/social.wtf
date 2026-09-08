@@ -10,6 +10,12 @@ export interface User {
   bio: string;
   verified: boolean;
   ageVerified: boolean;
+  isIdVerified?: boolean; // Front & back ID placed into account profile for login
+  isVideoVerified?: boolean; // Live video verified for XXX feature (no ID required virtually)
+  idVerifiedAt?: string;
+  idDocumentType?: string;
+  idFrontHash?: string;
+  idBackHash?: string;
   walletAddress: string;
   coverImage?: string;
   followersCount: number;
