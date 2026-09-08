@@ -17,6 +17,8 @@ pub mod social_wtf {
         ctx: Context<InitializePlatform>,
         treasury_fee_bps: u64,
     ) -> Result<()> {
+        require!(ctx.accounts.admin.key() != Pubkey::default(), SocialError::InvalidAdminAddress);
+        require!(ctx.accounts.treasury.key() != Pubkey::default(), SocialError::InvalidTreasuryAddress);
         require!(treasury_fee_bps <= MAX_FEE_BPS, SocialError::FeeTooHigh);
 
         let platform_state = &mut ctx.accounts.platform_state;
@@ -36,7 +38,7 @@ pub mod social_wtf {
             fee_bps: platform_state.fee_bps,
         });
 
-        msg!(Social.wtf platform initialized with deterministic PDA on Cookie Chain);
+        msg!("Social.wtf platform initialized with deterministic PDA on Cookie Chain");
         Ok(())
     }
 
@@ -47,7 +49,7 @@ pub mod social_wtf {
         platform_state.is_paused = true;
 
         emit!(PlatformPausedStateChanged { is_paused: true });
-        msg!(Social.wtf platform paused by governance);
+        msg!("Social.wtf platform paused by governance");
         Ok(())
     }
 
@@ -58,7 +60,7 @@ pub mod social_wtf {
         platform_state.is_paused = false;
 
         emit!(PlatformPausedStateChanged { is_paused: false });
-        msg!(Social.wtf platform unpaused by governance);
+        msg!("Social.wtf platform unpaused by governance");
         Ok(())
     }
 
@@ -76,8 +78,9 @@ pub mod social_wtf {
         Ok(())
     }
 
-    /// 5. Update Treasury Address
+    /// 5. Update Treasury Address (SystemAccount Enforced)
     pub fn update_treasury(ctx: Context<UpdateTreasury>) -> Result<()> {
+        require!(ctx.accounts.new_treasury.key() != Pubkey::default(), SocialError::InvalidTreasuryAddress);
         let platform_state = &mut ctx.accounts.platform_state;
         let old_treasury = platform_state.treasury;
         let new_treasury = ctx.accounts.new_treasury.key();
@@ -173,11 +176,27 @@ pub mod social_wtf {
         Ok(())
     }
 
-    /// 10. Direct Creator Tip with Invariant Fee Split
+    /// 10. Close On-Chain Product & Reclaim Rent Lamports (Creator Only)
+    pub fn close_product(ctx: Context<CloseProduct>) -> Result<()> {
+        let product = &ctx.accounts.product;
+        emit!(ProductClosed {
+            creator: ctx.accounts.creator.key(),
+            product_id: product.product_id.clone(),
+        });
+        Ok(())
+    }
+
+    /// 11. Direct Creator Tip with Invariant Fee Split & Anti-Wash Enforcement
     pub fn tip_creator(ctx: Context<TipCreator>, amount_lamports: u64) -> Result<()> {
         let platform_state = &ctx.accounts.platform_state;
         require!(!platform_state.is_paused, SocialError::PlatformPaused);
         require!(amount_lamports > 0, SocialError::InvalidAmount);
+
+        // Anti-Wash Trading: Disallow self-tipping metric manipulation
+        require!(
+            ctx.accounts.tipper.key() != ctx.accounts.creator.key(),
+            SocialError::SelfTippingNotAllowed
+        );
 
         // Checked arithmetic for fee split using state.fee_bps as single source of truth
         let treasury_fee = amount_lamports
@@ -196,33 +215,7 @@ pub mod social_wtf {
             SocialError::FeeInvariantViolated
         );
 
-        // Transfer 95% proceeds to creator
-        system_program::transfer(
-            CpiContext::new(
-                ctx.accounts.system_program.to_account_info(),
-                system_program::Transfer {
-                    from: ctx.accounts.tipper.to_account_info(),
-                    to: ctx.accounts.creator.to_account_info(),
-                },
-            ),
-            creator_proceeds,
-        )?;
-
-        // Transfer fee to Treasury (if fee > 0)
-        if treasury_fee > 0 {
-            system_program::transfer(
-                CpiContext::new(
-                    ctx.accounts.system_program.to_account_info(),
-                    system_program::Transfer {
-                        from: ctx.accounts.tipper.to_account_info(),
-                        to: ctx.accounts.treasury.to_account_info(),
-                    },
-                ),
-                treasury_fee,
-            )?;
-        }
-
-        // Update platform state statistics safely
+        // CHECKS-EFFECTS-INTERACTIONS: Mutate internal platform state before external CPI
         let state = &mut ctx.accounts.platform_state;
         state.total_volume_lamports = state
             .total_volume_lamports
@@ -245,10 +238,36 @@ pub mod social_wtf {
             treasury_fee,
         });
 
+        // INTERACTIONS: Transfer 95% proceeds to creator SystemAccount
+        system_program::transfer(
+            CpiContext::new(
+                ctx.accounts.system_program.to_account_info(),
+                system_program::Transfer {
+                    from: ctx.accounts.tipper.to_account_info(),
+                    to: ctx.accounts.creator.to_account_info(),
+                },
+            ),
+            creator_proceeds,
+        )?;
+
+        // Transfer fee to Treasury SystemAccount (if fee > 0)
+        if treasury_fee > 0 {
+            system_program::transfer(
+                CpiContext::new(
+                    ctx.accounts.system_program.to_account_info(),
+                    system_program::Transfer {
+                        from: ctx.accounts.tipper.to_account_info(),
+                        to: ctx.accounts.treasury.to_account_info(),
+                    },
+                ),
+                treasury_fee,
+            )?;
+        }
+
         Ok(())
     }
 
-    /// 11. Purchase Digital Product — Never trust client-supplied price!
+    /// 12. Purchase Digital Product — Never trust client-supplied price!
     pub fn purchase_product(ctx: Context<PurchaseProduct>) -> Result<()> {
         let platform_state = &ctx.accounts.platform_state;
         require!(!platform_state.is_paused, SocialError::PlatformPaused);
@@ -275,33 +294,7 @@ pub mod social_wtf {
             SocialError::FeeInvariantViolated
         );
 
-        // 1. Transfer to Creator
-        system_program::transfer(
-            CpiContext::new(
-                ctx.accounts.system_program.to_account_info(),
-                system_program::Transfer {
-                    from: ctx.accounts.buyer.to_account_info(),
-                    to: ctx.accounts.creator.to_account_info(),
-                },
-            ),
-            creator_proceeds,
-        )?;
-
-        // 2. Transfer fee to Treasury
-        if treasury_fee > 0 {
-            system_program::transfer(
-                CpiContext::new(
-                    ctx.accounts.system_program.to_account_info(),
-                    system_program::Transfer {
-                        from: ctx.accounts.buyer.to_account_info(),
-                        to: ctx.accounts.treasury.to_account_info(),
-                    },
-                ),
-                treasury_fee,
-            )?;
-        }
-
-        // 3. Initialize unique purchase receipt PDA
+        // CHECKS-EFFECTS-INTERACTIONS: Mutate receipt, product counter, and platform state before CPI
         let receipt = &mut ctx.accounts.purchase_receipt;
         receipt.buyer = ctx.accounts.buyer.key();
         receipt.product = product.key();
@@ -311,7 +304,6 @@ pub mod social_wtf {
         receipt.purchase_nonce = product.total_sales;
         receipt.bump = ctx.bumps.purchase_receipt;
 
-        // 4. Update sales counters
         let product_mut = &mut ctx.accounts.product;
         product_mut.total_sales = product_mut
             .total_sales
@@ -341,6 +333,32 @@ pub mod social_wtf {
             nonce: receipt.purchase_nonce,
         });
 
+        // INTERACTIONS: 1. Transfer to Creator SystemAccount
+        system_program::transfer(
+            CpiContext::new(
+                ctx.accounts.system_program.to_account_info(),
+                system_program::Transfer {
+                    from: ctx.accounts.buyer.to_account_info(),
+                    to: ctx.accounts.creator.to_account_info(),
+                },
+            ),
+            creator_proceeds,
+        )?;
+
+        // INTERACTIONS: 2. Transfer fee to Treasury SystemAccount
+        if treasury_fee > 0 {
+            system_program::transfer(
+                CpiContext::new(
+                    ctx.accounts.system_program.to_account_info(),
+                    system_program::Transfer {
+                        from: ctx.accounts.buyer.to_account_info(),
+                        to: ctx.accounts.treasury.to_account_info(),
+                    },
+                ),
+                treasury_fee,
+            )?;
+        }
+
         Ok(())
     }
 }
@@ -355,14 +373,14 @@ pub struct InitializePlatform<'info> {
         init,
         payer = admin,
         space = 8 + 32 + (1 + 32) + 32 + 8 + 1 + 8 + 8 + 8 + 1,
-        seeds = [bplatform],
+        seeds = [b"platform"],
         bump
     )]
     pub platform_state: Account<'info, PlatformState>,
     #[account(mut)]
     pub admin: Signer<'info>,
-    /// CHECK: Treasury account receiving automated platform fees
-    pub treasury: AccountInfo<'info>,
+    /// Validated SystemAccount receiving automated platform protocol fees
+    pub treasury: SystemAccount<'info>,
     pub system_program: Program<'info, System>,
 }
 
@@ -370,7 +388,7 @@ pub struct InitializePlatform<'info> {
 pub struct AdminOperation<'info> {
     #[account(
         mut,
-        seeds = [bplatform],
+        seeds = [b"platform"],
         bump = platform_state.bump,
         has_one = admin @ SocialError::UnauthorizedAdmin
     )]
@@ -382,21 +400,21 @@ pub struct AdminOperation<'info> {
 pub struct UpdateTreasury<'info> {
     #[account(
         mut,
-        seeds = [bplatform],
+        seeds = [b"platform"],
         bump = platform_state.bump,
         has_one = admin @ SocialError::UnauthorizedAdmin
     )]
     pub platform_state: Account<'info, PlatformState>,
     pub admin: Signer<'info>,
-    /// CHECK: Validated new treasury destination
-    pub new_treasury: AccountInfo<'info>,
+    /// Validated SystemAccount destination for protocol treasury
+    pub new_treasury: SystemAccount<'info>,
 }
 
 #[derive(Accounts)]
 pub struct AcceptAdmin<'info> {
     #[account(
         mut,
-        seeds = [bplatform],
+        seeds = [b"platform"],
         bump = platform_state.bump,
         constraint = platform_state.pending_admin == Some(pending_admin.key()) @ SocialError::UnauthorizedPendingAdmin
     )]
@@ -411,7 +429,7 @@ pub struct CreateProduct<'info> {
         init,
         payer = creator,
         space = 8 + 32 + (4 + MAX_PRODUCT_ID_LEN) + 8 + 1 + (4 + MAX_METADATA_URI_LEN) + 8 + 1,
-        seeds = [bproduct, creator.key().as_ref(), product_id.as_bytes()],
+        seeds = [b"product", creator.key().as_ref(), product_id.as_bytes()],
         bump
     )]
     pub product: Account<'info, Product>,
@@ -424,7 +442,7 @@ pub struct CreateProduct<'info> {
 pub struct UpdateProduct<'info> {
     #[account(
         mut,
-        seeds = [bproduct, creator.key().as_ref(), product.product_id.as_bytes()],
+        seeds = [b"product", creator.key().as_ref(), product.product_id.as_bytes()],
         bump = product.bump,
         has_one = creator @ SocialError::UnauthorizedCreator
     )]
@@ -433,22 +451,36 @@ pub struct UpdateProduct<'info> {
 }
 
 #[derive(Accounts)]
+pub struct CloseProduct<'info> {
+    #[account(
+        mut,
+        seeds = [b"product", creator.key().as_ref(), product.product_id.as_bytes()],
+        bump = product.bump,
+        has_one = creator @ SocialError::UnauthorizedCreator,
+        close = creator
+    )]
+    pub product: Account<'info, Product>,
+    #[account(mut)]
+    pub creator: Signer<'info>,
+}
+
+#[derive(Accounts)]
 pub struct TipCreator<'info> {
     #[account(
         mut,
-        seeds = [bplatform],
+        seeds = [b"platform"],
         bump = platform_state.bump,
         has_one = treasury @ SocialError::InvalidTreasuryAccount
     )]
     pub platform_state: Account<'info, PlatformState>,
     #[account(mut)]
     pub tipper: Signer<'info>,
-    /// CHECK: Validated creator receiving 95% proceeds
+    /// Validated SystemAccount receiving creator tip proceeds
     #[account(mut)]
-    pub creator: AccountInfo<'info>,
-    /// CHECK: Validated platform treasury from platform_state
+    pub creator: SystemAccount<'info>,
+    /// Validated platform treasury SystemAccount matching platform_state.treasury
     #[account(mut)]
-    pub treasury: AccountInfo<'info>,
+    pub treasury: SystemAccount<'info>,
     pub system_program: Program<'info, System>,
 }
 
@@ -456,7 +488,7 @@ pub struct TipCreator<'info> {
 pub struct PurchaseProduct<'info> {
     #[account(
         mut,
-        seeds = [bplatform],
+        seeds = [b"platform"],
         bump = platform_state.bump,
         has_one = treasury @ SocialError::InvalidTreasuryAccount
     )]
@@ -465,22 +497,22 @@ pub struct PurchaseProduct<'info> {
     pub buyer: Signer<'info>,
     #[account(
         mut,
-        seeds = [bproduct, creator.key().as_ref(), product.product_id.as_bytes()],
+        seeds = [b"product", creator.key().as_ref(), product.product_id.as_bytes()],
         bump = product.bump,
         has_one = creator @ SocialError::UnauthorizedCreator
     )]
     pub product: Account<'info, Product>,
-    /// CHECK: Creator receiving proceeds matching product.creator
+    /// Validated creator SystemAccount receiving product sales proceeds
     #[account(mut)]
-    pub creator: AccountInfo<'info>,
-    /// CHECK: Platform Treasury matching platform_state.treasury
+    pub creator: SystemAccount<'info>,
+    /// Validated platform treasury SystemAccount matching platform_state.treasury
     #[account(mut)]
-    pub treasury: AccountInfo<'info>,
+    pub treasury: SystemAccount<'info>,
     #[account(
         init,
         payer = buyer,
         space = 8 + 32 + 32 + 8 + 8 + 8 + 8 + 1,
-        seeds = [breceipt, buyer.key().as_ref(), product.key().as_ref(), &product.total_sales.to_le_bytes()],
+        seeds = [b"receipt", buyer.key().as_ref(), product.key().as_ref(), &product.total_sales.to_le_bytes()],
         bump
     )]
     pub purchase_receipt: Account<'info, PurchaseReceipt>,
@@ -583,6 +615,12 @@ pub struct ProductUpdated {
 }
 
 #[event]
+pub struct ProductClosed {
+    pub creator: Pubkey,
+    pub product_id: String,
+}
+
+#[event]
 pub struct CreatorTipped {
     pub from: Pubkey,
     pub creator: Pubkey,
@@ -607,36 +645,40 @@ pub struct DigitalProductPurchased {
 
 #[error_code]
 pub enum SocialError {
-    #[msg(Invalid transaction amount)]
+    #[msg("Invalid transaction amount")]
     InvalidAmount,
-    #[msg(Calculation overflow)]
+    #[msg("Calculation overflow")]
     Overflow,
-    #[msg(Protocol fee exceeds maximum allowed limit (25%))]
+    #[msg("Protocol fee exceeds maximum allowed limit (25%)")]
     FeeTooHigh,
-    #[msg(Platform is currently paused for maintenance or emergency)]
+    #[msg("Platform is currently paused for maintenance or emergency")]
     PlatformPaused,
-    #[msg(Platform is already paused)]
+    #[msg("Platform is already paused")]
     AlreadyPaused,
-    #[msg(Platform is not paused)]
+    #[msg("Platform is not paused")]
     NotPaused,
-    #[msg(Unauthorized: Signer does not match platform admin)]
+    #[msg("Unauthorized: Signer does not match platform admin")]
     UnauthorizedAdmin,
-    #[msg(Unauthorized: Signer does not match pending admin)]
+    #[msg("Unauthorized: Signer does not match pending admin")]
     UnauthorizedPendingAdmin,
-    #[msg(Unauthorized: Signer is not the authorized creator of this product)]
+    #[msg("Unauthorized: Signer is not the authorized creator of this product")]
     UnauthorizedCreator,
-    #[msg(Invalid admin address provided)]
+    #[msg("Invalid admin address provided")]
     InvalidAdminAddress,
-    #[msg(Supplied treasury account does not match configured platform treasury)]
+    #[msg("Invalid treasury address provided")]
+    InvalidTreasuryAddress,
+    #[msg("Supplied treasury account does not match configured platform treasury")]
     InvalidTreasuryAccount,
-    #[msg(Product is inactive or delisted)]
+    #[msg("Product is inactive or delisted")]
     ProductInactive,
-    #[msg(Product ID must not be empty)]
+    #[msg("Product ID must not be empty")]
     InvalidProductId,
-    #[msg(Product ID exceeds maximum allowed length)]
+    #[msg("Product ID exceeds maximum allowed length")]
     ProductIdTooLong,
-    #[msg(Metadata URI exceeds maximum allowed length)]
+    #[msg("Metadata URI exceeds maximum allowed length")]
     MetadataUriTooLong,
-    #[msg(Critical invariant violated: creator proceeds + treasury fee does not equal total payment)]
+    #[msg("Critical invariant violated: creator proceeds + treasury fee does not equal total payment")]
     FeeInvariantViolated,
+    #[msg("Self-tipping is disallowed to prevent wash-trading metric inflation")]
+    SelfTippingNotAllowed,
 }

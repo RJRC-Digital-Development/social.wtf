@@ -11,6 +11,7 @@ const testFiles = [
   'wallet-auth.test.mjs',
   'rate-limiter.test.mjs',
   'session.test.mjs',
+  'contract-invariants.test.mjs',
 ];
 
 let totalPassed = 0;
