@@ -7,11 +7,12 @@ import React, {
   useEffect,
   useCallback,
 } from 'react';
-import { PublicKey, Connection, LAMPORTS_PER_SOL } from '@solana/web3.js';
+import { PublicKey, LAMPORTS_PER_SOL, Keypair } from '@solana/web3.js';
+import { ed25519 } from '@noble/curves/ed25519';
+import bs58 from 'bs58';
 import {
   COOKIE_CHAIN_CONFIG,
   getCookieConnection,
-  formatAddress,
 } from '../solana/cookieChain';
 
 export interface WalletContextType {
@@ -22,18 +23,25 @@ export interface WalletContextType {
   cookBalance: number;
   walletType: 'nightly' | 'solana' | 'demo' | null;
   isNightlyInstalled: boolean;
+  sessionToken: string | null;
+  isAuthenticated: boolean;
+  authenticating: boolean;
   connect: (type?: 'nightly' | 'solana' | 'demo') => Promise<void>;
-  disconnect: () => void;
+  disconnect: () => Promise<void>;
   refreshBalance: () => Promise<void>;
   signAndSendTransaction: (transaction: any) => Promise<string>;
+  authenticateWallet: () => Promise<boolean>;
+  logoutSession: () => Promise<void>;
   networkName: string;
 }
 
 const WalletContext = createContext<WalletContextType | undefined>(undefined);
 
-// Persistent demo wallet key for smooth testing if user hasn't installed Nightly yet
+// Storage keys
 const DEMO_WALLET_STORAGE_KEY = 'social_wtf_demo_wallet';
+const DEMO_WALLET_SECRET_KEY = 'social_wtf_demo_secret';
 const WALLET_CONNECTED_KEY = 'social_wtf_wallet_connected';
+const SESSION_TOKEN_STORAGE_KEY = 'social_wtf_session_token';
 
 export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
@@ -47,6 +55,9 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
     null
   );
   const [isNightlyInstalled, setIsNightlyInstalled] = useState(false);
+  const [sessionToken, setSessionToken] = useState<string | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [authenticating, setAuthenticating] = useState(false);
 
   // Check if Nightly extension is available
   useEffect(() => {
@@ -61,6 +72,38 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   }, []);
 
+  // Introspect active session on mount
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const introspectSession = async () => {
+      try {
+        const storedToken = localStorage.getItem(SESSION_TOKEN_STORAGE_KEY);
+        const headers: Record<string, string> = {};
+        if (storedToken) {
+          headers['Authorization'] = `Bearer ${storedToken}`;
+        }
+        const res = await fetch('/api/auth/session', {
+          method: 'GET',
+          headers,
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.authenticated) {
+            setIsAuthenticated(true);
+            if (storedToken) setSessionToken(storedToken);
+          }
+        } else {
+          localStorage.removeItem(SESSION_TOKEN_STORAGE_KEY);
+          setIsAuthenticated(false);
+          setSessionToken(null);
+        }
+      } catch {
+        // Silently ignore network errors during background introspection
+      }
+    };
+    introspectSession();
+  }, []);
+
   // Fetch balance from Cookie Chain RPC
   const refreshBalance = useCallback(async () => {
     if (!publicKey) return;
@@ -71,7 +114,6 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
       setCookBalance(balanceLamports / LAMPORTS_PER_SOL);
     } catch (err) {
       console.warn('Could not fetch Cookie Chain balance, using fallback:', err);
-      // If RPC is unreachable or account is empty, maintain state or mock test balance for demo
       if (walletType === 'demo') {
         const stored = localStorage.getItem('social_wtf_demo_balance');
         setCookBalance(stored ? parseFloat(stored) : 42.5);
@@ -97,7 +139,6 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
       const solana = (window as any)?.solana;
 
       if (type === 'nightly' && nightly) {
-        // Connect to Nightly Wallet on SVM
         await nightly.connect();
         const pubkeyStr = nightly.publicKey?.toString();
         if (pubkeyStr) {
@@ -110,7 +151,6 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
           return;
         }
       } else if (type === 'solana' && solana) {
-        // Generic Solana wallet
         const resp = await solana.connect();
         const pubkeyStr = resp.publicKey?.toString() || solana.publicKey?.toString();
         if (pubkeyStr) {
@@ -124,17 +164,22 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
         }
       }
 
-      // Demo/Instant Web3 Cookie Chain Wallet (allows frictionless testing & review)
+      // Demo/Instant Web3 Cookie Chain Wallet (deterministic Keypair)
       let storedDemo = localStorage.getItem(DEMO_WALLET_STORAGE_KEY);
-      if (!storedDemo) {
-        // Generate pseudo-random valid Solana address
-        storedDemo = 'CookDegen7xG4kQYv8rT3mP9wLs2eKnBh6ZaF1cD';
+      let storedSecret = localStorage.getItem(DEMO_WALLET_SECRET_KEY);
+
+      if (!storedDemo || !storedSecret) {
+        const kp = Keypair.generate();
+        storedDemo = kp.publicKey.toBase58();
+        storedSecret = JSON.stringify(Array.from(kp.secretKey));
         localStorage.setItem(DEMO_WALLET_STORAGE_KEY, storedDemo);
+        localStorage.setItem(DEMO_WALLET_SECRET_KEY, storedSecret);
         localStorage.setItem('social_wtf_demo_balance', '88.50');
       }
 
+      const pk = new PublicKey(storedDemo);
       setWalletAddress(storedDemo);
-      setPublicKey(new PublicKey('CookCr8tor1111111111111111111111111111111111'));
+      setPublicKey(pk);
       setWalletType('demo');
       setCookBalance(parseFloat(localStorage.getItem('social_wtf_demo_balance') || '88.50'));
       setConnected(true);
@@ -147,14 +192,114 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  const disconnect = () => {
+  // Authenticate session via cryptographic challenge (SIWS)
+  const authenticateWallet = useCallback(async (): Promise<boolean> => {
+    if (!walletAddress || !publicKey) {
+      throw new Error('Wallet must be connected before authenticating session');
+    }
+
+    setAuthenticating(true);
+    try {
+      // 1. Request challenge nonce
+      const nonceRes = await fetch(
+        `/api/auth/nonce?walletAddress=${encodeURIComponent(walletAddress)}`
+      );
+      if (!nonceRes.ok) {
+        throw new Error('Failed to obtain challenge nonce from authentication server');
+      }
+      const challengeData = await nonceRes.json();
+      const challengeMessage: string = challengeData.message;
+      const nonce: string = challengeData.nonce;
+
+      const messageBytes = new TextEncoder().encode(challengeMessage);
+      let signatureBase58 = '';
+
+      // 2. Sign challenge message using wallet
+      if (walletType === 'nightly') {
+        const nightly = (window as any)?.nightly?.solana || (window as any)?.nightly;
+        if (!nightly?.signMessage) {
+          throw new Error('Nightly wallet does not support message signing');
+        }
+        const signed = await nightly.signMessage(messageBytes);
+        const sigBytes: Uint8Array = signed.signature || signed;
+        signatureBase58 = bs58.encode(sigBytes);
+      } else if (walletType === 'solana') {
+        const solana = (window as any)?.solana;
+        if (!solana?.signMessage) {
+          throw new Error('Solana wallet does not support message signing');
+        }
+        const signed = await solana.signMessage(messageBytes, 'utf8');
+        const sigBytes: Uint8Array = signed.signature || signed;
+        signatureBase58 = bs58.encode(sigBytes);
+      } else if (walletType === 'demo') {
+        // Sign using local demo keypair secret
+        const storedSecret = localStorage.getItem(DEMO_WALLET_SECRET_KEY);
+        if (!storedSecret) {
+          throw new Error('Demo wallet secret key not found in storage');
+        }
+        const secretBytes = new Uint8Array(JSON.parse(storedSecret));
+        const sigBytes = ed25519.sign(messageBytes, secretBytes.slice(0, 32));
+        signatureBase58 = bs58.encode(sigBytes);
+      } else {
+        throw new Error('Unsupported wallet provider for SIWS authentication');
+      }
+
+      // 3. Post to /api/auth/verify to obtain signed session token & HttpOnly cookie
+      const verifyRes = await fetch('/api/auth/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          walletAddress,
+          nonce,
+          signatureBase58,
+        }),
+      });
+
+      if (!verifyRes.ok) {
+        const errData = await verifyRes.json().catch(() => ({}));
+        throw new Error(errData.error || 'Cryptographic verification failed');
+      }
+
+      const verifyData = await verifyRes.json();
+      if (verifyData.verified && verifyData.sessionToken) {
+        setSessionToken(verifyData.sessionToken);
+        setIsAuthenticated(true);
+        localStorage.setItem(SESSION_TOKEN_STORAGE_KEY, verifyData.sessionToken);
+        return true;
+      }
+
+      return false;
+    } finally {
+      setAuthenticating(false);
+    }
+  }, [walletAddress, publicKey, walletType]);
+
+  // Revoke session (logout)
+  const logoutSession = useCallback(async () => {
+    try {
+      const storedToken = sessionToken || localStorage.getItem(SESSION_TOKEN_STORAGE_KEY);
+      await fetch('/api/auth/session', {
+        method: 'DELETE',
+        headers: storedToken ? { Authorization: `Bearer ${storedToken}` } : {},
+      });
+    } catch (err) {
+      console.warn('Error during session logout:', err);
+    } finally {
+      setSessionToken(null);
+      setIsAuthenticated(false);
+      localStorage.removeItem(SESSION_TOKEN_STORAGE_KEY);
+    }
+  }, [sessionToken]);
+
+  const disconnect = useCallback(async () => {
+    await logoutSession();
     setConnected(false);
     setWalletAddress(null);
     setPublicKey(null);
     setCookBalance(0);
     setWalletType(null);
     localStorage.removeItem(WALLET_CONNECTED_KEY);
-  };
+  }, [logoutSession]);
 
   // Sign and send transaction to Cookie Chain RPC
   const signAndSendTransaction = async (tx: any): Promise<string> => {
@@ -211,10 +356,15 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
         cookBalance,
         walletType,
         isNightlyInstalled,
+        sessionToken,
+        isAuthenticated,
+        authenticating,
         connect,
         disconnect,
         refreshBalance,
         signAndSendTransaction,
+        authenticateWallet,
+        logoutSession,
         networkName: COOKIE_CHAIN_CONFIG.chainName,
       }}
     >

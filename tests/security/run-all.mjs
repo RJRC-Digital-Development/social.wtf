@@ -10,6 +10,7 @@ const testFiles = [
   'sanitize.test.mjs',
   'wallet-auth.test.mjs',
   'rate-limiter.test.mjs',
+  'session.test.mjs',
 ];
 
 let totalPassed = 0;

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { verifyWalletChallenge } from '@/lib/security/walletAuth';
 import { globalRateLimiter } from '@/lib/security/rateLimiter';
-import crypto from 'crypto';
+import { createSession, createSessionCookie } from '@/lib/security/session';
 
 export async function POST(req: Request) {
   try {
@@ -39,16 +39,21 @@ export async function POST(req: Request) {
       );
     }
 
-    // Generate authenticated session token
-    const sessionToken = crypto.randomBytes(32).toString('hex');
+    // Generate authenticated, cryptographically signed session token bound to wallet
+    const { token, payload } = createSession(walletAddress);
+    const cookieHeader = createSessionCookie(token, 86400); // 24-hour cookie
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       verified: true,
       walletAddress,
-      sessionToken,
-      authenticatedAt: new Date().toISOString(),
+      sessionToken: token,
+      expiresAt: payload.expiresAt,
+      authenticatedAt: new Date(payload.issuedAt).toISOString(),
     });
-  } catch (err: any) {
+
+    response.headers.set('Set-Cookie', cookieHeader);
+    return response;
+  } catch {
     return NextResponse.json(
       { error: 'Internal error processing signature verification' },
       { status: 500 }

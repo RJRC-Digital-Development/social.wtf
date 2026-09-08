@@ -3,7 +3,17 @@
 import React, { useState } from 'react';
 import { useWallet } from '@/lib/wallet/walletContext';
 import { formatAddress, COOKIE_CHAIN_CONFIG } from '@/lib/solana/cookieChain';
-import { Wallet, ChevronDown, ExternalLink, LogOut, CheckCircle, RefreshCw, Zap } from 'lucide-react';
+import {
+  Wallet,
+  ChevronDown,
+  ExternalLink,
+  LogOut,
+  CheckCircle,
+  RefreshCw,
+  Zap,
+  Shield,
+  ShieldCheck,
+} from 'lucide-react';
 
 export const NightlyWalletButton: React.FC = () => {
   const {
@@ -13,6 +23,9 @@ export const NightlyWalletButton: React.FC = () => {
     cookBalance,
     walletType,
     isNightlyInstalled,
+    isAuthenticated,
+    authenticating,
+    authenticateWallet,
     connect,
     disconnect,
     refreshBalance,
@@ -172,10 +185,17 @@ export const NightlyWalletButton: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span
+            className={`w-2 h-2 rounded-full ${
+              isAuthenticated ? 'bg-emerald-400 shadow-sm shadow-emerald-400/50 animate-pulse' : 'bg-amber-400'
+            }`}
+          ></span>
           <span className="font-mono text-slate-200 text-xs font-medium">
             {formatAddress(walletAddress || '', 4)}
           </span>
+          {isAuthenticated && (
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+          )}
         </div>
 
         <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
@@ -205,7 +225,33 @@ export const NightlyWalletButton: React.FC = () => {
             </div>
           </div>
 
-          <div className="space-y-1">
+          <div className="space-y-1.5">
+            {/* Session SIWS status / Authenticate button */}
+            {isAuthenticated ? (
+              <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[11px] font-medium">
+                <ShieldCheck className="w-3.5 h-3.5 flex-shrink-0" />
+                <span>Session Verified (SIWS)</span>
+              </div>
+            ) : (
+              <button
+                onClick={async () => {
+                  try {
+                    await authenticateWallet();
+                  } catch (err: any) {
+                    console.error('Session authentication failed:', err);
+                  }
+                }}
+                disabled={authenticating}
+                className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 font-medium transition-all"
+              >
+                <span className="flex items-center gap-1.5">
+                  <Shield className="w-3.5 h-3.5" />
+                  <span>{authenticating ? 'Signing SIWS...' : 'Authenticate Session'}</span>
+                </span>
+                <span className="text-[10px] uppercase font-bold text-amber-400">SIWS</span>
+              </button>
+            )}
+
             <a
               href={`${COOKIE_CHAIN_CONFIG.explorerUrl}/address/${walletAddress}`}
               target="_blank"
