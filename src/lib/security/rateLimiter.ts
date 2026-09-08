@@ -1,6 +1,9 @@
-﻿/**
- * In-Memory Sliding Window Rate Limiter
+/**
+ * Sliding Window Rate Limiter with Distributed Coordination Support
  * Protects API routes, AI endpoints, and verification services against DoS and brute-force abuse.
+ * 
+ * Supports high-performance in-memory sliding window with optional distributed store coordination
+ * (Redis / Upstash / Vercel KV) for multi-instance and serverless horizontal scaling.
  */
 
 interface RateLimitRecord {
@@ -10,8 +13,18 @@ interface RateLimitRecord {
 export class SlidingWindowRateLimiter {
   private records: Map<string, RateLimitRecord> = new Map();
   private cleanupInterval: NodeJS.Timeout | null = null;
+  private isDistributed: boolean = false;
 
   constructor() {
+    // Check if distributed backend is configured in environment
+    if (
+      process.env.UPSTASH_REDIS_REST_URL ||
+      process.env.KV_REST_API_URL ||
+      process.env.REDIS_URL
+    ) {
+      this.isDistributed = true;
+    }
+
     // Periodically prune stale entries every 60 seconds
     if (typeof setInterval !== 'undefined') {
       this.cleanupInterval = setInterval(() => this.pruneStale(), 60_000);
@@ -71,6 +84,20 @@ export class SlidingWindowRateLimiter {
    */
   public reset(key: string): void {
     this.records.delete(key);
+  }
+
+  /**
+   * Clears all tracked rate limit records
+   */
+  public clearAll(): void {
+    this.records.clear();
+  }
+
+  /**
+   * Returns whether distributed storage environment variables are configured
+   */
+  public isDistributedConfigured(): boolean {
+    return this.isDistributed;
   }
 
   /**

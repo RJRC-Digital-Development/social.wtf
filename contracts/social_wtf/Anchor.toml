@@ -3,10 +3,10 @@ seeds = false
 skip-lint = false
 
 [programs.localnet]
-social_wtf = "CookSocial111111111111111111111111111111111"
+social_wtf = "9iapGcxDbDtZ2bWtwM2kLYNW67XH2qzPxLxXfSUbQQZq"
 
 [programs.cookiechain]
-social_wtf = "CookSocial111111111111111111111111111111111"
+social_wtf = "9iapGcxDbDtZ2bWtwM2kLYNW67XH2qzPxLxXfSUbQQZq"
 
 [registry]
 url = "https://api.apr.dev"

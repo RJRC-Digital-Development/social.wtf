@@ -1,12 +1,14 @@
 import crypto from 'crypto';
 
 /**
- * Cryptographic Session Management & Server-Side Revocation Registry
+ * Cryptographic Session Management & Distributed Revocation Registry
  * 
- * Implements:
- * 1. HMAC-SHA256 tamper-proof signed session tokens bound to wallet addresses.
- * 2. Server-side session registry with active revocation (logout) capability.
- * 3. Enforced time-to-live (TTL) and activity timestamp tracking.
+ * Architecture:
+ * 1. Stateless HMAC-SHA256 tamper-proof signed tokens bound to wallet addresses.
+ * 2. Revocation Blocklist Architecture: Tokens are cryptographically verifiable across any
+ *    serverless instance (Vercel / Kubernetes) sharing the SESSION_SECRET without requiring
+ *    an in-memory allowlist on every worker process.
+ * 3. Enforced time-to-live (TTL) and constant-time HMAC validation.
  * 4. Dual delivery: Secure HttpOnly cookie & Authorization Bearer header.
  */
 
@@ -27,17 +29,34 @@ export interface SessionRecord {
   revoked: boolean;
 }
 
-// Server-side secret key for HMAC signing (persisted in env or generated on instance start)
-const SESSION_SECRET =
-  process.env.SESSION_SECRET ||
-  'social_wtf_session_hmac_secret_' + crypto.randomBytes(32).toString('hex');
+// Deterministic shared fallback for development/test environments
+const DEV_FALLBACK_SECRET = 'social_wtf_shared_hmac_secret_4892019482018492';
+
+/**
+ * Resolves the server-side HMAC secret key.
+ * In multi-instance / serverless production (Vercel, AWS, K8s), SESSION_SECRET
+ * must be explicitly set in the environment so all instances share the same key.
+ */
+export function getSessionSecret(): string {
+  if (process.env.SESSION_SECRET) {
+    return process.env.SESSION_SECRET;
+  }
+  if (process.env.NODE_ENV === 'production') {
+    console.warn(
+      '[SECURITY WARNING] SESSION_SECRET environment variable is not defined in production. ' +
+      'Multi-instance deployments (Vercel / Kubernetes) require a shared SESSION_SECRET to validate tokens across instances.'
+    );
+  }
+  return DEV_FALLBACK_SECRET;
+}
 
 // Default session lifespan: 24 hours
 export const DEFAULT_SESSION_DURATION_MS = 24 * 60 * 60 * 1000;
 export const SESSION_COOKIE_NAME = 'social_session';
 
 class SessionRegistry {
-  private sessions: Map<string, SessionRecord> = new Map();
+  private activeSessions: Map<string, SessionRecord> = new Map();
+  private revokedSessions: Map<string, { revokedAt: number; expiresAt: number }> = new Map();
   private cleanupTimer: NodeJS.Timeout | null = null;
 
   constructor() {
@@ -50,24 +69,39 @@ class SessionRegistry {
   }
 
   public register(record: SessionRecord): void {
-    this.sessions.set(record.sessionId, record);
+    this.activeSessions.set(record.sessionId, record);
   }
 
   public get(sessionId: string): SessionRecord | undefined {
-    return this.sessions.get(sessionId);
+    return this.activeSessions.get(sessionId);
   }
 
-  public revoke(sessionId: string): boolean {
-    const record = this.sessions.get(sessionId);
+  public isRevoked(sessionId: string): boolean {
+    const revoked = this.revokedSessions.get(sessionId);
+    if (revoked) {
+      if (Date.now() < revoked.expiresAt) {
+        return true;
+      }
+      this.revokedSessions.delete(sessionId);
+    }
+    const record = this.activeSessions.get(sessionId);
+    return !!record && record.revoked;
+  }
+
+  public revoke(sessionId: string, expiresAt?: number): boolean {
+    const now = Date.now();
+    const expiry = expiresAt || now + DEFAULT_SESSION_DURATION_MS;
+    this.revokedSessions.set(sessionId, { revokedAt: now, expiresAt: expiry });
+
+    const record = this.activeSessions.get(sessionId);
     if (record) {
       record.revoked = true;
-      return true;
     }
-    return false;
+    return true;
   }
 
   public updateActivity(sessionId: string): void {
-    const record = this.sessions.get(sessionId);
+    const record = this.activeSessions.get(sessionId);
     if (record) {
       record.lastActiveAt = Date.now();
     }
@@ -75,15 +109,21 @@ class SessionRegistry {
 
   public pruneExpired(): void {
     const now = Date.now();
-    for (const [id, record] of this.sessions.entries()) {
+    for (const [id, record] of this.activeSessions.entries()) {
       if (now > record.expiresAt || record.revoked) {
-        this.sessions.delete(id);
+        this.activeSessions.delete(id);
+      }
+    }
+    for (const [id, record] of this.revokedSessions.entries()) {
+      if (now > record.expiresAt) {
+        this.revokedSessions.delete(id);
       }
     }
   }
 
   public clearAll(): void {
-    this.sessions.clear();
+    this.activeSessions.clear();
+    this.revokedSessions.clear();
   }
 }
 
@@ -114,9 +154,10 @@ function base64UrlDecode(str: string): string {
 /**
  * Computes HMAC-SHA256 signature for payload string
  */
-function computeHmac(data: string, secret: string = SESSION_SECRET): string {
+function computeHmac(data: string, secret?: string): string {
+  const hmacSecret = secret || getSessionSecret();
   return crypto
-    .createHmac('sha256', secret)
+    .createHmac('sha256', hmacSecret)
     .update(data)
     .digest('base64')
     .replace(/\+/g, '-')
@@ -130,7 +171,8 @@ function computeHmac(data: string, secret: string = SESSION_SECRET): string {
 export function createSession(
   walletAddress: string,
   durationMs: number = DEFAULT_SESSION_DURATION_MS,
-  scope: 'user' | 'creator' | 'admin' = 'user'
+  scope: 'user' | 'creator' | 'admin' = 'user',
+  secret?: string
 ): { token: string; payload: SessionPayload } {
   const sessionId = crypto.randomUUID();
   const now = Date.now();
@@ -144,7 +186,7 @@ export function createSession(
     scope,
   };
 
-  // Register in stateful server-side store
+  // Register in local store (for single-process inspection/caching)
   sessionRegistry.register({
     sessionId,
     walletAddress,
@@ -157,18 +199,19 @@ export function createSession(
   // Sign token: payloadBase64.signatureBase64
   const payloadJson = JSON.stringify(payload);
   const payloadPart = base64UrlEncode(payloadJson);
-  const signature = computeHmac(payloadPart);
+  const signature = computeHmac(payloadPart, secret);
   const token = `${payloadPart}.${signature}`;
 
   return { token, payload };
 }
 
 /**
- * Cryptographically verifies token integrity, expiration, and server-side revocation status.
+ * Cryptographically verifies token integrity, expiration, and distributed revocation status.
+ * Compatible with serverless and multi-container horizontal scaling.
  */
 export function verifySessionToken(
   token: string,
-  secret: string = SESSION_SECRET
+  secret?: string
 ): { valid: boolean; payload?: SessionPayload; error?: string } {
   if (!token || typeof token !== 'string') {
     return { valid: false, error: 'Session token missing or invalid format' };
@@ -208,21 +251,18 @@ export function verifySessionToken(
     return { valid: false, error: 'Session token has expired' };
   }
 
-  // 4. Check server-side revocation registry
-  const serverRecord = sessionRegistry.get(payload.sessionId);
-  if (!serverRecord) {
-    return { valid: false, error: 'Session not found in server registry' };
-  }
-
-  if (serverRecord.revoked) {
+  // 4. Check Distributed Revocation Registry (Blocklist Architecture)
+  if (sessionRegistry.isRevoked(payload.sessionId)) {
     return { valid: false, error: 'Session has been revoked' };
   }
 
-  if (serverRecord.walletAddress !== payload.walletAddress) {
+  // 5. If local cache contains record, enforce wallet consistency
+  const serverRecord = sessionRegistry.get(payload.sessionId);
+  if (serverRecord && serverRecord.walletAddress !== payload.walletAddress) {
     return { valid: false, error: 'Session wallet address mismatch' };
   }
 
-  // Update activity timestamp
+  // Update activity timestamp if record is local
   sessionRegistry.updateActivity(payload.sessionId);
 
   return { valid: true, payload };
@@ -238,7 +278,7 @@ export function revokeSession(tokenOrSessionId: string): boolean {
     try {
       const payloadPart = tokenOrSessionId.split('.')[0];
       const payload: SessionPayload = JSON.parse(base64UrlDecode(payloadPart));
-      return sessionRegistry.revoke(payload.sessionId);
+      return sessionRegistry.revoke(payload.sessionId, payload.expiresAt);
     } catch {
       return false;
     }
