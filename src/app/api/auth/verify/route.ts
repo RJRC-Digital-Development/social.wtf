@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
 import { verifyWalletChallenge } from '@/lib/security/walletAuth';
 import { globalRateLimiter } from '@/lib/security/rateLimiter';
-import { createSession, createSessionCookie } from '@/lib/security/session';
+import { createSession, verifySessionToken, createSessionCookie } from '@/lib/security/session';
 
 export async function POST(req: Request) {
   try {
-    const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '127.0.0.1';
+    const ip = req.headers.get('x-real-ip')?.trim() || req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '127.0.0.1';
 
     // Rate limit: 10 verification attempts per minute per IP to defend against brute force
     const rateCheck = globalRateLimiter.check(`verify:${ip}`, 10, 60_000);
@@ -40,15 +40,23 @@ export async function POST(req: Request) {
     }
 
     // Generate authenticated, cryptographically signed session token bound to wallet
-    const { token, payload } = createSession(walletAddress);
-    const cookieHeader = createSessionCookie(token, 86400); // 24-hour cookie
+    const token = createSession(walletAddress, 'user');
+    const verification = verifySessionToken(token);
+    if (!verification.valid) {
+      return NextResponse.json(
+        { error: 'Failed to construct valid session' },
+        { status: 500 }
+      );
+    }
+
+    const cookieHeader = createSessionCookie(token, verification.payload.expiresAt);
 
     const response = NextResponse.json({
       verified: true,
       walletAddress,
       sessionToken: token,
-      expiresAt: payload.expiresAt,
-      authenticatedAt: new Date(payload.issuedAt).toISOString(),
+      expiresAt: verification.payload.expiresAt,
+      authenticatedAt: new Date(verification.payload.issuedAt).toISOString(),
     });
 
     response.headers.set('Set-Cookie', cookieHeader);

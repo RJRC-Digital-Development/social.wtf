@@ -7,12 +7,12 @@ const MAX_PAYLOAD_BYTES = 5 * 1024 * 1024; // 5MB limit to prevent memory exhaus
 
 export async function POST(req: Request) {
   try {
-    const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '127.0.0.1';
+    const ip = req.headers.get('x-real-ip')?.trim() || req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '127.0.0.1';
 
     // Verify authenticated session (if present) for authorized quota tier
     const session = validateRequestSession(req);
     const rateLimitKey = session.authenticated
-      ? `shield_scan:${session.walletAddress}`
+      ? `shield_scan:${session.payload.walletAddress}`
       : `shield_scan:guest:${ip}`;
 
     const rateCheck = globalRateLimiter.check(rateLimitKey, 30, 60_000);

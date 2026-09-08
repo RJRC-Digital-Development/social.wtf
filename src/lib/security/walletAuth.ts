@@ -22,6 +22,23 @@ const activeChallenges = new Map<string, AuthChallenge>();
 
 // Nonce validity duration: 5 minutes
 const NONCE_TTL_MS = 5 * 60 * 1000;
+const MAX_ACTIVE_CHALLENGES = 10_000;
+
+export function pruneExpiredChallenges(now = Date.now()): void {
+  for (const [nonce, challenge] of activeChallenges.entries()) {
+    if (challenge.expiresAt <= now) {
+      activeChallenges.delete(nonce);
+    }
+  }
+}
+
+export function getActiveChallengesCount(): number {
+  return activeChallenges.size;
+}
+
+export function clearActiveChallenges(): void {
+  activeChallenges.clear();
+}
 
 /**
  * Generate a secure cryptographic challenge message for a wallet to sign.
@@ -33,8 +50,21 @@ export function generateAuthChallenge(
   // Validate public key format
   new PublicKey(walletAddress);
 
-  const nonce = crypto.randomBytes(24).toString('hex');
   const now = Date.now();
+
+  // Prune expired nonces periodically
+  if (activeChallenges.size > 100) {
+    pruneExpiredChallenges(now);
+  }
+
+  if (activeChallenges.size >= MAX_ACTIVE_CHALLENGES) {
+    pruneExpiredChallenges(now);
+    if (activeChallenges.size >= MAX_ACTIVE_CHALLENGES) {
+      throw new Error('Authentication challenge capacity exceeded. Please retry later.');
+    }
+  }
+
+  const nonce = crypto.randomBytes(24).toString('hex');
   const expiresAt = now + NONCE_TTL_MS;
   const statement = 'Sign this message to authenticate your wallet identity and session on Social.wtf.';
 

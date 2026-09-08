@@ -1,23 +1,13 @@
 import crypto from 'crypto';
 
-/**
- * Cryptographic Session Management & Distributed Revocation Registry
- * 
- * Architecture:
- * 1. Stateless HMAC-SHA256 tamper-proof signed tokens bound to wallet addresses.
- * 2. Revocation Blocklist Architecture: Tokens are cryptographically verifiable across any
- *    serverless instance (Vercel / Kubernetes) sharing the SESSION_SECRET without requiring
- *    an in-memory allowlist on every worker process.
- * 3. Enforced time-to-live (TTL) and constant-time HMAC validation.
- * 4. Dual delivery: Secure HttpOnly cookie & Authorization Bearer header.
- */
+export type SessionScope = 'user' | 'creator' | 'admin';
 
 export interface SessionPayload {
   sessionId: string;
   walletAddress: string;
   issuedAt: number;
   expiresAt: number;
-  scope: 'user' | 'creator' | 'admin';
+  scope: SessionScope;
 }
 
 export interface SessionRecord {
@@ -29,103 +19,160 @@ export interface SessionRecord {
   revoked: boolean;
 }
 
-// Deterministic shared fallback for development/test environments
-const DEV_FALLBACK_SECRET = 'social_wtf_shared_hmac_secret_4892019482018492';
+export const DEFAULT_SESSION_DURATION_MS = 24 * 60 * 60 * 1000;
+const MIN_SECRET_LENGTH = 32;
+const TOKEN_VERSION = 'v1';
 
-/**
- * Resolves the server-side HMAC secret key.
- * In multi-instance / serverless production (Vercel, AWS, K8s), SESSION_SECRET
- * must be explicitly set in the environment so all instances share the same key.
- * 
- * SECURITY: Fails closed in production! Never allows a fallback or committed key
- * in production, preventing forged token generation by malicious actors.
- */
 export function getSessionSecret(): string {
-  const secret = process.env.SESSION_SECRET;
-  if (secret && secret.trim().length >= 32) {
-    return secret.trim();
-  }
-  if (process.env.NODE_ENV === 'production') {
+  const secret = process.env.SESSION_SECRET?.trim();
+
+  if (!secret || secret.length < MIN_SECRET_LENGTH) {
     throw new Error(
-      '[FATAL SECURITY CONFIGURATION] Refusing to start in production without a valid SESSION_SECRET environment variable. ' +
-      'SESSION_SECRET must be explicitly set to an unpredictable secret key of at least 32 characters to protect HMAC sessions.'
+      '[SECURITY] SESSION_SECRET must be configured and contain at least 32 characters.'
     );
   }
-  return DEV_FALLBACK_SECRET;
+
+  return secret;
 }
 
-// Default session lifespan: 24 hours
-export const DEFAULT_SESSION_DURATION_MS = 24 * 60 * 60 * 1000;
-export const SESSION_COOKIE_NAME = 'social_session';
+function isSessionScope(value: unknown): value is SessionScope {
+  return value === 'user' || value === 'creator' || value === 'admin';
+}
 
-class SessionRegistry {
-  private activeSessions: Map<string, SessionRecord> = new Map();
-  private revokedSessions: Map<string, { revokedAt: number; expiresAt: number }> = new Map();
-  private cleanupTimer: NodeJS.Timeout | null = null;
+function isValidWalletAddress(value: unknown): value is string {
+  if (typeof value !== 'string') return false;
 
-  constructor() {
-    if (typeof setInterval !== 'undefined') {
-      this.cleanupTimer = setInterval(() => this.pruneExpired(), 15 * 60 * 1000);
-      if (this.cleanupTimer.unref) {
-        this.cleanupTimer.unref();
-      }
-    }
+  // Solana public keys are base58 and normally 32 bytes.
+  // Avoid accepting arbitrarily large attacker-controlled strings.
+  if (value.length < 32 || value.length > 44) return false;
+
+  return /^[1-9A-HJ-NP-Za-km-z]+$/.test(value);
+}
+
+function isValidSessionId(value: unknown): value is string {
+  return typeof value === 'string' &&
+    value.length >= 16 &&
+    value.length <= 128 &&
+    /^[a-zA-Z0-9_-]+$/.test(value);
+}
+
+function isValidTimestamp(value: unknown): value is number {
+  return typeof value === 'number' &&
+    Number.isSafeInteger(value) &&
+    value > 0;
+}
+
+function validateSessionPayload(
+  value: unknown
+): value is SessionPayload {
+  if (!value || typeof value !== 'object') return false;
+
+  const payload = value as Record<string, unknown>;
+
+  if (!isValidSessionId(payload.sessionId)) return false;
+  if (!isValidWalletAddress(payload.walletAddress)) return false;
+  if (!isValidTimestamp(payload.issuedAt)) return false;
+  if (!isValidTimestamp(payload.expiresAt)) return false;
+  if (!isSessionScope(payload.scope)) return false;
+
+  if (payload.expiresAt <= payload.issuedAt) return false;
+
+  return true;
+}
+
+function encodeBase64Url(value: string): string {
+  return Buffer.from(value, 'utf8')
+    .toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/g, '');
+}
+
+function decodeBase64Url(value: string): string {
+  return Buffer.from(
+    value.replace(/-/g, '+').replace(/_/g, '/'),
+    'base64'
+  ).toString('utf8');
+}
+
+function sign(data: string): string {
+  return crypto
+    .createHmac('sha256', getSessionSecret())
+    .update(data, 'utf8')
+    .digest('base64url');
+}
+
+function safeEqual(a: string, b: string): boolean {
+  const aBuffer = Buffer.from(a);
+  const bBuffer = Buffer.from(b);
+
+  if (aBuffer.length !== bBuffer.length) {
+    return false;
   }
 
-  public register(record: SessionRecord): void {
+  return crypto.timingSafeEqual(aBuffer, bBuffer);
+}
+
+export class SessionRegistry {
+  private readonly activeSessions = new Map<string, SessionRecord>();
+  private readonly revokedSessions = new Map<string, number>();
+
+  register(record: SessionRecord): void {
     this.activeSessions.set(record.sessionId, record);
   }
 
-  public get(sessionId: string): SessionRecord | undefined {
+  get(sessionId: string): SessionRecord | undefined {
     return this.activeSessions.get(sessionId);
   }
 
-  public isRevoked(sessionId: string): boolean {
-    const revoked = this.revokedSessions.get(sessionId);
-    if (revoked) {
-      if (Date.now() < revoked.expiresAt) {
-        return true;
-      }
+  isRevoked(sessionId: string): boolean {
+    const expiresAt = this.revokedSessions.get(sessionId);
+
+    if (expiresAt === undefined) {
+      return false;
+    }
+
+    if (expiresAt <= Date.now()) {
       this.revokedSessions.delete(sessionId);
+      return false;
     }
-    const record = this.activeSessions.get(sessionId);
-    return !!record && record.revoked;
-  }
 
-  public revoke(sessionId: string, expiresAt?: number): boolean {
-    const now = Date.now();
-    const expiry = expiresAt || now + DEFAULT_SESSION_DURATION_MS;
-    this.revokedSessions.set(sessionId, { revokedAt: now, expiresAt: expiry });
-
-    const record = this.activeSessions.get(sessionId);
-    if (record) {
-      record.revoked = true;
-    }
     return true;
   }
 
-  public updateActivity(sessionId: string): void {
+  revoke(sessionId: string, expiresAt: number): void {
+    this.revokedSessions.set(sessionId, expiresAt);
+
     const record = this.activeSessions.get(sessionId);
+
     if (record) {
+      record.revoked = true;
+    }
+  }
+
+  updateActivity(sessionId: string): void {
+    const record = this.activeSessions.get(sessionId);
+
+    if (record && !record.revoked) {
       record.lastActiveAt = Date.now();
     }
   }
 
-  public pruneExpired(): void {
-    const now = Date.now();
-    for (const [id, record] of this.activeSessions.entries()) {
-      if (now > record.expiresAt || record.revoked) {
-        this.activeSessions.delete(id);
+  pruneExpired(now = Date.now()): void {
+    for (const [sessionId, record] of this.activeSessions) {
+      if (record.expiresAt <= now) {
+        this.activeSessions.delete(sessionId);
       }
     }
-    for (const [id, record] of this.revokedSessions.entries()) {
-      if (now > record.expiresAt) {
-        this.revokedSessions.delete(id);
+
+    for (const [sessionId, expiresAt] of this.revokedSessions) {
+      if (expiresAt <= now) {
+        this.revokedSessions.delete(sessionId);
       }
     }
   }
 
-  public clearAll(): void {
+  clearAll(): void {
     this.activeSessions.clear();
     this.revokedSessions.clear();
   }
@@ -133,223 +180,302 @@ class SessionRegistry {
 
 export const sessionRegistry = new SessionRegistry();
 
-/**
- * Encodes payload into URL-safe base64 string
- */
-function base64UrlEncode(str: string): string {
-  return Buffer.from(str)
-    .toString('base64')
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/, '');
-}
-
-/**
- * Decodes URL-safe base64 string
- */
-function base64UrlDecode(str: string): string {
-  let base64 = str.replace(/-/g, '+').replace(/_/g, '/');
-  while (base64.length % 4) {
-    base64 += '=';
-  }
-  return Buffer.from(base64, 'base64').toString('utf8');
-}
-
-/**
- * Computes HMAC-SHA256 signature for payload string
- */
-function computeHmac(data: string, secret?: string): string {
-  const hmacSecret = secret || getSessionSecret();
-  return crypto
-    .createHmac('sha256', hmacSecret)
-    .update(data)
-    .digest('base64')
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/, '');
-}
-
-/**
- * Generates an authenticated session token bound to a verified wallet address.
- */
 export function createSession(
   walletAddress: string,
-  durationMs: number = DEFAULT_SESSION_DURATION_MS,
-  scope: 'user' | 'creator' | 'admin' = 'user',
-  secret?: string
-): { token: string; payload: SessionPayload } {
-  const sessionId = crypto.randomUUID();
+  scope: SessionScope = 'user',
+  durationMs = DEFAULT_SESSION_DURATION_MS
+): string {
+  if (!isValidWalletAddress(walletAddress)) {
+    throw new Error('Invalid wallet address.');
+  }
+
+  if (!isSessionScope(scope)) {
+    throw new Error('Invalid session scope.');
+  }
+
+  if (
+    !Number.isSafeInteger(durationMs) ||
+    durationMs <= 0 ||
+    durationMs > DEFAULT_SESSION_DURATION_MS
+  ) {
+    throw new Error('Invalid session duration.');
+  }
+
   const now = Date.now();
-  const expiresAt = now + durationMs;
+
+  const sessionId = crypto.randomUUID();
 
   const payload: SessionPayload = {
     sessionId,
     walletAddress,
     issuedAt: now,
-    expiresAt,
+    expiresAt: now + durationMs,
     scope,
   };
 
-  // Register in local store (for single-process inspection/caching)
   sessionRegistry.register({
     sessionId,
     walletAddress,
     createdAt: now,
-    expiresAt,
+    expiresAt: payload.expiresAt,
     lastActiveAt: now,
     revoked: false,
   });
 
-  // Sign token: payloadBase64.signatureBase64
-  const payloadJson = JSON.stringify(payload);
-  const payloadPart = base64UrlEncode(payloadJson);
-  const signature = computeHmac(payloadPart, secret);
-  const token = `${payloadPart}.${signature}`;
+  const encodedPayload = encodeBase64Url(JSON.stringify(payload));
+  const signature = sign(`${TOKEN_VERSION}.${encodedPayload}`);
 
-  return { token, payload };
+  return `${TOKEN_VERSION}.${encodedPayload}.${signature}`;
 }
 
-/**
- * Cryptographically verifies token integrity, expiration, and distributed revocation status.
- * Compatible with serverless and multi-container horizontal scaling.
- */
 export function verifySessionToken(
-  token: string,
-  secret?: string
-): { valid: boolean; payload?: SessionPayload; error?: string } {
-  if (!token || typeof token !== 'string') {
-    return { valid: false, error: 'Session token missing or invalid format' };
-  }
-
-  const parts = token.split('.');
-  if (parts.length !== 2) {
-    return { valid: false, error: 'Malformed token structure' };
-  }
-
-  const [payloadPart, signaturePart] = parts;
-
-  // 1. Verify HMAC signature (Constant-time comparison)
-  const expectedSignature = computeHmac(payloadPart, secret);
-  const sigBuffer = Buffer.from(signaturePart);
-  const expectedBuffer = Buffer.from(expectedSignature);
-
-  if (
-    sigBuffer.length !== expectedBuffer.length ||
-    !crypto.timingSafeEqual(sigBuffer, expectedBuffer)
-  ) {
-    return { valid: false, error: 'Cryptographic signature mismatch / token tampered' };
-  }
-
-  // 2. Parse payload
-  let payload: SessionPayload;
+  token: string
+):
+  | {
+      valid: true;
+      payload: SessionPayload;
+    }
+  | {
+      valid: false;
+      reason: string;
+    } {
   try {
-    const jsonStr = base64UrlDecode(payloadPart);
-    payload = JSON.parse(jsonStr);
-  } catch {
-    return { valid: false, error: 'Failed to deserialize session payload' };
-  }
-
-  // 3. Verify expiration
-  const now = Date.now();
-  if (now > payload.expiresAt) {
-    return { valid: false, error: 'Session token has expired' };
-  }
-
-  // 4. Check Distributed Revocation Registry (Blocklist Architecture)
-  if (sessionRegistry.isRevoked(payload.sessionId)) {
-    return { valid: false, error: 'Session has been revoked' };
-  }
-
-  // 5. If local cache contains record, enforce wallet consistency
-  const serverRecord = sessionRegistry.get(payload.sessionId);
-  if (serverRecord && serverRecord.walletAddress !== payload.walletAddress) {
-    return { valid: false, error: 'Session wallet address mismatch' };
-  }
-
-  // Update activity timestamp if record is local
-  sessionRegistry.updateActivity(payload.sessionId);
-
-  return { valid: true, payload };
-}
-
-/**
- * Revokes an active session by token or session ID.
- */
-export function revokeSession(tokenOrSessionId: string): boolean {
-  if (!tokenOrSessionId) return false;
-
-  if (tokenOrSessionId.includes('.')) {
-    try {
-      const payloadPart = tokenOrSessionId.split('.')[0];
-      const payload: SessionPayload = JSON.parse(base64UrlDecode(payloadPart));
-      return sessionRegistry.revoke(payload.sessionId, payload.expiresAt);
-    } catch {
-      return false;
+    if (typeof token !== 'string' || token.length > 4096) {
+      return {
+        valid: false,
+        reason: 'Invalid session token.',
+      };
     }
-  }
 
-  return sessionRegistry.revoke(tokenOrSessionId);
-}
+    const parts = token.split('.');
 
-/**
- * Extracts session token from either Authorization header or Cookie header.
- */
-export function extractSessionToken(req: Request): string | null {
-  // 1. Check Authorization Bearer header
-  const authHeader = req.headers.get('authorization');
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    return authHeader.slice(7).trim();
-  }
+    if (parts.length !== 3) {
+      return {
+        valid: false,
+        reason: 'Invalid session token format.',
+      };
+    }
 
-  // 2. Check Cookie header
-  const cookieHeader = req.headers.get('cookie');
-  if (cookieHeader) {
-    const cookies = cookieHeader.split(';').map((c) => c.trim());
-    for (const cookie of cookies) {
-      if (cookie.startsWith(`${SESSION_COOKIE_NAME}=`)) {
-        return cookie.slice(SESSION_COOKIE_NAME.length + 1).trim();
+    const [version, encodedPayload, suppliedSignature] = parts;
+
+    if (version !== TOKEN_VERSION) {
+      return {
+        valid: false,
+        reason: 'Unsupported session token version.',
+      };
+    }
+
+    if (!encodedPayload || !suppliedSignature) {
+      return {
+        valid: false,
+        reason: 'Invalid session token.',
+      };
+    }
+
+    const expectedSignature = sign(`${version}.${encodedPayload}`);
+
+    if (!safeEqual(suppliedSignature, expectedSignature)) {
+      return {
+        valid: false,
+        reason: 'Invalid session token signature.',
+      };
+    }
+
+    const rawPayload = decodeBase64Url(encodedPayload);
+    const parsedPayload: unknown = JSON.parse(rawPayload);
+
+    if (!validateSessionPayload(parsedPayload)) {
+      return {
+        valid: false,
+        reason: 'Invalid session token payload.',
+      };
+    }
+
+    const now = Date.now();
+
+    if (parsedPayload.expiresAt <= now) {
+      return {
+        valid: false,
+        reason: 'Session expired.',
+      };
+    }
+
+    if (parsedPayload.issuedAt > now + 60_000) {
+      return {
+        valid: false,
+        reason: 'Invalid session issue time.',
+      };
+    }
+
+    if (sessionRegistry.isRevoked(parsedPayload.sessionId)) {
+      return {
+        valid: false,
+        reason: 'Session revoked.',
+      };
+    }
+
+    const localRecord = sessionRegistry.get(parsedPayload.sessionId);
+
+    if (localRecord) {
+      if (
+        localRecord.walletAddress !== parsedPayload.walletAddress
+      ) {
+        return {
+          valid: false,
+          reason: 'Session wallet mismatch.',
+        };
       }
+
+      if (localRecord.revoked) {
+        return {
+          valid: false,
+          reason: 'Session revoked.',
+        };
+      }
+
+      sessionRegistry.updateActivity(parsedPayload.sessionId);
     }
+
+    return {
+      valid: true,
+      payload: parsedPayload,
+    };
+  } catch {
+    return {
+      valid: false,
+      reason: 'Invalid session token.',
+    };
+  }
+}
+
+export function revokeSession(
+  token: string
+): boolean {
+  const verification = verifySessionToken(token);
+
+  if (!verification.valid) {
+    return false;
+  }
+
+  const { sessionId, expiresAt } = verification.payload;
+
+  sessionRegistry.revoke(sessionId, expiresAt);
+
+  return true;
+}
+
+export function extractSessionToken(
+  request: Request
+): string | null {
+  const authorization = request.headers.get('authorization');
+
+  if (authorization) {
+    const match = authorization.match(/^Bearer\s+(.+)$/i);
+
+    if (match?.[1]) {
+      return match[1].trim();
+    }
+  }
+
+  const cookieHeader = request.headers.get('cookie');
+
+  if (!cookieHeader) {
+    return null;
+  }
+
+  const cookies = cookieHeader.split(';');
+
+  for (const cookie of cookies) {
+    const separator = cookie.indexOf('=');
+
+    if (separator === -1) continue;
+
+    const name = cookie.slice(0, separator).trim();
+
+    if (name !== 'session') continue;
+
+    return decodeURIComponent(
+      cookie.slice(separator + 1).trim()
+    );
   }
 
   return null;
 }
 
-/**
- * Validates request authorization and returns authenticated wallet address.
- */
 export function validateRequestSession(
-  req: Request
-): { authenticated: boolean; walletAddress?: string; payload?: SessionPayload; error?: string } {
-  const token = extractSessionToken(req);
+  request: Request
+):
+  | {
+      authenticated: true;
+      payload: SessionPayload;
+    }
+  | {
+      authenticated: false;
+      reason: string;
+    } {
+  const token = extractSessionToken(request);
+
   if (!token) {
-    return { authenticated: false, error: 'No authorization credentials supplied' };
+    return {
+      authenticated: false,
+      reason: 'Authentication required.',
+    };
   }
 
-  const result = verifySessionToken(token);
-  if (!result.valid || !result.payload) {
-    return { authenticated: false, error: result.error || 'Invalid session credentials' };
+  const verification = verifySessionToken(token);
+
+  if (!verification.valid) {
+    return {
+      authenticated: false,
+      reason: verification.reason,
+    };
   }
 
   return {
     authenticated: true,
-    walletAddress: result.payload.walletAddress,
-    payload: result.payload,
+    payload: verification.payload,
   };
 }
 
-/**
- * Constructs an HttpOnly, Secure, SameSite=Strict cookie header string.
- */
-export function createSessionCookie(token: string, maxAgeSec: number = 86400): string {
-  const isProd = process.env.NODE_ENV === 'production';
-  const secureFlag = isProd ? '; Secure' : '';
-  return `${SESSION_COOKIE_NAME}=${token}; Path=/; Max-Age=${maxAgeSec}; HttpOnly; SameSite=Strict${secureFlag}`;
+export function createSessionCookie(
+  token: string,
+  expiresAt: number
+): string {
+  const maxAge = Math.max(
+    0,
+    Math.floor((expiresAt - Date.now()) / 1000)
+  );
+
+  const secure = process.env.NODE_ENV === 'production'
+    ? '; Secure'
+    : '';
+
+  return [
+    `session=${encodeURIComponent(token)}`,
+    'Path=/',
+    'HttpOnly',
+    'SameSite=Strict',
+    `Max-Age=${maxAge}`,
+    secure,
+  ]
+    .filter(Boolean)
+    .join('; ');
 }
 
-/**
- * Constructs a cookie header string to clear the session cookie.
- */
 export function createClearSessionCookie(): string {
-  return `${SESSION_COOKIE_NAME}=; Path=/; Max-Age=0; HttpOnly; SameSite=Strict`;
+  const secure = process.env.NODE_ENV === 'production'
+    ? '; Secure'
+    : '';
+
+  return [
+    'session=',
+    'Path=/',
+    'HttpOnly',
+    'SameSite=Strict',
+    'Max-Age=0',
+    'Expires=Thu, 01 Jan 1970 00:00:00 GMT',
+    secure,
+  ]
+    .filter(Boolean)
+    .join('; ');
 }

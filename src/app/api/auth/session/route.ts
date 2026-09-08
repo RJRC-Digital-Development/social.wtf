@@ -1,48 +1,53 @@
 import { NextResponse } from 'next/server';
 import {
-  validateRequestSession,
-  extractSessionToken,
-  revokeSession,
   createClearSessionCookie,
+  extractSessionToken,
+  validateRequestSession,
+  revokeSession,
 } from '@/lib/security/session';
 
-/**
- * GET: Introspect and validate active session
- */
-export async function GET(req: Request) {
-  const result = validateRequestSession(req);
+export async function GET(request: Request) {
+  const session = validateRequestSession(request);
 
-  if (!result.authenticated || !result.payload) {
+  if (!session.authenticated) {
     return NextResponse.json(
-      { authenticated: false, error: result.error || 'No active authenticated session' },
+      {
+        authenticated: false,
+        error: session.reason,
+      },
       { status: 401 }
     );
   }
 
   return NextResponse.json({
     authenticated: true,
-    sessionId: result.payload.sessionId,
-    walletAddress: result.payload.walletAddress,
-    scope: result.payload.scope,
-    expiresAt: result.payload.expiresAt,
+    sessionId: session.payload.sessionId,
+    walletAddress: session.payload.walletAddress,
+    scope: session.payload.scope,
+    expiresAt: session.payload.expiresAt,
   });
 }
 
-/**
- * DELETE: Revoke session (logout) and clear session cookie
- */
-export async function DELETE(req: Request) {
-  const token = extractSessionToken(req);
+export async function DELETE(request: Request) {
+  const token = extractSessionToken(request);
 
   if (token) {
-    revokeSession(token);
+    const session = validateRequestSession(request);
+
+    if (session.authenticated) {
+      revokeSession(token);
+    }
   }
 
   const response = NextResponse.json({
-    authenticated: false,
-    message: 'Session successfully revoked and logged out',
+    success: true,
+    message: 'Session revoked and logged out.',
   });
 
-  response.headers.set('Set-Cookie', createClearSessionCookie());
+  response.headers.append(
+    'Set-Cookie',
+    createClearSessionCookie()
+  );
+
   return response;
 }

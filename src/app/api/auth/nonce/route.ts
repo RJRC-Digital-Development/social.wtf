@@ -36,7 +36,7 @@ function handleNonceRequest(walletAddress: string | null, ip: string) {
 
 export async function GET(req: Request) {
   try {
-    const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '127.0.0.1';
+    const ip = req.headers.get('x-real-ip')?.trim() || req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '127.0.0.1';
     const { searchParams } = new URL(req.url);
     const walletAddress = searchParams.get('walletAddress');
     return handleNonceRequest(walletAddress, ip);
@@ -47,7 +47,7 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
-    const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '127.0.0.1';
+    const ip = req.headers.get('x-real-ip')?.trim() || req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '127.0.0.1';
     const body = await req.json().catch(() => ({}));
     const { walletAddress } = body;
     return handleNonceRequest(walletAddress, ip);
