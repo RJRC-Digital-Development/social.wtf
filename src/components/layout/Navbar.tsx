@@ -21,12 +21,14 @@ interface NavbarProps {
   activeView: 'feed' | 'store' | 'creator' | 'analytics';
   onSelectView: (view: 'feed' | 'store' | 'creator' | 'analytics') => void;
   onOpenVerifyModal: () => void;
+  onOpenEcosystemModal?: (tab?: 'bridge' | 'cookieswap' | 'cookiebox' | 'das' | 'mcp') => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
   activeView,
   onSelectView,
   onOpenVerifyModal,
+  onOpenEcosystemModal,
 }) => {
   const { isAgeVerified, unshieldedMode, toggleUnshieldedMode } = useShield();
   const [currentSlot, setCurrentSlot] = useState<number | null>(null);
@@ -167,6 +169,16 @@ export const Navbar: React.FC<NavbarProps> = ({
             >
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
               <span className="hidden sm:inline">Verify Age (Zero-Data)</span>
+            </button>
+          )}
+
+          {/* Bridge & Swap Ecosystem Quick Launcher */}
+          {onOpenEcosystemModal && (
+            <button
+              onClick={() => onOpenEcosystemModal('bridge')}
+              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/10 to-blue-500/10 border border-amber-500/30 text-amber-300 hover:brightness-125 text-xs font-semibold transition-all shadow-sm"
+            >
+              <span>🌉 Bridge & Swap</span>
             </button>
           )}
 

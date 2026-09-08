@@ -7,6 +7,7 @@ import { Storefront } from '@/components/store/Storefront';
 import { CreatorProfile } from '@/components/profile/CreatorProfile';
 import { CreatorDashboard } from '@/components/analytics/CreatorDashboard';
 import { AgeVerificationModal } from '@/components/verification/AgeVerificationModal';
+import { EcosystemHubModal } from '@/components/ecosystem/EcosystemHubModal';
 import {
   INITIAL_POSTS,
   INITIAL_PRODUCTS,
@@ -42,6 +43,8 @@ export default function Home() {
   const [metrics, setMetrics] = useState<TreasuryMetrics>(INITIAL_TREASURY_METRICS);
 
   const [verifyModalOpen, setVerifyModalOpen] = useState(false);
+  const [ecosystemModalOpen, setEcosystemModalOpen] = useState(false);
+  const [ecosystemTab, setEcosystemTab] = useState<'bridge' | 'cookieswap' | 'cookiebox' | 'das' | 'mcp'>('bridge');
   const { isAgeVerified, unshieldedMode } = useShield();
   const { walletAddress } = useWallet();
 
@@ -96,6 +99,10 @@ export default function Home() {
         activeView={activeView}
         onSelectView={setActiveView}
         onOpenVerifyModal={() => setVerifyModalOpen(true)}
+        onOpenEcosystemModal={(tab) => {
+          setEcosystemTab(tab || 'bridge');
+          setEcosystemModalOpen(true);
+        }}
       />
 
       {/* Main Container */}
@@ -322,41 +329,67 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Official Ecosystem Links */}
+            {/* Official Ecosystem Links with 1-Click Interactive Hub */}
             <div className="p-5 rounded-3xl bg-[#0d1527] border border-slate-700/70 shadow-xl space-y-2.5 text-xs">
-              <div className="text-xs font-bold text-slate-200 pb-1 border-b border-slate-800">
-                Cookie Chain Ecosystem
+              <div className="flex items-center justify-between pb-1 border-b border-slate-800">
+                <span className="font-bold text-slate-200">Cookie Chain Ecosystem</span>
+                <span className="text-[10px] font-mono text-amber-400">cApp Tools</span>
               </div>
 
-              <a
-                href="https://nightly.app"
-                target="_blank"
-                rel="noreferrer"
-                className="flex items-center justify-between p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 transition-colors"
+              <button
+                onClick={() => {
+                  setEcosystemTab('bridge');
+                  setEcosystemModalOpen(true);
+                }}
+                className="w-full flex items-center justify-between p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 transition-colors text-left group"
               >
-                <span>Nightly Wallet</span>
-                <ExternalLink className="w-3.5 h-3.5 text-slate-500" />
-              </a>
+                <span>🌉 Hyperlane Bridge Guide</span>
+                <ExternalLink className="w-3.5 h-3.5 text-slate-500 group-hover:text-amber-400" />
+              </button>
 
-              <a
-                href="https://docs.cookiechain.wtf"
-                target="_blank"
-                rel="noreferrer"
-                className="flex items-center justify-between p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 transition-colors"
+              <button
+                onClick={() => {
+                  setEcosystemTab('cookieswap');
+                  setEcosystemModalOpen(true);
+                }}
+                className="w-full flex items-center justify-between p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 transition-colors text-left group"
               >
-                <span>Cookie Chain Docs</span>
-                <ExternalLink className="w-3.5 h-3.5 text-slate-500" />
-              </a>
+                <span>🔄 Cookieswap.fun (DEX)</span>
+                <ExternalLink className="w-3.5 h-3.5 text-slate-500 group-hover:text-amber-400" />
+              </button>
 
-              <a
-                href="https://cookiescan.io"
-                target="_blank"
-                rel="noreferrer"
-                className="flex items-center justify-between p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 transition-colors"
+              <button
+                onClick={() => {
+                  setEcosystemTab('cookiebox');
+                  setEcosystemModalOpen(true);
+                }}
+                className="w-full flex items-center justify-between p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 transition-colors text-left group"
               >
-                <span>CookieScan Explorer</span>
-                <ExternalLink className="w-3.5 h-3.5 text-slate-500" />
-              </a>
+                <span>📦 Cookiebox.app</span>
+                <ExternalLink className="w-3.5 h-3.5 text-slate-500 group-hover:text-amber-400" />
+              </button>
+
+              <button
+                onClick={() => {
+                  setEcosystemTab('das');
+                  setEcosystemModalOpen(true);
+                }}
+                className="w-full flex items-center justify-between p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 transition-colors text-left group"
+              >
+                <span>📊 Cookie DAS API (api.cookiescan.io)</span>
+                <ExternalLink className="w-3.5 h-3.5 text-slate-500 group-hover:text-amber-400" />
+              </button>
+
+              <button
+                onClick={() => {
+                  setEcosystemTab('mcp');
+                  setEcosystemModalOpen(true);
+                }}
+                className="w-full flex items-center justify-between p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 transition-colors text-left group"
+              >
+                <span>🤖 cookie-mcp (AI Tools)</span>
+                <ExternalLink className="w-3.5 h-3.5 text-slate-500 group-hover:text-amber-400" />
+              </button>
 
               <a
                 href="https://t.me/TheCookieNetChain"
@@ -376,6 +409,13 @@ export default function Home() {
       <AgeVerificationModal
         isOpen={verifyModalOpen}
         onClose={() => setVerifyModalOpen(false)}
+      />
+
+      {/* Ecosystem Hub Modal (Bridge, Cookieswap, Cookiebox, DAS, MCP) */}
+      <EcosystemHubModal
+        isOpen={ecosystemModalOpen}
+        onClose={() => setEcosystemModalOpen(false)}
+        defaultTab={ecosystemTab}
       />
 
       {/* Footer */}
