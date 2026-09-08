@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@solana/web3.js": "^1.95.8",
+    "bs58": "^6.0.0",
     "canvas-confetti": "^1.9.3",
     "clsx": "^2.1.1",
     "lucide-react": "^0.453.0",
