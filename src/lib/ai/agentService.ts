@@ -1,6 +1,8 @@
 import { Post, User, Product, TreasuryMetrics } from '@/types';
 import { INITIAL_POSTS, INITIAL_CREATORS, INITIAL_PRODUCTS, INITIAL_TREASURY_METRICS } from '../data/mockData';
 import { COOKIE_CHAIN_CONFIG, calculateFeeSplit } from '../solana/cookieChain';
+import { sanitizeString } from '../security/sanitize';
+import { globalRateLimiter } from '../security/rateLimiter';
 
 export interface AgentAction {
   label: string;
@@ -30,7 +32,7 @@ export class SocialWtfAiAgent {
    * Search across posts, creators, and store products
    */
   public search(query: string) {
-    const q = query.toLowerCase().trim();
+    const q = sanitizeString(query, 100).toLowerCase().trim();
 
     const matchingPosts = this.posts.filter(
       (p) =>
@@ -70,8 +72,39 @@ export class SocialWtfAiAgent {
       isIdVerified: boolean;
     }
   ): Promise<AgentMessage> {
-    const p = prompt.toLowerCase();
     const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    // 1. Rate limiting check
+    const rateCheck = globalRateLimiter.check('ai_agent:user', 30, 60_000);
+    if (!rateCheck.allowed) {
+      return {
+        id: `msg-${Date.now()}`,
+        sender: 'agent',
+        timestamp,
+        content: '⚠️ Rate limit reached for AI agent requests. Please wait a moment before sending another query.',
+      };
+    }
+
+    // 2. Input sanitization and length bounds
+    const cleanPrompt = sanitizeString(prompt.slice(0, 500));
+    const p = cleanPrompt.toLowerCase();
+
+    // 3. Prompt injection defenses
+    if (
+      p.includes('ignore previous') ||
+      p.includes('system prompt') ||
+      p.includes('jailbreak') ||
+      p.includes('override safety') ||
+      p.includes('exfiltrate')
+    ) {
+      return {
+        id: `msg-${Date.now()}`,
+        sender: 'agent',
+        timestamp,
+        content:
+          '🛡️ **Security Notice**: Social.wtf Sentinel AI operates within strict verifiable privacy boundaries. System prompts and zero-trace cryptographic memory states are protected against external extraction.',
+      };
+    }
 
     // Task 1: Verification status / verify request
     if (

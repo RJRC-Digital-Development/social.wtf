@@ -46,34 +46,102 @@ export function getCookieConnection(): Connection {
   return globalConnection;
 }
 
+export const SOCIAL_PROGRAM_ID = new PublicKey(
+  '9iapGcxDbDtZ2bWtwM2kLYNW67XH2qzPxLxXfSUbQQZq'
+);
+
+export const BPS_DENOMINATOR = 10_000n;
+export const MAX_FEE_BPS = 2_500n; // 25.00% max
+
 export interface FeeSplitResult {
   totalAmount: number;
   creatorAmount: number;
   treasuryAmount: number;
-  feePercent: number;
+  feeBps: number;
+  totalLamports: bigint;
   creatorLamports: bigint;
   treasuryLamports: bigint;
 }
 
 /**
- * Calculates 95% creator / 5% platform treasury proceeds without rounding loss
+ * Calculates creator proceeds and platform treasury cut with deterministic integer precision.
+ * Enforces the critical invariant: creatorLamports + treasuryLamports === totalLamports.
  */
 export function calculateFeeSplit(
   totalCook: number,
-  feePct: number = COOKIE_CHAIN_CONFIG.protocolFeePercent
+  feeBpsNum: number = 500 // Default 500 BPS (5.00%)
 ): FeeSplitResult {
+  if (totalCook <= 0) {
+    throw new Error('Transaction amount must be strictly greater than 0');
+  }
+
+  const feeBps = BigInt(Math.max(0, Math.min(Number(MAX_FEE_BPS), feeBpsNum)));
   const totalLamports = BigInt(Math.round(totalCook * LAMPORTS_PER_SOL));
-  const treasuryLamports = (totalLamports * BigInt(feePct)) / BigInt(100);
+
+  if (totalLamports <= 0n) {
+    throw new Error('Transaction amount rounds to 0 lamports');
+  }
+
+  // Checked integer division for fee: amount * fee_bps / 10,000
+  const treasuryLamports = (totalLamports * feeBps) / BPS_DENOMINATOR;
   const creatorLamports = totalLamports - treasuryLamports;
+
+  // Enforce critical invariant
+  if (creatorLamports + treasuryLamports !== totalLamports) {
+    throw new Error(
+      `Fee invariant violated: creator (${creatorLamports}) + treasury (${treasuryLamports}) != total (${totalLamports})`
+    );
+  }
 
   return {
     totalAmount: totalCook,
     creatorAmount: Number(creatorLamports) / LAMPORTS_PER_SOL,
     treasuryAmount: Number(treasuryLamports) / LAMPORTS_PER_SOL,
-    feePercent: feePct,
+    feeBps: Number(feeBps),
+    totalLamports,
     creatorLamports,
     treasuryLamports,
   };
+}
+
+/**
+ * Deterministically derives the global PlatformState PDA
+ */
+export function getPlatformStatePda(
+  programId: PublicKey = SOCIAL_PROGRAM_ID
+): [PublicKey, number] {
+  return PublicKey.findProgramAddressSync([Buffer.from('platform')], programId);
+}
+
+/**
+ * Deterministically derives the Product PDA owned by creator
+ */
+export function getProductPda(
+  creator: PublicKey,
+  productId: string,
+  programId: PublicKey = SOCIAL_PROGRAM_ID
+): [PublicKey, number] {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from('product'), creator.toBuffer(), Buffer.from(productId)],
+    programId
+  );
+}
+
+/**
+ * Deterministically derives a unique Purchase Receipt PDA using nonce
+ */
+export function getPurchaseReceiptPda(
+  buyer: PublicKey,
+  product: PublicKey,
+  nonce: bigint,
+  programId: PublicKey = SOCIAL_PROGRAM_ID
+): [PublicKey, number] {
+  const nonceBuffer = Buffer.alloc(8);
+  nonceBuffer.writeBigUInt64LE(nonce);
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from('receipt'), buyer.toBuffer(), product.toBuffer(), nonceBuffer],
+    programId
+  );
 }
 
 /**
@@ -95,7 +163,7 @@ export async function buildSplitTransaction({
 
   const tx = new Transaction();
 
-  // Instruction 1: 95% to Creator
+  // Instruction 1: Creator proceeds
   tx.add(
     SystemProgram.transfer({
       fromPubkey,
@@ -104,14 +172,16 @@ export async function buildSplitTransaction({
     })
   );
 
-  // Instruction 2: 5% automated protocol fee to Social.wtf Treasury
-  tx.add(
-    SystemProgram.transfer({
-      fromPubkey,
-      toPubkey: PLATFORM_TREASURY_PUBKEY,
-      lamports: split.treasuryLamports,
-    })
-  );
+  // Instruction 2: Automated protocol fee to Social.wtf Treasury (if > 0)
+  if (split.treasuryLamports > 0n) {
+    tx.add(
+      SystemProgram.transfer({
+        fromPubkey,
+        toPubkey: PLATFORM_TREASURY_PUBKEY,
+        lamports: split.treasuryLamports,
+      })
+    );
+  }
 
   // Get recent blockhash from Cookie Chain
   const { blockhash } = await connection.getLatestBlockhash('confirmed');

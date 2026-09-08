@@ -22,6 +22,17 @@ export interface CreatorPageProps {
   children?: React.ReactNode;
 }
 
+function isSafeUrl(url?: string): boolean {
+  if (!url) return false;
+  const lower = url.trim().toLowerCase();
+  return (
+    (lower.startsWith('http://') || lower.startsWith('https://') || lower.startsWith('/')) &&
+    !lower.startsWith('javascript:') &&
+    !lower.startsWith('data:') &&
+    !lower.startsWith('file:')
+  );
+}
+
 /**
  * Clean, concise Creator Page Template for Cookie Chain creators.
  * Exposes sovereign storefront, tipping, and widget slots
@@ -39,19 +50,24 @@ export const CreatorPageTemplate: React.FC<CreatorPageProps> = ({
   children,
 }) => {
   const [tipSuccess, setTipSuccess] = useState(false);
+  const safeTreasuryCut = Math.max(0, Math.min(25, Number(treasuryCutPct) || 5));
 
   const calculateSplit = (amount: number) => {
-    const treasury = (amount * treasuryCutPct) / 100;
-    const creatorProceeds = amount - treasury;
+    const validAmount = Math.max(0, Number(amount) || 0);
+    const treasury = (validAmount * safeTreasuryCut) / 100;
+    const creatorProceeds = validAmount - treasury;
     return { creatorProceeds, treasury };
   };
+
+  const safeCover = isSafeUrl(coverImage) ? coverImage : undefined;
+  const safeAvatar = isSafeUrl(avatar) ? avatar : undefined;
 
   return (
     <div className="w-full max-w-4xl mx-auto rounded-3xl overflow-hidden bg-[#0d1527] border border-slate-700/80 shadow-2xl text-slate-100 font-sans">
       {/* Cover */}
       <div className="h-44 w-full bg-slate-800 relative overflow-hidden">
-        {coverImage ? (
-          <img src={coverImage} alt="Cover" className="w-full h-full object-cover" />
+        {safeCover ? (
+          <img src={safeCover} alt="Cover" className="w-full h-full object-cover" />
         ) : (
           <div className="w-full h-full bg-gradient-to-r from-amber-600 via-yellow-700 to-indigo-900" />
         )}
