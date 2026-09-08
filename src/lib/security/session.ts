@@ -36,15 +36,19 @@ const DEV_FALLBACK_SECRET = 'social_wtf_shared_hmac_secret_4892019482018492';
  * Resolves the server-side HMAC secret key.
  * In multi-instance / serverless production (Vercel, AWS, K8s), SESSION_SECRET
  * must be explicitly set in the environment so all instances share the same key.
+ * 
+ * SECURITY: Fails closed in production! Never allows a fallback or committed key
+ * in production, preventing forged token generation by malicious actors.
  */
 export function getSessionSecret(): string {
-  if (process.env.SESSION_SECRET) {
-    return process.env.SESSION_SECRET;
+  const secret = process.env.SESSION_SECRET;
+  if (secret && secret.trim().length >= 32) {
+    return secret.trim();
   }
   if (process.env.NODE_ENV === 'production') {
-    console.warn(
-      '[SECURITY WARNING] SESSION_SECRET environment variable is not defined in production. ' +
-      'Multi-instance deployments (Vercel / Kubernetes) require a shared SESSION_SECRET to validate tokens across instances.'
+    throw new Error(
+      '[FATAL SECURITY CONFIGURATION] Refusing to start in production without a valid SESSION_SECRET environment variable. ' +
+      'SESSION_SECRET must be explicitly set to an unpredictable secret key of at least 32 characters to protect HMAC sessions.'
     );
   }
   return DEV_FALLBACK_SECRET;

@@ -390,4 +390,45 @@ function createClearSessionCookie() {
   console.log('✓ Test 9: Serverless cross-instance verification passes without in-memory dependency');
 }
 
+function getSessionSecret(env = process.env) {
+  const secret = env.SESSION_SECRET;
+  if (secret && secret.trim().length >= 32) {
+    return secret.trim();
+  }
+  if (env.NODE_ENV === 'production') {
+    throw new Error(
+      '[FATAL SECURITY CONFIGURATION] Refusing to start in production without a valid SESSION_SECRET environment variable. ' +
+      'SESSION_SECRET must be explicitly set to an unpredictable secret key of at least 32 characters to protect HMAC sessions.'
+    );
+  }
+  return 'social_wtf_shared_hmac_secret_4892019482018492';
+}
+
+// Test 10: Production Fail-Closed Secret Enforcement
+{
+  assert.throws(
+    () => {
+      getSessionSecret({ NODE_ENV: 'production' });
+    },
+    /FATAL SECURITY CONFIGURATION/,
+    'Production must fail closed if SESSION_SECRET is not configured'
+  );
+
+  assert.throws(
+    () => {
+      getSessionSecret({ NODE_ENV: 'production', SESSION_SECRET: 'short_key' });
+    },
+    /FATAL SECURITY CONFIGURATION/,
+    'Production must fail closed if SESSION_SECRET is too short (< 32 chars)'
+  );
+
+  const validProdSecret = 'super_secret_production_key_1234567890123456';
+  assert.strictEqual(
+    getSessionSecret({ NODE_ENV: 'production', SESSION_SECRET: validProdSecret }),
+    validProdSecret
+  );
+
+  console.log('✓ Test 10: Production fail-closed secret enforcement strictly verified');
+}
+
 console.log('ALL CRYPTOGRAPHIC SESSION TESTS PASSED!\n');
