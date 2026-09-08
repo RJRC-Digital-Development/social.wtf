@@ -29,7 +29,7 @@ export interface CreatorStoreSettings {
 
 export interface CreatorWidget {
   id: string;
-  type: 'audio_spotlight' | 'tip_jar_goal' | 'product_showcase' | 'custom_links';
+  type: 'audio_spotlight' | 'tip_jar_goal' | 'product_showcase' | 'custom_links' | 'custom_code';
   title: string;
   enabled: boolean;
   data: Record<string, any>;
@@ -87,13 +87,14 @@ export interface Product {
   title: string;
   description: string;
   priceCook: number;
-  category: 'music_stem' | 'digital_art' | 'vip_pass' | 'preset' | 'e_goods';
+  category: 'music_stem' | 'digital_art' | 'vip_pass' | 'preset' | 'e_goods' | 'code_script';
   previewUrl: string;
   downloadUrl?: string;
   salesCount: number;
   fileSize?: string;
   fileFormat?: string;
   featured?: boolean;
+  codeSnippet?: string;
 }
 
 export interface TransactionRecord {

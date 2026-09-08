@@ -208,6 +208,22 @@ export const INITIAL_POSTS: Post[] = [
 
 export const INITIAL_PRODUCTS: Product[] = [
   {
+    id: 'prod-code-1',
+    creatorId: 'creator-1',
+    creatorHandle: 'cryptobaker',
+    creatorName: 'The Cookie Baker 🍪',
+    creatorWallet: 'CookBaker77777777777777777777777777777777',
+    title: 'SVM Anchor 5% Split Smart Contract Toolkit',
+    description: 'Production-ready Rust Anchor program template and TypeScript client SDK for automated 5% treasury fee splitting on Cookie Chain.',
+    priceCook: 8.0,
+    category: 'code_script',
+    previewUrl: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=600&auto=format&fit=crop&q=80',
+    salesCount: 65,
+    fileSize: '4.2 MB',
+    fileFormat: 'Rust (.rs) + Anchor.toml + TypeScript SDK',
+    featured: true,
+  },
+  {
     id: 'prod-1',
     creatorId: 'creator-1',
     creatorHandle: 'cryptobaker',

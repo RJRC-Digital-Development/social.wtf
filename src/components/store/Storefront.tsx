@@ -131,6 +131,7 @@ export const Storefront: React.FC<StorefrontProps> = ({
         <div className="flex flex-wrap gap-2">
           {[
             { id: 'all', label: 'All Digital Goods' },
+            { id: 'code_script', label: '💻 Code & Developer Scripts' },
             { id: 'digital_art', label: '🎨 3D & Digital Art' },
             { id: 'music_stem', label: '🎧 Music & Stems' },
             { id: 'vip_pass', label: '🎟️ VIP Passes' },
@@ -355,6 +356,7 @@ export const Storefront: React.FC<StorefrontProps> = ({
                   onChange={(e) => setNewCategory(e.target.value as any)}
                   className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-amber-400"
                 >
+                  <option value="code_script">💻 Code Snippet / Smart Contract / Script</option>
                   <option value="digital_art">3D Asset / Digital Art</option>
                   <option value="music_stem">Music WAV Stems / Audio</option>
                   <option value="vip_pass">VIP Access Pass / Token</option>
