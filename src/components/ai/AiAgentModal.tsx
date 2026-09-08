@@ -27,7 +27,7 @@ interface AiAgentModalProps {
   onClose: () => void;
   onOpenVerifyModal: (tab?: 'video_liveness' | 'id_upload') => void;
   onOpenStore: (creatorHandle: string) => void;
-  onSelectView: (view: 'feed' | 'store' | 'creator' | 'analytics') => void;
+  onSelectView: (view: 'feed' | 'store' | 'creator' | 'community' | 'analytics') => void;
 }
 
 export const AiAgentModal: React.FC<AiAgentModalProps> = ({

@@ -134,3 +134,50 @@ export interface TreasuryMetrics {
   activeCreatorsCount: number;
   totalTransactionsCount: number;
 }
+
+export interface WikiArticle {
+  id: string;
+  slug: string;
+  title: string;
+  category: 'getting_started' | 'creator_sdk' | 'tokenomics' | 'privacy_ai' | 'developers';
+  summary: string;
+  content: string;
+  lastUpdated: string;
+  author: string;
+  readTime: string;
+  tags: string[];
+}
+
+export type DiscussionCategory = 'wishlist' | 'update' | 'news' | 'idea' | 'dev_support';
+
+export interface DiscussionReply {
+  id: string;
+  author: {
+    name: string;
+    handle: string;
+    avatar: string;
+    badge?: string;
+  };
+  content: string;
+  createdAt: string;
+  likes: number;
+}
+
+export interface DiscussionTopic {
+  id: string;
+  title: string;
+  category: DiscussionCategory;
+  author: {
+    name: string;
+    handle: string;
+    avatar: string;
+    verified: boolean;
+  };
+  content: string;
+  createdAt: string;
+  upvotes: number;
+  tags: string[];
+  repliesCount: number;
+  replies?: DiscussionReply[];
+  isPinned?: boolean;
+}

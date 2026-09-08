@@ -19,8 +19,8 @@ import {
 } from 'lucide-react';
 
 interface NavbarProps {
-  activeView: 'feed' | 'store' | 'creator' | 'analytics';
-  onSelectView: (view: 'feed' | 'store' | 'creator' | 'analytics') => void;
+  activeView: 'feed' | 'store' | 'creator' | 'community' | 'analytics';
+  onSelectView: (view: 'feed' | 'store' | 'creator' | 'community' | 'analytics') => void;
   onOpenVerifyModal: (tab?: 'video_liveness' | 'id_upload') => void;
   onOpenEcosystemModal?: (tab?: 'bridge' | 'cookieswap' | 'cookiebox' | 'das' | 'mcp') => void;
   onOpenAiAgent?: () => void;
@@ -136,6 +136,17 @@ export const Navbar: React.FC<NavbarProps> = ({
           </button>
 
           <button
+            onClick={() => onSelectView('community')}
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+              activeView === 'community'
+                ? 'bg-amber-500 text-slate-950 shadow-md font-bold'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            Wiki &amp; Discussions
+          </button>
+
+          <button
             onClick={() => onSelectView('analytics')}
             className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all ${
               activeView === 'analytics'
@@ -143,7 +154,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 : 'text-slate-400 hover:text-slate-200'
             }`}
           >
-            Treasury & Analytics
+            Treasury &amp; Analytics
           </button>
         </nav>
 

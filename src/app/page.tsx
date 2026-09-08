@@ -9,6 +9,7 @@ import { CreatorDashboard } from '@/components/analytics/CreatorDashboard';
 import { AgeVerificationModal } from '@/components/verification/AgeVerificationModal';
 import { EcosystemHubModal } from '@/components/ecosystem/EcosystemHubModal';
 import { AiAgentModal } from '@/components/ai/AiAgentModal';
+import { CommunityHub } from '@/components/community/CommunityHub';
 import {
   INITIAL_POSTS,
   INITIAL_PRODUCTS,
@@ -33,10 +34,11 @@ import {
   Bot,
   UserCheck,
   Camera,
+  BookOpen,
 } from 'lucide-react';
 
 export default function Home() {
-  const [activeView, setActiveView] = useState<'feed' | 'store' | 'creator' | 'analytics'>(
+  const [activeView, setActiveView] = useState<'feed' | 'store' | 'creator' | 'community' | 'analytics'>(
     'feed'
   );
   const [posts, setPosts] = useState<Post[]>(INITIAL_POSTS);
@@ -211,6 +213,18 @@ export default function Home() {
               </button>
 
               <button
+                onClick={() => setActiveView('community')}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl transition-all ${
+                  activeView === 'community'
+                    ? 'bg-amber-500 text-slate-950 font-bold shadow-md'
+                    : 'text-slate-300 hover:bg-slate-800/60'
+                }`}
+              >
+                <BookOpen className="w-4 h-4" />
+                <span>Wiki &amp; Discussion Board</span>
+              </button>
+
+              <button
                 onClick={() => setActiveView('analytics')}
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl transition-all ${
                   activeView === 'analytics'
@@ -315,6 +329,16 @@ export default function Home() {
                 products={products}
                 onAddProduct={handleAddProduct}
                 onPostUpdated={handlePostUpdated}
+                onOpenVerifyModal={(tab) => {
+                  setVerifyTab(tab || 'video_liveness');
+                  setVerifyModalOpen(true);
+                }}
+              />
+            )}
+
+            {activeView === 'community' && (
+              <CommunityHub
+                onOpenStore={handleOpenStore}
                 onOpenVerifyModal={(tab) => {
                   setVerifyTab(tab || 'video_liveness');
                   setVerifyModalOpen(true);
