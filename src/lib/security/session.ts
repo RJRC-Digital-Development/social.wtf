@@ -1,3 +1,4 @@
+import { distributedStore } from './distributedStore';
 import crypto from 'crypto';
 
 export type SessionScope = 'user' | 'creator' | 'admin';
@@ -478,4 +479,52 @@ export function createClearSessionCookie(): string {
   ]
     .filter(Boolean)
     .join('; ');
+}
+
+/**
+ * Asynchronously revokes a session across both in-memory registry and distributed store.
+ */
+export async function revokeSessionAsync(token: string): Promise<boolean> {
+  const localSuccess = revokeSession(token);
+  if (!localSuccess) return false;
+
+  const verification = verifySessionToken(token);
+  if (verification.valid && distributedStore.isConfigured()) {
+    const ttlSeconds = Math.max(0, Math.ceil((verification.payload.expiresAt - Date.now()) / 1000));
+    await distributedStore.set(`revoked_session:${verification.payload.sessionId}`, '1', ttlSeconds);
+  }
+
+  return true;
+}
+
+/**
+ * Asynchronously validates request session, verifying against both local registry and distributed store.
+ */
+export async function validateRequestSessionAsync(request: Request): Promise<
+  | {
+      authenticated: true;
+      payload: SessionPayload;
+    }
+  | {
+      authenticated: false;
+      reason: string;
+    }
+> {
+  const syncResult = validateRequestSession(request);
+  if (!syncResult.authenticated) {
+    return syncResult;
+  }
+
+  if (distributedStore.isConfigured()) {
+    const isRevoked = await distributedStore.get(`revoked_session:${syncResult.payload.sessionId}`);
+    if (isRevoked) {
+      sessionRegistry.revoke(syncResult.payload.sessionId, syncResult.payload.expiresAt);
+      return {
+        authenticated: false,
+        reason: 'Session revoked.',
+      };
+    }
+  }
+
+  return syncResult;
 }

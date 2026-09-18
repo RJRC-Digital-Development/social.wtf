@@ -12,6 +12,7 @@ const testFiles = [
   'rate-limiter.test.mjs',
   'session.test.mjs',
   'contract-invariants.test.mjs',
+  'distributed-store.test.mjs',
 ];
 
 let totalPassed = 0;

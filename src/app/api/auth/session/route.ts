@@ -2,12 +2,12 @@ import { NextResponse } from 'next/server';
 import {
   createClearSessionCookie,
   extractSessionToken,
-  validateRequestSession,
-  revokeSession,
+  validateRequestSessionAsync,
+  revokeSessionAsync,
 } from '@/lib/security/session';
 
 export async function GET(request: Request) {
-  const session = validateRequestSession(request);
+  const session = await validateRequestSessionAsync(request);
 
   if (!session.authenticated) {
     return NextResponse.json(
@@ -32,10 +32,10 @@ export async function DELETE(request: Request) {
   const token = extractSessionToken(request);
 
   if (token) {
-    const session = validateRequestSession(request);
+    const session = await validateRequestSessionAsync(request);
 
     if (session.authenticated) {
-      revokeSession(token);
+      await revokeSessionAsync(token);
     }
   }
 

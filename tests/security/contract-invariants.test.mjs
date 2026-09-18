@@ -195,4 +195,63 @@ function closeProduct(product, callerSigner) {
   console.log('✓ Test 5: Product closure and rent reclamation strictly bound to creator authority');
 }
 
+// Model of PurchaseProduct instruction
+function executePurchaseProduct(platformState, product, buyer, creator, treasury) {
+  assert.ok(!platformState.is_paused, 'PlatformPaused');
+  assert.ok(product.is_active, 'ProductInactive');
+  assert.ok(!buyer.equals(creator), 'SelfPurchaseNotAllowed: Buyer and creator cannot be the same address');
+  assert.ok(treasury.equals(platformState.treasury), 'InvalidTreasuryAccount');
+  assert.ok(creator.equals(product.creator), 'UnauthorizedCreator');
+
+  const priceLamports = product.price_lamports;
+  assert.ok(priceLamports > 0n, 'InvalidAmount');
+
+  const treasuryFee = (priceLamports * platformState.fee_bps) / BPS_DENOMINATOR;
+  const creatorProceeds = priceLamports - treasuryFee;
+  assert.strictEqual(creatorProceeds + treasuryFee, priceLamports, 'FeeInvariantViolated');
+
+  product.total_sales += 1n;
+  platformState.total_volume_lamports += priceLamports;
+  platformState.total_treasury_collected += treasuryFee;
+  platformState.total_transactions += 1n;
+
+  return {
+    creatorProceeds,
+    treasuryFee,
+    receiptNonce: product.total_sales - 1n,
+    success: true,
+  };
+}
+
+// Test 6: Self-Purchase Wash Metric Inflation Rejected
+{
+  const admin = Keypair.generate().publicKey;
+  const treasury = Keypair.generate().publicKey;
+  const platform = createPlatformState(admin, treasury);
+
+  const creator = Keypair.generate().publicKey;
+  const product = createProduct(creator, 'digital_art_01', 1_000_000_000n); // 1 COOK
+
+  // Creator attempting to buy own product must be rejected
+  assert.throws(
+    () => {
+      executePurchaseProduct(platform, product, creator, creator, treasury);
+    },
+    /SelfPurchaseNotAllowed/,
+    'Self-purchase by creator must be rejected'
+  );
+
+  assert.strictEqual(product.total_sales, 0n);
+  assert.strictEqual(platform.total_volume_lamports, 0n);
+
+  // Legitimate distinct buyer succeeds
+  const buyer = Keypair.generate().publicKey;
+  const purchase = executePurchaseProduct(platform, product, buyer, creator, treasury);
+  assert.strictEqual(purchase.success, true);
+  assert.strictEqual(product.total_sales, 1n);
+  assert.strictEqual(platform.total_volume_lamports, 1_000_000_000n);
+
+  console.log('✓ Test 6: Self-purchase / wash trading volume inflation successfully blocked');
+}
+
 console.log('ALL SMART CONTRACT INVARIANTS & AUTHORITY MODEL TESTS PASSED!\n');

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { verifyWalletChallenge } from '@/lib/security/walletAuth';
+import { verifyWalletChallengeAsync } from '@/lib/security/walletAuth';
 import { globalRateLimiter } from '@/lib/security/rateLimiter';
 import { createSession, verifySessionToken, createSessionCookie } from '@/lib/security/session';
 
@@ -7,8 +7,8 @@ export async function POST(req: Request) {
   try {
     const ip = req.headers.get('x-real-ip')?.trim() || req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '127.0.0.1';
 
-    // Rate limit: 10 verification attempts per minute per IP to defend against brute force
-    const rateCheck = globalRateLimiter.check(`verify:${ip}`, 10, 60_000);
+    // Distributed Rate Limit: 10 verification attempts per minute per IP
+    const rateCheck = await globalRateLimiter.checkAsync(`verify:${ip}`, 10, 60_000);
     if (!rateCheck.allowed) {
       return NextResponse.json(
         { error: 'Too many verification attempts. Please wait before retrying.' },
@@ -26,7 +26,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const result = verifyWalletChallenge({
+    const result = await verifyWalletChallengeAsync({
       walletAddress,
       nonce,
       signatureBase58,

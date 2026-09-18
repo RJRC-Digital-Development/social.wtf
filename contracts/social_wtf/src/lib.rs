@@ -272,6 +272,12 @@ pub mod social_wtf {
         let platform_state = &ctx.accounts.platform_state;
         require!(!platform_state.is_paused, SocialError::PlatformPaused);
 
+        // Anti-Wash Trading: Disallow creator purchasing own product to inflate sales metrics
+        require!(
+            ctx.accounts.buyer.key() != ctx.accounts.creator.key(),
+            SocialError::SelfPurchaseNotAllowed
+        );
+
         let product = &ctx.accounts.product;
         require!(product.is_active, SocialError::ProductInactive);
 
@@ -681,4 +687,6 @@ pub enum SocialError {
     FeeInvariantViolated,
     #[msg("Self-tipping is disallowed to prevent wash-trading metric inflation")]
     SelfTippingNotAllowed,
+    #[msg("Self-purchasing is disallowed to prevent wash-trading metric inflation")]
+    SelfPurchaseNotAllowed,
 }

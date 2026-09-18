@@ -1,3 +1,4 @@
+import { distributedStore } from './distributedStore';
 /**
  * Sliding Window Rate Limiter with Distributed Coordination Support
  * Protects API routes, AI endpoints, and verification services against DoS and brute-force abuse.
@@ -40,6 +41,29 @@ export class SlidingWindowRateLimiter {
    * @param limit Max allowed requests within window
    * @param windowMs Time window in milliseconds
    */
+  /**
+   * Distributed rate limit check supporting Upstash / Vercel KV with memory fallback
+   */
+  public async checkAsync(
+    key: string,
+    limit: number,
+    windowMs: number
+  ): Promise<{ allowed: boolean; remaining: number; resetMs: number; limit: number }> {
+    if (distributedStore.isConfigured()) {
+      const windowSec = Math.max(1, Math.ceil(windowMs / 1000));
+      const count = await distributedStore.incrWithExpiry(`rate:${key}`, windowSec);
+      if (count !== null) {
+        return {
+          allowed: count <= limit,
+          remaining: Math.max(0, limit - count),
+          resetMs: windowMs,
+          limit,
+        };
+      }
+    }
+    return this.check(key, limit, windowMs);
+  }
+
   public check(
     key: string,
     limit: number,

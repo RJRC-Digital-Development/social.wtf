@@ -3,9 +3,9 @@ import { generateAuthChallenge, formatChallengeMessage } from '@/lib/security/wa
 import { globalRateLimiter } from '@/lib/security/rateLimiter';
 import { PublicKey } from '@solana/web3.js';
 
-function handleNonceRequest(walletAddress: string | null, ip: string) {
-  // Rate limit: 15 nonce requests per minute per IP
-  const rateCheck = globalRateLimiter.check(`nonce:${ip}`, 15, 60_000);
+async function handleNonceRequest(walletAddress: string | null, ip: string) {
+  // Distributed Rate Limit: 15 nonce requests per minute per IP
+  const rateCheck = await globalRateLimiter.checkAsync(`nonce:${ip}`, 15, 60_000);
   if (!rateCheck.allowed) {
     return NextResponse.json(
       { error: 'Too many authentication requests. Please try again shortly.' },
@@ -39,7 +39,7 @@ export async function GET(req: Request) {
     const ip = req.headers.get('x-real-ip')?.trim() || req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '127.0.0.1';
     const { searchParams } = new URL(req.url);
     const walletAddress = searchParams.get('walletAddress');
-    return handleNonceRequest(walletAddress, ip);
+    return await handleNonceRequest(walletAddress, ip);
   } catch {
     return NextResponse.json({ error: 'Failed to generate authentication challenge' }, { status: 500 });
   }
@@ -50,7 +50,7 @@ export async function POST(req: Request) {
     const ip = req.headers.get('x-real-ip')?.trim() || req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '127.0.0.1';
     const body = await req.json().catch(() => ({}));
     const { walletAddress } = body;
-    return handleNonceRequest(walletAddress, ip);
+    return await handleNonceRequest(walletAddress, ip);
   } catch {
     return NextResponse.json({ error: 'Failed to generate authentication challenge' }, { status: 500 });
   }

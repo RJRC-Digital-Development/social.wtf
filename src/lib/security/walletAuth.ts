@@ -1,3 +1,4 @@
+import { distributedStore } from './distributedStore';
 import { PublicKey } from '@solana/web3.js';
 import { ed25519 } from '@noble/curves/ed25519';
 import bs58 from 'bs58';
@@ -79,6 +80,10 @@ export function generateAuthChallenge(
 
   activeChallenges.set(nonce, challenge);
 
+  if (distributedStore.isConfigured()) {
+    distributedStore.set(`nonce:${nonce}`, JSON.stringify(challenge), 300).catch(() => {});
+  }
+
   return challenge;
 }
 
@@ -154,4 +159,32 @@ export function verifyWalletChallenge({
   } catch (err: any) {
     return { verified: false, error: `Verification error: ${err.message}` };
   }
+}
+
+/**
+ * Asynchronously verifies wallet challenge with cross-instance distributed store support.
+ */
+export async function verifyWalletChallengeAsync(params: {
+  walletAddress: string;
+  nonce: string;
+  signatureBase58: string;
+}): Promise<{ verified: boolean; error?: string }> {
+  if (activeChallenges.has(params.nonce)) {
+    return verifyWalletChallenge(params);
+  }
+
+  if (distributedStore.isConfigured()) {
+    const raw = await distributedStore.getdel(`nonce:${params.nonce}`);
+    if (raw) {
+      try {
+        const challenge: AuthChallenge = JSON.parse(raw);
+        activeChallenges.set(params.nonce, challenge);
+        return verifyWalletChallenge(params);
+      } catch {
+        return { verified: false, error: 'Malformed distributed challenge' };
+      }
+    }
+  }
+
+  return { verified: false, error: 'Challenge nonce not found or already consumed' };
 }

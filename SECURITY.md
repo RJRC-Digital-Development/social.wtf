@@ -35,10 +35,19 @@ $$\text{creator\_amount} + \text{treasury\_fee} \equiv \text{total\_payment}$$
 ### 2. Product Pricing & Ownership Invariant
 - **Never Trust Client Price**: `purchase_product` reads `product.price_lamports` strictly from the on-chain `Product` account PDA derived from `[b"product", creator, product_id]`.
 - **Creator Authorization**: Only the authorized creator signer can create or modify products.
+- **Anti-Wash Trading Protection**: The contract strictly disallows self-tipping (`tipper != creator`) and self-purchases (`buyer != creator`) to prevent artificial metric inflation and fake transaction volume.
 
 ### 3. Governance & Emergency Pause
 - **Two-Step Admin Transfer**: Ownership transfers require initiation by current admin (`transfer_admin`), followed by explicit acceptance signature from the pending admin (`accept_admin`).
 - **Emergency Circuit Breaker**: The platform can be paused by governance (`pause_platform`) to freeze all tips and purchases during security incidents while administrative recovery functions operate.
+- **Typed Account Validation**: All creator and treasury destinations use typed `SystemAccount<'info>` with `has_one` constraints to eliminate account substitution attacks.
+
+### 4. Cryptographic Session & Distributed State Architecture
+- **Fail-Closed Secret Enforcement**: `SESSION_SECRET` must be set with at least 32 characters in all environments; missing or short secrets trigger immediate fail-closed shutdown.
+- **Versioned HMAC Tokens**: Stateless tamper-evident tokens using `v1.<payloadBase64Url>.<signatureBase64Url>` format signed with HMAC-SHA256 and constant-time `crypto.timingSafeEqual` comparison.
+- **Distributed State Coordination**:
+  - **Single-Instance / Local Dev**: High-performance in-memory Maps with sliding-window pruning, capacity bounds (`MAX_ACTIVE_CHALLENGES = 10,000`), and automatic expiration cleanup.
+  - **Multi-Instance / Serverless (Vercel)**: Zero-dependency REST adapter supporting Upstash Redis / Vercel KV for atomic single-use nonce consumption (`GETDEL`), cross-instance session revocation blocklists, and global rate limiting.
 
 ---
 
@@ -49,8 +58,11 @@ Permanent security regression tests are located under [`tests/security/`](file:/
 - `sanitize.test.mjs`: Tests XSS payloads and SSRF vectors (cloud metadata, loopback, private IPv4 blocks).
 - `wallet-auth.test.mjs`: Tests Ed25519 signature verification, nonce expiry, address mismatch rejection, and anti-replay nonce consumption.
 - `rate-limiter.test.mjs`: Tests sliding-window quota enforcement and key isolation under simulated DoS traffic.
+- `session.test.mjs`: Tests v1 token generation, tampering detection, fail-closed secrets, expiration, and authenticated revocation.
+- `contract-invariants.test.mjs`: Tests anti-wash self-tipping rejection, self-purchase wash trading rejection, CEI ordering, and destination constraints.
+- `distributed-store.test.mjs`: Tests atomic `GETDEL` nonce consumption, distributed TTL pruning, rate limiting increments, and REST protocol conformity.
 
-Execute tests locally with:
+Execute all suites locally with:
 ```bash
 npm test
 ```
