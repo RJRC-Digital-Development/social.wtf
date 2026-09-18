@@ -27,6 +27,8 @@ import {
   Check,
   Tag,
   Share2,
+  Gift,
+  Heart,
 } from 'lucide-react';
 
 interface CommunityHubProps {
@@ -187,16 +189,18 @@ export const CommunityHub: React.FC<CommunityHubProps> = ({
 
   const getCategoryBadge = (cat: DiscussionCategory) => {
     switch (cat) {
+      case 'sponsorship':
+        return { label: 'Sponsorship & Grants', color: 'bg-rose-500/15 text-rose-300 border-rose-500/30' };
       case 'wishlist':
-        return { label: ' Feature Wishlist', color: 'bg-amber-500/15 text-amber-300 border-amber-500/30' };
+        return { label: 'Feature Wishlist', color: 'bg-amber-500/15 text-amber-300 border-amber-500/30' };
       case 'update':
-        return { label: ' Platform Update', color: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30' };
+        return { label: 'Platform Update', color: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30' };
       case 'news':
-        return { label: ' Ecosystem News', color: 'bg-blue-500/15 text-blue-300 border-blue-500/30' };
+        return { label: 'Ecosystem News', color: 'bg-blue-500/15 text-blue-300 border-blue-500/30' };
       case 'dev_support':
-        return { label: ' Creator & Dev Support', color: 'bg-purple-500/15 text-purple-300 border-purple-500/30' };
+        return { label: 'Creator & Dev Support', color: 'bg-purple-500/15 text-purple-300 border-purple-500/30' };
       default:
-        return { label: ' General', color: 'bg-slate-800 text-slate-300 border-slate-700' };
+        return { label: 'General', color: 'bg-slate-800 text-slate-300 border-slate-700' };
     }
   };
 
@@ -209,14 +213,14 @@ export const CommunityHub: React.FC<CommunityHubProps> = ({
             <Sparkles className="w-6 h-6" />
           </div>
           <div>
-            <h2 className="text-base md:text-lg font-bold text-slate-100 flex items-center gap-2">
-              <span>Community Wiki &amp; Discussion Board</span>
+            <h2 className="text-base md:text-lg font-bold text-slate-100 flex items-center gap-2 flex-wrap">
+              <span>Community Wiki, Discussions &amp; Sponsorships</span>
               <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
                 GOVERNANCE &amp; IDEAS
               </span>
             </h2>
             <p className="text-xs text-slate-300 mt-0.5 max-w-xl leading-relaxed">
-              Explore the developer wiki, propose inspired additions, post feature wishlists, review official updates, and discuss up &amp; coming Cookie Chain news.
+              Explore the developer wiki, propose inspired additions, apply for creator sponsorship grants, post feature wishlists, review official updates, and discuss Cookie Chain news.
             </p>
           </div>
         </div>
@@ -227,14 +231,14 @@ export const CommunityHub: React.FC<CommunityHubProps> = ({
             className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 font-bold text-xs hover:brightness-110 active:scale-95 transition-all shadow-md shadow-amber-500/20"
           >
             <PlusCircle className="w-4 h-4" />
-            <span>Propose Feature / Wishlist</span>
+            <span>Propose Topic / Wishlist</span>
           </button>
         </div>
       </div>
 
       {/* Main Mode Navigation (Wiki vs Discussions) */}
       <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={() => setActiveMainTab('discussions')}
             className={`flex items-center gap-2 px-4 py-2 rounded-2xl text-xs font-semibold transition-all ${
@@ -264,15 +268,48 @@ export const CommunityHub: React.FC<CommunityHubProps> = ({
       {/* TAB 1: DISCUSSION BOARD & WISHLISTS */}
       {activeMainTab === 'discussions' && (
         <div className="space-y-5 animate-fade-in">
+          {/* Creator Sponsorship & Grant Initiative Banner */}
+          <div className="p-4 rounded-2xl bg-gradient-to-r from-rose-500/10 via-amber-500/10 to-purple-500/10 border border-amber-500/30 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-md">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-amber-500/20 text-amber-400 shrink-0">
+                <Heart className="w-5 h-5 fill-amber-400 text-amber-400" />
+              </div>
+              <div>
+                <h3 className="font-bold text-slate-100 text-xs sm:text-sm flex items-center gap-2">
+                  <span>Creator Sponsorship &amp; Ecosystem Grants</span>
+                  <span className="px-2 py-0.2 rounded text-[9px] font-bold bg-amber-500/20 text-amber-300 font-mono">
+                    95/5 SPLIT
+                  </span>
+                </h3>
+                <p className="text-[11px] text-slate-300 mt-0.5">
+                  Link your verified sponsor page (GitHub Sponsors, Patreon, custom URL) to receive direct community patronage.
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={() => {
+                setNewCategory('sponsorship');
+                setNewTitle('Sponsorship Proposal / Creator Grant Application');
+                setNewTopicModalOpen(true);
+              }}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold transition-all shadow-md shrink-0 w-full sm:w-auto justify-center"
+            >
+              <Gift className="w-3.5 h-3.5" />
+              <span>Apply for Sponsor Grant</span>
+            </button>
+          </div>
+
           {/* Sub Filter Chips & Search Bar */}
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-1.5 w-full sm:w-auto">
               {[
-                { id: 'all', label: ' All Topics' },
-                { id: 'wishlist', label: ' Wishlists' },
-                { id: 'update', label: ' Updates' },
-                { id: 'news', label: ' News' },
-                { id: 'dev_support', label: ' Dev Support' },
+                { id: 'all', label: 'All Topics' },
+                { id: 'sponsorship', label: 'Sponsorship & Grants' },
+                { id: 'wishlist', label: 'Wishlists' },
+                { id: 'update', label: 'Updates' },
+                { id: 'news', label: 'News' },
+                { id: 'dev_support', label: 'Dev Support' },
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -631,11 +668,12 @@ export const CommunityHub: React.FC<CommunityHubProps> = ({
                   onChange={(e) => setNewCategory(e.target.value as DiscussionCategory)}
                   className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-amber-400"
                 >
-                  <option value="wishlist"> Feature Wishlist / Inspired Addition</option>
-                  <option value="idea"> Creator Idea &amp; Feedback</option>
-                  <option value="dev_support"> Creator &amp; Dev Support</option>
-                  <option value="news"> Ecosystem News Alpha</option>
-                  <option value="update"> Changelog / Platform Update</option>
+                  <option value="sponsorship">Sponsorship &amp; Grants Proposal</option>
+                  <option value="wishlist">Feature Wishlist / Inspired Addition</option>
+                  <option value="idea">Creator Idea &amp; Feedback</option>
+                  <option value="dev_support">Creator &amp; Dev Support</option>
+                  <option value="news">Ecosystem News Alpha</option>
+                  <option value="update">Changelog / Platform Update</option>
                 </select>
               </div>
 

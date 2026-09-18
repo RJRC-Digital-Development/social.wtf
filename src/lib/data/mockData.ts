@@ -11,6 +11,8 @@ export const INITIAL_CREATORS: User[] = [
     verified: true,
     ageVerified: true,
     walletAddress: 'HMnySuX1CdBfqysiLtU4brPawufcHxFTFZu97jrKQwT9',
+    sponsorUrl: 'https://github.com/sponsors/RJRC-Digital-Development',
+    sponsorGoal: 'Funding decentralized creator tooling, SVM smart contracts, and open grants.',
     followersCount: 1,
     followingCount: 1,
     isCreator: true,

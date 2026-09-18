@@ -13,6 +13,8 @@ import {
   Check,
   Save,
   Wallet,
+  Gift,
+  Heart,
 } from 'lucide-react';
 
 interface EditProfileModalProps {
@@ -32,6 +34,8 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
   const [handle, setHandle] = useState(creator.handle);
   const [bio, setBio] = useState(creator.bio);
   const [walletAddress, setWalletAddress] = useState(creator.walletAddress);
+  const [sponsorUrl, setSponsorUrl] = useState(creator.sponsorUrl || '');
+  const [sponsorGoal, setSponsorGoal] = useState(creator.sponsorGoal || '');
   const [avatar, setAvatar] = useState(creator.avatar);
   const [coverImage, setCoverImage] = useState(creator.coverImage || '');
   const [avatarPreview, setAvatarPreview] = useState(creator.avatar);
@@ -89,6 +93,8 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
       handle: cleanHandle,
       bio: bio.trim(),
       walletAddress: walletAddress.trim() || creator.walletAddress,
+      sponsorUrl: sponsorUrl.trim() || undefined,
+      sponsorGoal: sponsorGoal.trim() || undefined,
       avatar: avatar || creator.avatar,
       coverImage: coverImage || undefined,
     };
@@ -301,6 +307,36 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
               placeholder="e.g. Cook... or Solana Base58 Address"
               className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900/90 border border-slate-700 text-slate-100 text-xs font-mono focus:outline-none focus:border-amber-400"
             />
+          </div>
+
+          {/* Creator Sponsor Link & Funding Goal */}
+          <div className="space-y-3 p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30">
+            <div className="flex items-center gap-2 text-xs font-bold text-amber-300">
+              <Gift className="w-3.5 h-3.5 text-amber-400" />
+              <span>Creator Sponsor &amp; Grant Link</span>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-semibold text-slate-300">Sponsor / Donation URL</label>
+              <input
+                type="url"
+                value={sponsorUrl}
+                onChange={(e) => setSponsorUrl(e.target.value)}
+                placeholder="https://github.com/sponsors/... or custom patron link"
+                className="w-full px-3 py-2 rounded-xl bg-slate-900/90 border border-slate-700 text-slate-100 text-xs focus:outline-none focus:border-amber-400 font-mono"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-semibold text-slate-300">Sponsorship Goal / Purpose</label>
+              <input
+                type="text"
+                value={sponsorGoal}
+                onChange={(e) => setSponsorGoal(e.target.value)}
+                placeholder="e.g. Building open source Cookie Chain tools & generative artwork"
+                className="w-full px-3 py-2 rounded-xl bg-slate-900/90 border border-slate-700 text-slate-100 text-xs focus:outline-none focus:border-amber-400"
+              />
+            </div>
           </div>
 
           {/* Action Buttons */}

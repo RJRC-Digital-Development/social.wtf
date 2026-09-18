@@ -552,6 +552,36 @@ setInterval(() => {
             </div>
           </div>
 
+          {/* Creator Sponsor & Grant Banner */}
+          {creator.sponsorUrl && (
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-2xl bg-gradient-to-r from-rose-500/10 via-amber-500/10 to-purple-500/10 border border-amber-500/30">
+              <div className="flex items-center gap-2.5 overflow-hidden">
+                <div className="p-2 rounded-xl bg-amber-500/20 text-amber-400 shrink-0">
+                  <Heart className="w-4 h-4 fill-amber-400 text-amber-400" />
+                </div>
+                <div>
+                  <div className="text-[10px] uppercase tracking-wider font-bold text-amber-300">
+                    Creator Sponsorship &amp; Support
+                  </div>
+                  <p className="text-xs text-slate-200 mt-0.5">
+                    {creator.sponsorGoal || 'Support independent creative development on Cookie Chain SVM.'}
+                  </p>
+                </div>
+              </div>
+
+              <a
+                href={creator.sponsorUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 font-bold text-xs hover:brightness-110 active:scale-95 transition-all shadow-md shrink-0"
+              >
+                <Heart className="w-3.5 h-3.5 fill-slate-950 text-slate-950" />
+                <span>Sponsor Creator</span>
+                <ExternalLink className="w-3.5 h-3.5 ml-0.5" />
+              </a>
+            </div>
+          )}
+
           <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 font-mono text-[11px] text-slate-400 max-w-full overflow-hidden">
             <span className="text-amber-400 shrink-0">SVM Address:</span>
             <span className="bg-slate-900/80 px-2.5 py-1 rounded-xl border border-slate-800 text-[10px] sm:text-[11px] text-slate-300 break-all select-all inline-block max-w-full">

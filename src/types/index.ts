@@ -21,6 +21,8 @@ export interface User {
   idBackHash?: string;
   walletAddress: string;
   coverImage?: string;
+  sponsorUrl?: string;
+  sponsorGoal?: string;
   followersCount: number;
   followingCount: number;
   friendsCount?: number;
@@ -163,7 +165,7 @@ export interface WikiArticle {
   tags: string[];
 }
 
-export type DiscussionCategory = 'wishlist' | 'update' | 'news' | 'idea' | 'dev_support';
+export type DiscussionCategory = 'wishlist' | 'update' | 'news' | 'idea' | 'dev_support' | 'sponsorship';
 
 export interface DiscussionReply {
   id: string;

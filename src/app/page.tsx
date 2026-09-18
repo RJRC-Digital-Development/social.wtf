@@ -53,6 +53,8 @@ const DEFAULT_USER_PROFILE: User = {
   ageVerified: true,
   walletAddress: 'HMnySuX1CdBfqysiLtU4brPawufcHxFTFZu97jrKQwT9',
   coverImage: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200&h=400&fit=crop',
+  sponsorUrl: 'https://github.com/sponsors/RJRC-Digital-Development',
+  sponsorGoal: 'Funding decentralized creator tooling, SVM smart contracts, and open grants.',
   followersCount: 1420,
   followingCount: 380,
   isCreator: true,
