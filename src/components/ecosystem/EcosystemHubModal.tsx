@@ -13,18 +13,24 @@ import {
   CheckCircle2,
   Box,
 } from 'lucide-react';
+import { useWallet } from '@/lib/wallet/walletContext';
+import { TransactionRecord } from '@/types';
+import confetti from 'canvas-confetti';
 
 interface EcosystemHubModalProps {
   isOpen: boolean;
   onClose: () => void;
   defaultTab?: 'bridge' | 'cookieswap' | 'cookiebox' | 'das' | 'mcp';
+  onTransactionRecorded?: (tx: TransactionRecord) => void;
 }
 
 export const EcosystemHubModal: React.FC<EcosystemHubModalProps> = ({
   isOpen,
   onClose,
   defaultTab = 'bridge',
+  onTransactionRecorded,
 }) => {
+  const { connected, connect, signAndSendTransaction, walletAddress } = useWallet();
   const [activeTab, setActiveTab] = useState<'bridge' | 'cookieswap' | 'cookiebox' | 'das' | 'mcp'>(
     defaultTab
   );
@@ -32,6 +38,56 @@ export const EcosystemHubModal: React.FC<EcosystemHubModalProps> = ({
   // Quick swap state
   const [swapAmount, setSwapAmount] = useState<number>(1);
   const [targetCook, setTargetCook] = useState<number>(1000);
+  const [isSwapping, setIsSwapping] = useState(false);
+  const [swapSig, setSwapSig] = useState<string | null>(null);
+
+  const handleExecuteSwap = async () => {
+    if (!connected) {
+      await connect();
+      return;
+    }
+    if (swapAmount <= 0) return;
+
+    setIsSwapping(true);
+    try {
+      const signature = await signAndSendTransaction({
+        action: 'swap_sol_for_cook',
+        amount: swapAmount,
+        targetCook: targetCook,
+      });
+
+      if (signature) {
+        setSwapSig(signature);
+        try {
+          confetti({ particleCount: 35, spread: 60, origin: { y: 0.6 } });
+        } catch {
+          // confetti fallback
+        }
+
+        if (onTransactionRecorded) {
+          const newTx: TransactionRecord = {
+            id: `tx-swap-${Date.now()}`,
+            signature: signature,
+            fromAddress: walletAddress || 'CookYourWallet11111111111111111111111111',
+            toAddress: 'CookSwapPool1111111111111111111111111111111111',
+            treasuryAddress: 'CookTreasury11111111111111111111111111111111',
+            totalAmountCook: targetCook,
+            creatorAmountCook: targetCook * 0.95,
+            treasuryAmountCook: targetCook * 0.05,
+            actionType: 'swap',
+            itemTitle: `Swapped ${swapAmount} SOL for ${targetCook.toLocaleString()} COOK`,
+            timestamp: 'Just now',
+            status: 'confirmed',
+          };
+          onTransactionRecorded(newTx);
+        }
+      }
+    } catch (err) {
+      console.error('Swap failed:', err);
+    } finally {
+      setIsSwapping(false);
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -221,14 +277,52 @@ export const EcosystemHubModal: React.FC<EcosystemHubModalProps> = ({
                   <span className="font-bold text-amber-400 font-mono">COOK</span>
                 </div>
 
-                <a
-                  href="https://cookieswap.fun"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="w-full block text-center py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold transition-all"
+                <button
+                  onClick={handleExecuteSwap}
+                  disabled={isSwapping || swapAmount <= 0}
+                  className="w-full py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:brightness-110 active:scale-[0.99] text-slate-950 font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg flex items-center justify-center gap-2 text-xs"
                 >
-                  Execute Swap on Cookieswap.fun
-                </a>
+                  {isSwapping ? (
+                    <>
+                      <div className="w-3.5 h-3.5 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
+                      <span>Swapping on Cookie Chain...</span>
+                    </>
+                  ) : !connected ? (
+                    <span>Connect Wallet to Swap</span>
+                  ) : (
+                    <span>Swap {swapAmount} SOL for {targetCook.toLocaleString()} COOK</span>
+                  )}
+                </button>
+
+                {swapSig && (
+                  <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[11px] flex items-center justify-between animate-fade-in">
+                    <div className="flex items-center gap-1.5">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      <span>Swap Finalized on Chain!</span>
+                    </div>
+                    <a
+                      href={`https://cookiescan.io/tx/${swapSig}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="font-mono text-emerald-300 underline flex items-center gap-1 hover:text-emerald-200"
+                    >
+                      <span>{swapSig.slice(0, 8)}...</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  </div>
+                )}
+
+                <div className="text-center pt-1">
+                  <a
+                    href="https://cookieswap.fun"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[11px] text-slate-400 hover:text-amber-300 inline-flex items-center gap-1 underline"
+                  >
+                    <span>Or visit external DEX at cookieswap.fun</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
               </div>
             </div>
           )}

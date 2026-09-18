@@ -325,7 +325,8 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
     
     // Deduct simulated balance
     const currentBal = parseFloat(localStorage.getItem('social_wtf_demo_balance') || '88.50');
-    const newBal = Math.max(0, currentBal - 0.5);
+    const deductAmount = typeof tx?.amount === 'number' ? tx.amount : 0.5;
+    const newBal = Math.max(0, currentBal - deductAmount);
     localStorage.setItem('social_wtf_demo_balance', newBal.toFixed(2));
     setCookBalance(newBal);
 

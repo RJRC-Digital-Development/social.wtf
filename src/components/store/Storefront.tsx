@@ -5,6 +5,7 @@ import { Product } from '@/types';
 import { useWallet } from '@/lib/wallet/walletContext';
 import { calculateFeeSplit, COOKIE_CHAIN_CONFIG } from '@/lib/solana/cookieChain';
 import { TxStatusModal, TxStep } from '../transactions/TxStatusModal';
+import { AssetDeliveryModal } from './AssetDeliveryModal';
 import {
   ShoppingBag,
   Download,
@@ -22,14 +23,16 @@ interface StorefrontProps {
   products: Product[];
   creatorHandle?: string;
   onAddProduct?: (newProduct: Product) => void;
+  onPurchaseCompleted?: (product: Product, txSig: string) => void;
 }
 
 export const Storefront: React.FC<StorefrontProps> = ({
   products,
   creatorHandle,
   onAddProduct,
+  onPurchaseCompleted,
 }) => {
-  const { connected, connect, signAndSendTransaction, cookBalance } = useWallet();
+  const { connected, connect, signAndSendTransaction, cookBalance, walletAddress } = useWallet();
 
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [purchasedProductIds, setPurchasedProductIds] = useState<string[]>([]);
@@ -40,6 +43,11 @@ export const Storefront: React.FC<StorefrontProps> = ({
   const [txModalOpen, setTxModalOpen] = useState(false);
   const [txSig, setTxSig] = useState('');
   const [txError, setTxError] = useState('');
+
+  // Asset Delivery Vault Modal
+  const [deliveryModalOpen, setDeliveryModalOpen] = useState(false);
+  const [deliveredProduct, setDeliveredProduct] = useState<Product | null>(null);
+  const [deliveredSig, setDeliveredSig] = useState('');
 
   // Add Product modal
   const [showAddModal, setShowAddModal] = useState(false);
@@ -85,6 +93,11 @@ export const Storefront: React.FC<StorefrontProps> = ({
       setTxSig(sig);
       setTxStep('confirmed');
       setPurchasedProductIds((prev) => [...prev, selectedProduct.id]);
+      setDeliveredProduct(selectedProduct);
+      setDeliveredSig(sig);
+      if (onPurchaseCompleted) {
+        onPurchaseCompleted(selectedProduct, sig);
+      }
     } catch (err: any) {
       console.error(err);
       setTxError(err.message || 'Purchase failed or signature was rejected.');
@@ -224,9 +237,9 @@ export const Storefront: React.FC<StorefrontProps> = ({
                   {isPurchased ? (
                     <button
                       onClick={() => {
-                        alert(
-                          `Unlocking encrypted asset: ${product.title}\nFormat: ${product.fileFormat}\nValid transaction confirmed on Cookie Chain.`
-                        );
+                        setDeliveredProduct(product);
+                        setDeliveredSig(txSig || 'cook_tx_delivery_verified');
+                        setDeliveryModalOpen(true);
                       }}
                       className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold transition-all shadow-md shadow-emerald-500/20"
                     >
@@ -427,6 +440,15 @@ export const Storefront: React.FC<StorefrontProps> = ({
         recipientName={selectedProduct?.creatorName}
         onClose={() => setTxModalOpen(false)}
         onRetry={handleExecuteCheckout}
+      />
+
+      {/* Digital Asset Delivery & License Vault Modal */}
+      <AssetDeliveryModal
+        isOpen={deliveryModalOpen}
+        onClose={() => setDeliveryModalOpen(false)}
+        product={deliveredProduct}
+        txSignature={deliveredSig}
+        walletAddress={walletAddress}
       />
     </div>
   );

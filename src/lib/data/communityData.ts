@@ -84,17 +84,19 @@ If either transfer fails, the entire transaction atomically reverts. Funds never
 Unlike platforms that tease users with blurred cards or "unlock sensitive content" buttons, Social.wtf enforces **Zero-Trace Shielding**:
 - Unverified feeds show **not a single hint** that restricted content exists.
 - No blurred placeholders, no locked buttons.
-- The "XXX Unshielded" filter tab is strictly rendered **only** when an active user has completed live video verification.
+- The "Adult Entertainment (18+)" filter tab is strictly rendered **only** when an active user has completed 18+ age verification.
 
 ### 2. Parental & Guardian Device Safeguard
 Why is live video verification required *upon access*?
 > **The Problem:** If age verification relied merely on a saved browser cookie or uploaded static ID on file, an underage child picking up their parent or guardian's unlocked smartphone or laptop could freely browse mature content.
-> **The Solution:** Live video liveness verification checks the *immediate human holding the screen right now*. This guarantees that an underage child is not accessing adult content through a parent's device.
+> **The Solution:** Live video liveness verification checks the *immediate human holding the screen right now*. This guarantees that an underage child is not accessing adult entertainment through a parent's device.
 
-### 3. Separation of Concerns (Zero ID Required Virtually for XXX)
-- **Government ID (Front & Back):** Uploaded into the user's **account profile** strictly for identity trust and login authentication.
-- **XXX Access:** Can **only** be accessed via live video verification. No government ID is required virtually to view adult content, ensuring 100% viewer privacy and anonymity.
-- Raw video frames and OCR buffers exist solely in client RAM and are purged instantly with a SHA-256 wipe receipt.`,
+### 3. Adult Entertainment Access & Verification Policy
+- **18+ Requirement:** 18 years old and over is strictly required to access Adult Entertainment.
+- **Payment Card + Video Check:** Users must provide a valid debit or credit card ($0 authorization age verification check) accompanied by live AI video verification to confirm adulthood.
+- **Under-25 Safeguard:** Anyone determined by the AI agent to be under 25 years old is required to produce a valid Driver's License or Government ID card front & back to continue.
+- **Zero Shortcuts & 100% AI Privacy:** There is no shortcut: our verification is conducted strictly by autonomous AI agents and will not be reviewed by humans for viewer privacy reasons unless flagged for compliance review.
+- Raw video frames and card buffers exist solely in ephemeral client RAM and are purged instantly with a cryptographic wipe receipt.`,
   },
   {
     id: 'wiki-4',
@@ -202,8 +204,8 @@ The 5% platform fee split would still apply to all tier upgrades! What does ever
     content: `We have officially deployed **Social.wtf v1.2** with massive privacy & safety enhancements:
 
 1. **Zero-Trace Content Gating:** No blurred placeholders, no teaser banners in public feeds.
-2. **Parent & Guardian Device Safeguards:** Live video verification is required upon access for adult/XXX content to ensure children on a parent's device cannot view restricted feeds.
-3. **No ID Virtually Required for XXX:** Government ID is only uploaded for account profiles/login; viewers enjoy 100% private biometric liveness verification for adult material.
+2. **Parent & Guardian Safeguards:** 18+ Adult Entertainment access strictly requires debit/credit card authorization and AI live video verification.
+3. **Under-25 ID Safeguard & Zero Human Review:** Anyone determined to be under 25 must provide a valid Driver's License or ID card. Verification is conducted 100% autonomously by AI agents with zero human review for viewer privacy unless flagged for review.
 4. **Autonomous Sentinel AI Agent:** Real-time multimodal evaluation and conversational task fulfillment.`,
     createdAt: '4 hours ago',
     upvotes: 92,

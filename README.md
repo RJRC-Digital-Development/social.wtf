@@ -26,10 +26,10 @@ Every economic transaction—from store purchases to tips and subscriptions—au
 - Backend multimodal AI analyzer (`/api/shield/scan`) classifies media in real-time.
 - **Zero-Trace Shielding**: Unlike traditional platforms that display blurred teasers or locked boxes, Social.wtf completely removes restricted content from public/unverified feeds. There is **zero hint** of its existence to underage or unverified users.
 
-### 4. Privacy-First Verification & Zero-Trace Parental Device Safeguard
-- **Live Video Webcam Safeguard (XXX Gate)**: Adult features require live webcam verification *upon access* to guarantee an underage minor is not accessing adult content through a parent's or guardian's unlocked device. Government ID is **strictly not required virtually** for adult viewing, preserving 100% privacy.
-- **Dual Government ID (Front & Back)**: Uploaded strictly into account profiles for login authentication and creator badge verification.
-- **Ephemeral Zero-Data Architecture**: Raw images and video selfie frames exist solely in ephemeral memory buffers and are cryptographically scrubbed with on-chain purge receipts.
+### 4. Privacy-First Verification & 18+ Adult Entertainment Access Policy
+- **18+ Adult Entertainment Verification**: 18 years old and over is strictly required to access Adult Entertainment. Users must provide a valid debit or credit card ($0 authorization check) with AI video verification to confirm adulthood.
+- **Under-25 ID Safeguard**: Anyone determined by the AI agent to be under 25 is required to produce a valid Driver's License or Government ID card (front & back) to continue.
+- **Zero Shortcuts & 100% Autonomous AI Privacy**: Verification is conducted strictly by autonomous AI agents and is never reviewed by humans for viewer privacy reasons unless flagged for compliance review. Raw video buffers and card checks exist solely in ephemeral RAM and are cryptographically scrubbed with purge receipts.
 
 ### 5. Open Creator SDK vs. Proprietary Sentinel™ Enclave (IP Architecture)
 - **Open Creator SDK (`/creator-sdk`)**: Public developer kit and UI templates allowing creators and 3rd parties to build custom storefront mini-apps, personal profiles, and widgets.

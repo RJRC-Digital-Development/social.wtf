@@ -31,7 +31,7 @@ import {
 
 interface CommunityHubProps {
   onOpenStore?: (handle: string) => void;
-  onOpenVerifyModal?: (tab?: 'video_liveness' | 'id_upload') => void;
+  onOpenVerifyModal?: (tab?: 'card_auth' | 'video_liveness' | 'id_upload') => void;
 }
 
 export const CommunityHub: React.FC<CommunityHubProps> = ({

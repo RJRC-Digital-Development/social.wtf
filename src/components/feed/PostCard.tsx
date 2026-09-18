@@ -24,7 +24,7 @@ import Link from 'next/link';
 interface PostCardProps {
   post: Post;
   onOpenStore?: (creatorHandle: string) => void;
-  onPostUpdated?: (updatedPost: Post) => void;
+  onPostUpdated?: (updatedPost: Post, meta?: { tipAmount?: number; signature?: string }) => void;
 }
 
 export const PostCard: React.FC<PostCardProps> = ({
@@ -102,7 +102,10 @@ export const PostCard: React.FC<PostCardProps> = ({
         totalTipsCook: post.totalTipsCook + tipAmount,
       };
       if (onPostUpdated) {
-        onPostUpdated(updated);
+        onPostUpdated(updated, {
+          tipAmount,
+          signature: sig,
+        });
       }
     } catch (err: any) {
       console.error(err);
@@ -127,8 +130,17 @@ export const PostCard: React.FC<PostCardProps> = ({
       likes: 0,
     };
 
-    setCommentsList([newComment, ...commentsList]);
+    const updatedComments = [newComment, ...commentsList];
+    setCommentsList(updatedComments);
     setNewCommentText('');
+
+    if (onPostUpdated) {
+      onPostUpdated({
+        ...post,
+        comments: updatedComments,
+        commentsCount: updatedComments.length,
+      });
+    }
   };
 
   return (

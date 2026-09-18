@@ -24,7 +24,7 @@ interface FeedProps {
   posts: Post[];
   onOpenStore?: (creatorHandle: string) => void;
   onPostCreated?: (newPost: Post) => void;
-  onPostUpdated?: (updatedPost: Post) => void;
+  onPostUpdated?: (updatedPost: Post, meta?: { tipAmount?: number; signature?: string }) => void;
   onOpenVerifyModal: () => void;
 }
 
@@ -35,7 +35,7 @@ export const Feed: React.FC<FeedProps> = ({
   onPostUpdated,
   onOpenVerifyModal,
 }) => {
-  const { filterFeedPosts, canAccessXxx, isVideoVerified, isAgeVerified, isIdVerified } = useShield();
+  const { filterFeedPosts, canAccessAdultContent, isVideoVerified, isAgeVerified, isIdVerified } = useShield();
   const { connected, connect } = useWallet();
 
   const [activeFilter, setActiveFilter] = useState<'all' | 'trending' | 'audio' | 'video' | 'shielded'>(
@@ -368,17 +368,17 @@ export const Feed: React.FC<FeedProps> = ({
             </button>
           ))}
 
-          {/* XXX Unshielded Filter Tab - Rendered ONLY when Live Video Verified! Zero trace when unverified */}
-          {canAccessXxx && (
+          {/* Adult Entertainment Filter Tab - Rendered ONLY when 18+ Access is Verified! Zero trace when unverified */}
+          {canAccessAdultContent && (
             <button
               onClick={() => setActiveFilter('shielded')}
               className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all ${
                 activeFilter === 'shielded'
-                  ? 'bg-red-500 text-white shadow-md shadow-red-500/20 font-bold'
-                  : 'bg-red-500/10 border border-red-500/30 text-red-300 hover:bg-red-500/20'
+                  ? 'bg-rose-500 text-white shadow-md shadow-rose-500/20 font-bold'
+                  : 'bg-rose-500/10 border border-rose-500/30 text-rose-300 hover:bg-rose-500/20'
               }`}
             >
-              🔥 XXX Unshielded Only
+              🔥 Adult Entertainment (18+)
             </button>
           )}
         </div>

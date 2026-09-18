@@ -25,7 +25,7 @@ import {
 interface AiAgentModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onOpenVerifyModal: (tab?: 'video_liveness' | 'id_upload') => void;
+  onOpenVerifyModal: (tab?: 'card_auth' | 'video_liveness' | 'id_upload') => void;
   onOpenStore: (creatorHandle: string) => void;
   onSelectView: (view: 'feed' | 'store' | 'creator' | 'community' | 'analytics') => void;
 }
@@ -37,7 +37,7 @@ export const AiAgentModal: React.FC<AiAgentModalProps> = ({
   onOpenStore,
   onSelectView,
 }) => {
-  const { isVideoVerified, isIdVerified } = useShield();
+  const { isVideoVerified, isIdVerified, isCardVerified, isUnder25Flagged, isAdultContentUnlocked } = useShield();
 
   const [inputQuery, setInputQuery] = useState('');
   const [isThinking, setIsThinking] = useState(false);
@@ -49,12 +49,12 @@ export const AiAgentModal: React.FC<AiAgentModalProps> = ({
       id: 'welcome-1',
       sender: 'agent',
       timestamp: 'Just now',
-      content: `👋 **Welcome! I am the Sentinel AI Agent for Social.wtf.**\n\nI can fulfill tasks, search the Cookie Chain ecosystem, verify your active live video presence (to ensure underage users cannot access mature content through a parent or guardian's device), and inspect on-chain transactions with automated 5% fee splitting.`,
+      content: `👋 **Welcome! I am the Sentinel AI Agent for Social.wtf.**\n\nI can fulfill tasks, search the Cookie Chain ecosystem, guide your 18+ Adult Entertainment verification (debit/credit card age check + AI video verification, with Driver's License or ID if determined under 25, 100% verified by autonomous AI agents with zero human review for viewer privacy), and inspect on-chain transactions with automated 5% fee splitting.`,
       actions: [
         {
-          label: '🛡️ Verify with AI Agent',
+          label: '🛡️ Verify Age (18+ Adult Entertainment)',
           actionType: 'open_verify',
-          payload: { tab: 'video_liveness' },
+          payload: { tab: 'card_auth' },
         },
         {
           label: '🔍 Search Digital Goods',
@@ -101,6 +101,9 @@ export const AiAgentModal: React.FC<AiAgentModalProps> = ({
       const agentReply = await aiAgent.processUserPrompt(query, {
         isVideoVerified,
         isIdVerified,
+        isCardVerified,
+        isUnder25Flagged,
+        isAdultContentUnlocked,
       });
       setMessages((prev) => [...prev, agentReply]);
     } catch (e) {
@@ -113,7 +116,7 @@ export const AiAgentModal: React.FC<AiAgentModalProps> = ({
   const handleActionClick = (action: { actionType: string; payload?: any }) => {
     if (action.actionType === 'open_verify') {
       onClose();
-      onOpenVerifyModal(action.payload?.tab || 'video_liveness');
+      onOpenVerifyModal(action.payload?.tab || 'card_auth');
     } else if (action.actionType === 'open_store') {
       onClose();
       onOpenStore(action.payload?.creatorHandle || 'cryptobaker');

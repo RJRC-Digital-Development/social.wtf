@@ -18,6 +18,7 @@ import {
   INITIAL_TREASURY_METRICS,
 } from '@/lib/data/mockData';
 import { Post, Product, User, TransactionRecord, TreasuryMetrics } from '@/types';
+import { calculateFeeSplit } from '@/lib/solana/cookieChain';
 import { useShield } from '@/lib/shield/shieldContext';
 import { useWallet } from '@/lib/wallet/walletContext';
 import {
@@ -49,41 +50,78 @@ export default function Home() {
   const [metrics, setMetrics] = useState<TreasuryMetrics>(INITIAL_TREASURY_METRICS);
 
   const [verifyModalOpen, setVerifyModalOpen] = useState(false);
-  const [verifyTab, setVerifyTab] = useState<'video_liveness' | 'id_upload'>('video_liveness');
+  const [verifyTab, setVerifyTab] = useState<'card_auth' | 'video_liveness' | 'id_upload'>('card_auth');
   const [aiAgentOpen, setAiAgentOpen] = useState(false);
   const [ecosystemModalOpen, setEcosystemModalOpen] = useState(false);
   const [ecosystemTab, setEcosystemTab] = useState<'bridge' | 'cookieswap' | 'cookiebox' | 'das' | 'mcp'>('bridge');
-  const { isAgeVerified, isVideoVerified, isIdVerified, canAccessXxx, unshieldedMode } = useShield();
+  const { isAgeVerified, isVideoVerified, isIdVerified, isCardVerified, isAdultContentUnlocked, canAccessAdultContent, unshieldedMode } = useShield();
   const { walletAddress } = useWallet();
 
   const handlePostCreated = (newPost: Post) => {
     setPosts([newPost, ...posts]);
   };
 
-  const handlePostUpdated = (updatedPost: Post) => {
-    setPosts(posts.map((p) => (p.id === updatedPost.id ? updatedPost : p)));
+  const handlePostUpdated = (updatedPost: Post, meta?: { tipAmount?: number; signature?: string }) => {
+    setPosts((prev) => prev.map((p) => (p.id === updatedPost.id ? updatedPost : p)));
 
-    // Record mock transaction
+    const tipAmount = meta?.tipAmount ?? 2.0;
+    const split = calculateFeeSplit(tipAmount, 500); // 5% protocol fee
     const newTx: TransactionRecord = {
       id: `tx-${Date.now()}`,
-      signature: `5${Math.random().toString(36).substring(2, 15)}${Math.random().toString(36).substring(2, 15)}`,
+      signature: meta?.signature || `5${Math.random().toString(36).substring(2, 15)}${Math.random().toString(36).substring(2, 15)}`,
       fromAddress: walletAddress || 'CookYourWallet11111111111111111111111111',
       toAddress: updatedPost.author.walletAddress,
       treasuryAddress: 'CookTreasury11111111111111111111111111111111',
-      totalAmountCook: 2.0,
-      creatorAmountCook: 1.9,
-      treasuryAmountCook: 0.1,
+      totalAmountCook: tipAmount,
+      creatorAmountCook: split.creatorAmount,
+      treasuryAmountCook: split.treasuryAmount,
       actionType: 'tip',
       itemTitle: `Tip on ${updatedPost.author.name}'s Post`,
       timestamp: 'Just now',
       status: 'confirmed',
     };
 
-    setTransactions([newTx, ...transactions]);
+    setTransactions((prev) => [newTx, ...prev]);
     setMetrics((prev) => ({
       ...prev,
-      totalPlatformVolumeCook: prev.totalPlatformVolumeCook + 2.0,
-      totalTreasuryCollectedCook: prev.totalTreasuryCollectedCook + 0.1,
+      totalPlatformVolumeCook: prev.totalPlatformVolumeCook + tipAmount,
+      totalTreasuryCollectedCook: prev.totalTreasuryCollectedCook + split.treasuryAmount,
+      totalTransactionsCount: prev.totalTransactionsCount + 1,
+    }));
+  };
+
+  const handleProductPurchased = (product: Product, txSig: string) => {
+    const split = calculateFeeSplit(product.priceCook, 500);
+    const newTx: TransactionRecord = {
+      id: `tx-prod-${Date.now()}`,
+      signature: txSig,
+      fromAddress: walletAddress || 'CookYourWallet11111111111111111111111111',
+      toAddress: product.creatorWallet || 'CookCreator11111111111111111111111111',
+      treasuryAddress: 'CookTreasury11111111111111111111111111111111',
+      totalAmountCook: product.priceCook,
+      creatorAmountCook: split.creatorAmount,
+      treasuryAmountCook: split.treasuryAmount,
+      actionType: 'store_purchase',
+      itemTitle: product.title,
+      timestamp: 'Just now',
+      status: 'confirmed',
+    };
+
+    setTransactions((prev) => [newTx, ...prev]);
+    setMetrics((prev) => ({
+      ...prev,
+      totalPlatformVolumeCook: prev.totalPlatformVolumeCook + product.priceCook,
+      totalTreasuryCollectedCook: prev.totalTreasuryCollectedCook + split.treasuryAmount,
+      totalTransactionsCount: prev.totalTransactionsCount + 1,
+    }));
+  };
+
+  const handleTransactionRecorded = (newTx: TransactionRecord) => {
+    setTransactions((prev) => [newTx, ...prev]);
+    setMetrics((prev) => ({
+      ...prev,
+      totalPlatformVolumeCook: prev.totalPlatformVolumeCook + newTx.totalAmountCook,
+      totalTreasuryCollectedCook: prev.totalTreasuryCollectedCook + newTx.treasuryAmountCook,
       totalTransactionsCount: prev.totalTransactionsCount + 1,
     }));
   };
@@ -147,21 +185,21 @@ export default function Home() {
               <span>AI Agent</span>
             </button>
 
-            {!isVideoVerified ? (
+            {!isAdultContentUnlocked ? (
               <button
                 onClick={() => {
-                  setVerifyTab('video_liveness');
+                  setVerifyTab('card_auth');
                   setVerifyModalOpen(true);
                 }}
                 className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-emerald-500/40 text-emerald-300 text-xs font-semibold transition-all shadow-sm"
               >
-                <Camera className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Sentinel Live Video Check</span>
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Verify Age to Access (18+)</span>
               </button>
             ) : (
               <span className="px-3 py-1.5 rounded-xl bg-purple-500/10 border border-purple-500/30 text-purple-300 text-xs font-semibold flex items-center gap-1.5">
                 <ShieldCheck className="w-4 h-4 text-purple-400" />
-                <span>AI Sentinel Verified (XXX Active)</span>
+                <span>AI Sentinel Verified (Adult Entertainment 18+ Active)</span>
               </span>
             )}
           </div>
@@ -311,7 +349,10 @@ export default function Home() {
                 onOpenStore={handleOpenStore}
                 onPostCreated={handlePostCreated}
                 onPostUpdated={handlePostUpdated}
-                onOpenVerifyModal={() => setVerifyModalOpen(true)}
+                onOpenVerifyModal={() => {
+                  setVerifyTab('card_auth');
+                  setVerifyModalOpen(true);
+                }}
               />
             )}
 
@@ -319,6 +360,7 @@ export default function Home() {
               <Storefront
                 products={products}
                 onAddProduct={handleAddProduct}
+                onPurchaseCompleted={handleProductPurchased}
               />
             )}
 
@@ -330,9 +372,10 @@ export default function Home() {
                 onAddProduct={handleAddProduct}
                 onPostUpdated={handlePostUpdated}
                 onOpenVerifyModal={(tab) => {
-                  setVerifyTab(tab || 'video_liveness');
+                  setVerifyTab(tab || 'card_auth');
                   setVerifyModalOpen(true);
                 }}
+                onTransactionRecorded={handleTransactionRecorded}
               />
             )}
 
@@ -340,7 +383,7 @@ export default function Home() {
               <CommunityHub
                 onOpenStore={handleOpenStore}
                 onOpenVerifyModal={(tab) => {
-                  setVerifyTab(tab || 'video_liveness');
+                  setVerifyTab(tab || 'card_auth');
                   setVerifyModalOpen(true);
                 }}
               />
@@ -506,6 +549,7 @@ export default function Home() {
         isOpen={ecosystemModalOpen}
         onClose={() => setEcosystemModalOpen(false)}
         defaultTab={ecosystemTab}
+        onTransactionRecorded={handleTransactionRecorded}
       />
 
       {/* Footer */}

@@ -68,7 +68,17 @@ upBtn.addEventListener('click', () => {
     cpsEl.textContent = autoBake.toFixed(1);
     upBtn.textContent = 'Buy Auto-Baker (+1/s) [Cost: ' + upgradeCost + ' COOK]';
   } else {
-    alert('Need ' + upgradeCost + ' COOK to upgrade!');
+    let msg = document.getElementById('msg');
+    if (!msg) {
+      msg = document.createElement('div');
+      msg.id = 'msg';
+      msg.style.color = '#f87171';
+      msg.style.fontSize = '12px';
+      msg.style.marginTop = '8px';
+      upBtn.parentNode.appendChild(msg);
+    }
+    msg.textContent = 'Need ' + upgradeCost + ' COOK to upgrade!';
+    setTimeout(() => { if (msg) msg.textContent = ''; }, 2000);
   }
 });
 

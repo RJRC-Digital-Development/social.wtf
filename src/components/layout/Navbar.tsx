@@ -21,7 +21,7 @@ import {
 interface NavbarProps {
   activeView: 'feed' | 'store' | 'creator' | 'community' | 'analytics';
   onSelectView: (view: 'feed' | 'store' | 'creator' | 'community' | 'analytics') => void;
-  onOpenVerifyModal: (tab?: 'video_liveness' | 'id_upload') => void;
+  onOpenVerifyModal: (tab?: 'card_auth' | 'video_liveness' | 'id_upload') => void;
   onOpenEcosystemModal?: (tab?: 'bridge' | 'cookieswap' | 'cookiebox' | 'das' | 'mcp') => void;
   onOpenAiAgent?: () => void;
 }
@@ -33,7 +33,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenEcosystemModal,
   onOpenAiAgent,
 }) => {
-  const { isAgeVerified, isVideoVerified, isIdVerified, canAccessXxx, unshieldedMode, toggleUnshieldedMode } = useShield();
+  const { isAgeVerified, isVideoVerified, isIdVerified, isAdultContentUnlocked, unshieldedMode, toggleUnshieldedMode } = useShield();
   const [currentSlot, setCurrentSlot] = useState<number | null>(null);
 
   // Poll Cookie Chain slot for live status
@@ -172,28 +172,28 @@ export const Navbar: React.FC<NavbarProps> = ({
           )}
 
           {/* Privacy Verification Status & Toggle */}
-          {isVideoVerified ? (
+          {isAdultContentUnlocked ? (
             <button
               onClick={toggleUnshieldedMode}
-              title={unshieldedMode ? 'XXX unshielded stream active' : 'Click to unshield restricted feeds'}
+              title={unshieldedMode ? 'Adult Entertainment stream active' : 'Click to reveal Adult Entertainment feeds'}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
                 unshieldedMode
-                  ? 'bg-red-500/15 border-red-500/40 text-red-300'
+                  ? 'bg-rose-500/15 border-rose-500/40 text-rose-300'
                   : 'bg-slate-900 border-slate-700 text-slate-300'
               }`}
             >
               {unshieldedMode ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
               <span className="hidden sm:inline">
-                {unshieldedMode ? 'XXX Unshielded' : 'Shielded'}
+                {unshieldedMode ? 'Adult Entertainment (18+)' : 'Shielded'}
               </span>
             </button>
           ) : (
             <button
-              onClick={() => onOpenVerifyModal('video_liveness')}
+              onClick={() => onOpenVerifyModal('card_auth')}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-emerald-500/40 text-emerald-400 text-xs font-semibold transition-all shadow-sm"
             >
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-              <span className="hidden sm:inline">AI Sentinel Verify</span>
+              <span className="hidden sm:inline">Verify 18+ Access</span>
             </button>
           )}
 

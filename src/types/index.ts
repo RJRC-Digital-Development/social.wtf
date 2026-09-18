@@ -11,7 +11,9 @@ export interface User {
   verified: boolean;
   ageVerified: boolean;
   isIdVerified?: boolean; // Front & back ID placed into account profile for login
-  isVideoVerified?: boolean; // Live video verified for XXX feature (no ID required virtually)
+  isVideoVerified?: boolean; // Live video verified for Adult Entertainment (18+)
+  isCardVerified?: boolean; // Debit or credit card verified for 18+ age check
+  isUnder25Flagged?: boolean; // Flagged by AI under 25 requiring Driver's License or ID
   idVerifiedAt?: string;
   idDocumentType?: string;
   idFrontHash?: string;
@@ -112,7 +114,7 @@ export interface TransactionRecord {
   totalAmountCook: number;
   creatorAmountCook: number;
   treasuryAmountCook: number;
-  actionType: 'tip' | 'store_purchase' | 'subscription';
+  actionType: 'tip' | 'store_purchase' | 'subscription' | 'crowdfund' | 'swap';
   itemTitle?: string;
   timestamp: string;
   status: 'pending' | 'confirmed' | 'failed';

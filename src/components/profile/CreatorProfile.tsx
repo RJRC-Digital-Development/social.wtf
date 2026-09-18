@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
-import { User, Product, Post, CreatorWidget } from '@/types';
+import { User, Product, Post, CreatorWidget, TransactionRecord } from '@/types';
 import { useShield } from '@/lib/shield/shieldContext';
+import { useWallet } from '@/lib/wallet/walletContext';
+import { TxStatusModal, TxStep } from '../transactions/TxStatusModal';
 import { Storefront } from '../store/Storefront';
 import { PostCard } from '../feed/PostCard';
 import { AudioPlayer } from '../feed/AudioPlayer';
@@ -31,8 +33,9 @@ interface CreatorProfileProps {
   posts: Post[];
   products: Product[];
   onAddProduct: (prod: Product) => void;
-  onPostUpdated: (post: Post) => void;
-  onOpenVerifyModal?: (tab?: 'video_liveness' | 'id_upload') => void;
+  onPostUpdated: (post: Post, meta?: { tipAmount?: number; signature?: string }) => void;
+  onOpenVerifyModal?: (tab?: 'card_auth' | 'video_liveness' | 'id_upload') => void;
+  onTransactionRecorded?: (tx: TransactionRecord) => void;
 }
 
 export const CreatorProfile: React.FC<CreatorProfileProps> = ({
@@ -42,11 +45,19 @@ export const CreatorProfile: React.FC<CreatorProfileProps> = ({
   onAddProduct,
   onPostUpdated,
   onOpenVerifyModal,
+  onTransactionRecorded,
 }) => {
-  const { isIdVerified, isVideoVerified, idCredential, canAccessXxx } = useShield();
+  const { isIdVerified, isVideoVerified, isCardVerified, isAdultContentUnlocked, canAccessAdultContent } = useShield();
+  const { connected, connect, signAndSendTransaction, walletAddress } = useWallet();
   const [activeTab, setActiveTab] = useState<'store' | 'feed' | 'widgets'>('widgets');
   const [crowdfundRaised, setCrowdfundRaised] = useState(76.5);
   const [studioOpen, setStudioOpen] = useState(false);
+
+  // Crowdfund Tip Transaction State
+  const [txModalOpen, setTxModalOpen] = useState(false);
+  const [txStep, setTxStep] = useState<TxStep>('idle');
+  const [txSig, setTxSig] = useState('');
+  const [txError, setTxError] = useState('');
 
   // Initialize with creator's widgets and a default custom code mini-app
   const [widgetsList, setWidgetsList] = useState<CreatorWidget[]>([
@@ -66,6 +77,7 @@ export const CreatorProfile: React.FC<CreatorProfileProps> = ({
     <div>Speed: <span id="cps">0.0</span> /s</div>
   </div>
   <button id="upgradeBtn" style="background: #ca8a2c; color: #000; border: none; padding: 8px 14px; border-radius: 10px; font-size: 11px; font-weight: bold; cursor: pointer; width: 100%;">Buy Auto-Baker (+1/s) [Cost: 10 COOK]</button>
+  <div id="msg" style="color: #f87171; font-size: 11px; height: 16px; margin-top: 6px; font-weight: bold;"></div>
 </div>`,
         css: `button:active { transform: scale(0.92); }`,
         js: `let count = 0; let autoBake = 0; let upgradeCost = 10;
@@ -73,6 +85,7 @@ const scoreEl = document.getElementById('score');
 const cpsEl = document.getElementById('cps');
 const btn = document.getElementById('cookieBtn');
 const upBtn = document.getElementById('upgradeBtn');
+const msgEl = document.getElementById('msg');
 btn.addEventListener('click', () => {
   count += 1;
   scoreEl.textContent = count;
@@ -87,8 +100,12 @@ upBtn.addEventListener('click', () => {
     scoreEl.textContent = count;
     cpsEl.textContent = autoBake.toFixed(1);
     upBtn.textContent = 'Buy Auto-Baker (+1/s) [Cost: ' + upgradeCost + ' COOK]';
+    if (msgEl) msgEl.textContent = '';
   } else {
-    alert('Need ' + upgradeCost + ' COOK to upgrade!');
+    if (msgEl) {
+      msgEl.textContent = 'Need ' + upgradeCost + ' COOK to upgrade!';
+      setTimeout(() => { if (msgEl) msgEl.textContent = ''; }, 2000);
+    }
   }
 });
 setInterval(() => {
@@ -101,6 +118,54 @@ setInterval(() => {
     },
     ...(creator.widgets || []),
   ]);
+
+  const handleContributeCrowdfund = async () => {
+    if (!connected) {
+      await connect('nightly');
+      return;
+    }
+
+    setTxModalOpen(true);
+    setTxStep('preparing');
+
+    try {
+      await new Promise((r) => setTimeout(r, 600));
+      setTxStep('signing');
+
+      setTxStep('broadcasting');
+      const sig = await signAndSendTransaction({
+        to: creator.walletAddress,
+        amount: 5.0,
+        action: 'crowdfund_contribution',
+      });
+
+      setTxSig(sig);
+      setTxStep('confirmed');
+      setCrowdfundRaised((prev) => Math.min(100, +(prev + 5.0).toFixed(1)));
+
+      if (onTransactionRecorded) {
+        const newTx: TransactionRecord = {
+          id: `tx-crowd-${Date.now()}`,
+          signature: sig,
+          fromAddress: walletAddress || 'CookYourWallet11111111111111111111111111',
+          toAddress: creator.walletAddress,
+          treasuryAddress: 'CookTreasury11111111111111111111111111111111',
+          totalAmountCook: 5.0,
+          creatorAmountCook: 4.75,
+          treasuryAmountCook: 0.25,
+          actionType: 'crowdfund',
+          itemTitle: `Crowdfund Goal Support for ${creator.name}`,
+          timestamp: 'Just now',
+          status: 'confirmed',
+        };
+        onTransactionRecorded(newTx);
+      }
+    } catch (err: any) {
+      console.error(err);
+      setTxError(err.message || 'Contribution failed or signature was rejected.');
+      setTxStep('error');
+    }
+  };
 
   const handleSaveCustomWidget = (newWidget: CreatorWidget) => {
     setWidgetsList([newWidget, ...widgetsList]);
@@ -173,16 +238,16 @@ setInterval(() => {
                 {isVideoVerified ? (
                   <span className="px-2 py-0.5 rounded-lg bg-purple-500/15 border border-purple-500/30 text-[10px] font-bold text-purple-300 flex items-center gap-1">
                     <Camera className="w-3 h-3 text-purple-400" />
-                    <span>AI Sentinel Video Verified (XXX Unlocked)</span>
+                    <span>AI Sentinel Video Verified (Adult Entertainment Unlocked)</span>
                   </span>
                 ) : (
                   onOpenVerifyModal && (
                     <button
-                      onClick={() => onOpenVerifyModal('video_liveness')}
+                      onClick={() => onOpenVerifyModal('card_auth')}
                       className="px-2 py-0.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-[10px] font-semibold text-amber-300 flex items-center gap-1 transition-colors"
                     >
                       <Camera className="w-3 h-3 text-amber-400" />
-                      <span>Live Video Check (Access XXX Feature)</span>
+                      <span>Verify 18+ Adult Entertainment Access</span>
                     </button>
                   )
                 )}
@@ -265,31 +330,32 @@ setInterval(() => {
         </div>
       </div>
 
-      {/* Parental & Guardian Device Safeguard Alert for Mature Profiles */}
-      {!isVideoVerified && creator.handle === 'sol_vixen' && (
+      {/* Parental & Guardian Safeguard Alert for Mature Profiles */}
+      {!isAdultContentUnlocked && creator.handle === 'sol_vixen' && (
         <div className="p-4 rounded-3xl bg-amber-950/40 border border-amber-500/40 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs shadow-xl animate-fade-in">
           <div className="flex items-center gap-3">
             <div className="p-2.5 rounded-2xl bg-amber-500/20 text-amber-400 border border-amber-500/30 shrink-0">
-              <Smartphone className="w-5 h-5" />
+              <ShieldCheck className="w-5 h-5" />
             </div>
             <div>
               <strong className="text-amber-300 block text-sm font-bold">
-                Parental &amp; Guardian Device Safeguard Active
+                18+ Adult Entertainment Verification Required
               </strong>
               <p className="text-slate-300 text-[11px] mt-0.5">
-                Verification is required upon access to guarantee that an underage child is not accessing mature content through a parent or guardian's device. 
+                Must be 18 years old or over to access. Requires a debit or credit card ($0 authorization age check) with AI video verification.
+                Anyone determined to be under 25 will be required to produce a valid Driver&apos;s License or Government ID card to continue.
                 <span className="text-emerald-300 font-semibold block sm:inline sm:ml-1">
-                  Verified by Sentinel AI Agent — no government ID required virtually.
+                  Verified strictly by autonomous AI agents with zero human review for viewer privacy unless flagged for review.
                 </span>
               </p>
             </div>
           </div>
           {onOpenVerifyModal && (
             <button
-              onClick={() => onOpenVerifyModal('video_liveness')}
+              onClick={() => onOpenVerifyModal('card_auth')}
               className="shrink-0 px-4 py-2.5 rounded-2xl bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 font-bold text-xs hover:brightness-110 active:scale-95 transition-all shadow-md"
             >
-              Verify Live Video Now
+              Verify Age (18+)
             </button>
           )}
         </div>
@@ -404,7 +470,7 @@ setInterval(() => {
               </p>
 
               <button
-                onClick={() => setCrowdfundRaised((prev) => Math.min(100, prev + 5))}
+                onClick={handleContributeCrowdfund}
                 className="w-full py-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/40 text-amber-300 font-semibold text-xs transition-all flex items-center justify-center gap-2"
               >
                 <Coins className="w-3.5 h-3.5" />
@@ -470,6 +536,21 @@ setInterval(() => {
         isOpen={studioOpen}
         onClose={() => setStudioOpen(false)}
         onSaveWidget={handleSaveCustomWidget}
+      />
+
+      {/* Crowdfund Contribution Transaction Status Modal */}
+      <TxStatusModal
+        isOpen={txModalOpen}
+        step={txStep}
+        actionTitle="Crowdfund Contribution"
+        signature={txSig}
+        errorMessage={txError}
+        totalAmountCook={5.0}
+        creatorAmountCook={4.75}
+        treasuryAmountCook={0.25}
+        recipientName={creator.name}
+        onClose={() => setTxModalOpen(false)}
+        onRetry={handleContributeCrowdfund}
       />
     </div>
   );
