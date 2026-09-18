@@ -27,6 +27,8 @@ export interface User {
   followingCount: number;
   friendsCount?: number;
   isCreator: boolean;
+  isAdmin?: boolean;
+  isAdultContentCreator?: boolean;
   storeSettings?: CreatorStoreSettings;
   monetization?: CreatorMonetization;
   widgets?: CreatorWidget[];

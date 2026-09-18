@@ -37,6 +37,8 @@ export interface WalletContextType {
   isServerSignerConfigured: boolean;
   serverSignerAddress: string | null;
   sessionToken: string | null;
+  sessionScope: 'admin' | 'user' | null;
+  isOwner: boolean;
   isAuthenticated: boolean;
   authenticating: boolean;
   connect: (type?: 'trust' | 'nightly' | 'solana' | 'demo') => Promise<void>;
@@ -72,8 +74,11 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
   const [isServerSignerConfiguredState, setIsServerSignerConfiguredState] = useState(false);
   const [serverSignerAddress, setServerSignerAddress] = useState<string | null>(null);
   const [sessionToken, setSessionToken] = useState<string | null>(null);
+  const [sessionScope, setSessionScope] = useState<'admin' | 'user' | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authenticating, setAuthenticating] = useState(false);
+
+  const isOwner = walletAddress === COOKIE_CHAIN_CONFIG.treasuryPublicKey;
 
   // Check if Web3 providers (Nightly, Trust Wallet) and Server Signer are available
   useEffect(() => {
@@ -321,6 +326,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
       const verifyData = await verifyRes.json();
       if (verifyData.verified && verifyData.sessionToken) {
         setSessionToken(verifyData.sessionToken);
+        setSessionScope(verifyData.scope || (walletAddress === COOKIE_CHAIN_CONFIG.treasuryPublicKey ? 'admin' : 'user'));
         setIsAuthenticated(true);
         localStorage.setItem(SESSION_TOKEN_STORAGE_KEY, verifyData.sessionToken);
         return true;
@@ -344,6 +350,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
       console.warn('Error during session logout:', err);
     } finally {
       setSessionToken(null);
+      setSessionScope(null);
       setIsAuthenticated(false);
       localStorage.removeItem(SESSION_TOKEN_STORAGE_KEY);
     }
@@ -481,6 +488,8 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
         isServerSignerConfigured: isServerSignerConfiguredState,
         serverSignerAddress,
         sessionToken,
+        sessionScope,
+        isOwner,
         isAuthenticated,
         authenticating,
         connect,

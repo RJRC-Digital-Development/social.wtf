@@ -119,7 +119,7 @@ export const AiAgentModal: React.FC<AiAgentModalProps> = ({
       onOpenVerifyModal(action.payload?.tab || 'card_auth');
     } else if (action.actionType === 'open_store') {
       onClose();
-      onOpenStore(action.payload?.creatorHandle || 'cryptobaker');
+      onOpenStore(action.payload?.creatorHandle || 'owner');
     } else if (action.actionType === 'navigate_tab') {
       onClose();
       onSelectView(action.payload?.view || 'feed');

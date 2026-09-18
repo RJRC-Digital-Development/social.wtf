@@ -3,6 +3,7 @@ import { verifyWalletChallengeAsync } from '@/lib/security/walletAuth';
 import { globalRateLimiter } from '@/lib/security/rateLimiter';
 import { createSession, verifySessionToken, createSessionCookie } from '@/lib/security/session';
 import { getClientIp } from '@/lib/security/ipHelper';
+import { COOKIE_CHAIN_CONFIG } from '@/lib/solana/cookieChain';
 
 export async function POST(req: Request) {
   try {
@@ -41,8 +42,12 @@ export async function POST(req: Request) {
       );
     }
 
+    // Determine authorization scope: Platform Owner Treasury receives 'admin' capability; all other wallets receive 'user'
+    const platformOwnerWallet = process.env.PLATFORM_OWNER_WALLET || COOKIE_CHAIN_CONFIG.treasuryPublicKey;
+    const sessionScope: 'admin' | 'user' = walletAddress === platformOwnerWallet ? 'admin' : 'user';
+
     // Generate authenticated, cryptographically signed session token bound to wallet
-    const token = createSession(walletAddress, 'user');
+    const token = createSession(walletAddress, sessionScope);
     const verification = verifySessionToken(token);
     if (!verification.valid) {
       return NextResponse.json(
@@ -56,6 +61,8 @@ export async function POST(req: Request) {
     const response = NextResponse.json({
       verified: true,
       walletAddress,
+      scope: sessionScope,
+      isAdmin: sessionScope === 'admin',
       sessionToken: token,
       expiresAt: verification.payload.expiresAt,
       authenticatedAt: new Date(verification.payload.issuedAt).toISOString(),

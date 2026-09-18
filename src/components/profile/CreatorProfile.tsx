@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { User, Product, Post, CreatorWidget, TransactionRecord } from '@/types';
 import { useShield } from '@/lib/shield/shieldContext';
 import { useWallet } from '@/lib/wallet/walletContext';
+import { COOKIE_CHAIN_CONFIG } from '@/lib/solana/cookieChain';
 import { TxStatusModal, TxStep } from '../transactions/TxStatusModal';
 import { Storefront } from '../store/Storefront';
 import { PostCard } from '../feed/PostCard';
@@ -351,9 +352,16 @@ setInterval(() => {
                     <CheckCircle className="w-4 h-4 text-blue-400" />
                   </span>
                 )}
-                <span className="px-2 py-0.5 rounded-lg bg-amber-500/15 border border-amber-500/30 text-[10px] font-bold text-amber-300">
-                  CREATOR MINI-APP
-                </span>
+                {creator.isAdmin || creator.walletAddress === COOKIE_CHAIN_CONFIG.treasuryPublicKey ? (
+                  <span className="px-2 py-0.5 rounded-lg bg-blue-500/20 border border-blue-500/40 text-[10px] font-bold text-blue-300 flex items-center gap-1">
+                    <ShieldCheck className="w-3 h-3 text-blue-400" />
+                    <span>PROTOCOL OWNER</span>
+                  </span>
+                ) : (
+                  <span className="px-2 py-0.5 rounded-lg bg-amber-500/15 border border-amber-500/30 text-[10px] font-bold text-amber-300">
+                    CREATOR MINI-APP
+                  </span>
+                )}
 
                 <button
                   onClick={() => setEditModalOpen(true)}
@@ -643,7 +651,7 @@ setInterval(() => {
       </div>
 
       {/* Parental & Guardian Safeguard Alert for Mature Profiles */}
-      {!isAdultContentUnlocked && creator.handle === 'sol_vixen' && (
+      {!isAdultContentUnlocked && creator.isAdultContentCreator && (
         <div className="p-4 rounded-3xl bg-amber-950/40 border border-amber-500/40 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs shadow-xl animate-fade-in">
           <div className="flex items-center gap-3">
             <div className="p-2.5 rounded-2xl bg-amber-500/20 text-amber-400 border border-amber-500/30 shrink-0">

@@ -2,14 +2,15 @@ import { User, Post, Product, TransactionRecord, TreasuryMetrics } from '@/types
 
 export const INITIAL_CREATORS: User[] = [
   {
-    id: 'creator-1',
-    handle: 'creator',
-    name: 'Cookie Creator',
-    avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
+    id: 'protocol-owner',
+    handle: 'owner',
+    name: 'Social.wtf Protocol Owner',
+    avatar: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=150&auto=format&fit=crop&q=80',
     coverImage: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200&auto=format&fit=crop&q=80',
-    bio: 'Decentralized social creator on Cookie Chain SVM. Building on-chain culture, digital goods, and community mini-apps.',
+    bio: 'Official Social.wtf Protocol Treasury & Platform Owner on Cookie Chain SVM.',
     verified: true,
     ageVerified: true,
+    isAdmin: true,
     walletAddress: 'HMnySuX1CdBfqysiLtU4brPawufcHxFTFZu97jrKQwT9',
     sponsorUrl: 'https://github.com/sponsors/RJRC-Digital-Development',
     sponsorGoal: 'Funding decentralized creator tooling, SVM smart contracts, and open grants.',
@@ -17,8 +18,8 @@ export const INITIAL_CREATORS: User[] = [
     followingCount: 0,
     isCreator: true,
     storeSettings: {
-      storeName: 'Creator Storefront',
-      storeDescription: 'Digital goods, master stems, VIP passes, and presets settled on Cookie Chain.',
+      storeName: 'Protocol Storefront',
+      storeDescription: 'Official protocol tools, smart contract templates, and ecosystem utility passes on Cookie Chain SVM.',
       supportCookTreasuryPct: 5,
     },
     widgets: [

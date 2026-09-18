@@ -13,7 +13,7 @@ export const SOCIAL_WTF_MCP_TOOLS = [
       properties: {
         creatorHandle: {
           type: 'string',
-          description: 'The handle of the creator, e.g. cryptobaker or chainsynth',
+          description: 'The handle of the creator, e.g. owner or customized handle',
         },
       },
       required: ['creatorHandle'],

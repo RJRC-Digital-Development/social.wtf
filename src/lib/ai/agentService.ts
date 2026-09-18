@@ -205,17 +205,12 @@ export class SocialWtfAiAgent {
         id: `msg-${Date.now()}`,
         sender: 'agent',
         timestamp,
-        content: ` **Cookie Chain 5% Protocol Fee Task Assistant:**\n\nEvery tip or storefront purchase is executed atomically on Cookie Chain SVM:\n- **Creator Direct:** 95% (${splitExample.creatorAmount} COOK for a 5 COOK tip)\n- **Social.wtf Treasury:** 5% (${splitExample.treasuryAmount} COOK to fund validator grants & platform innovation)\n\nWho would you like to tip?`,
+        content: `**Cookie Chain 5% Protocol Fee Task Assistant:**\n\nEvery tip or storefront purchase is executed atomically on Cookie Chain SVM:\n- **Creator Direct:** 95% (${splitExample.creatorAmount} COOK for a 5 COOK tip)\n- **Social.wtf Treasury:** 5% (${splitExample.treasuryAmount} COOK to fund validator grants & platform innovation)\n\nWho would you like to tip?`,
         actions: [
           {
-            label: 'Tip 2.0 COOK to Cookie Baker',
+            label: 'Tip 2.0 COOK to Protocol Treasury',
             actionType: 'tip_creator',
-            payload: { handle: 'cryptobaker', amount: 2.0 },
-          },
-          {
-            label: 'Tip 2.0 COOK to ChainSynth',
-            actionType: 'tip_creator',
-            payload: { handle: 'chainsynth', amount: 2.0 },
+            payload: { handle: 'owner', amount: 2.0 },
           },
         ],
       };

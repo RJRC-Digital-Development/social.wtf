@@ -109,12 +109,16 @@ export const Storefront: React.FC<StorefrontProps> = ({
     e.preventDefault();
     if (!newTitle.trim()) return;
 
+    const activeWallet = walletAddress || COOKIE_CHAIN_CONFIG.treasuryPublicKey;
+    const activeHandle = creatorHandle || (walletAddress ? `user_${walletAddress.slice(0, 4).toLowerCase()}${walletAddress.slice(-4).toLowerCase()}` : 'owner');
+    const activeName = walletAddress ? `@${walletAddress.slice(0, 4)}...${walletAddress.slice(-4)}` : 'Social.wtf Protocol';
+
     const newProd: Product = {
       id: `prod-${Date.now()}`,
-      creatorId: 'you',
-      creatorHandle: 'cryptobaker',
-      creatorName: 'The Cookie Baker ',
-      creatorWallet: 'CookBaker77777777777777777777777777777777',
+      creatorId: activeHandle,
+      creatorHandle: activeHandle,
+      creatorName: activeName,
+      creatorWallet: activeWallet,
       title: newTitle.trim(),
       description: newDesc.trim() || 'Exclusive creator digital item.',
       priceCook: Number(newPrice),

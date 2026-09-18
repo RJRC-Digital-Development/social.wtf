@@ -18,7 +18,7 @@ import {
   INITIAL_TREASURY_METRICS,
 } from '@/lib/data/mockData';
 import { Post, Product, User, TransactionRecord, TreasuryMetrics } from '@/types';
-import { calculateFeeSplit } from '@/lib/solana/cookieChain';
+import { calculateFeeSplit, COOKIE_CHAIN_CONFIG } from '@/lib/solana/cookieChain';
 import { useShield } from '@/lib/shield/shieldContext';
 import { useWallet } from '@/lib/wallet/walletContext';
 import {
@@ -44,21 +44,53 @@ import {
 } from 'lucide-react';
 
 const DEFAULT_USER_PROFILE: User = {
-  id: 'user-my-profile',
+  id: 'guest-profile',
   handle: 'you',
   name: 'Cookie Creator',
   avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&h=400&fit=crop',
-  bio: 'Socializing, creating, and trading natively on Cookie Chain SVM.',
-  verified: true,
-  ageVerified: true,
-  walletAddress: 'HMnySuX1CdBfqysiLtU4brPawufcHxFTFZu97jrKQwT9',
+  bio: 'Socializing, creating, and trading natively on Cookie Chain SVM. Connect wallet to activate your personal profile space.',
+  verified: false,
+  ageVerified: false,
+  walletAddress: '',
   coverImage: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200&h=400&fit=crop',
-  sponsorUrl: 'https://github.com/sponsors/RJRC-Digital-Development',
-  sponsorGoal: 'Funding decentralized creator tooling, SVM smart contracts, and open grants.',
   followersCount: 0,
   followingCount: 0,
   isCreator: true,
+  isAdmin: false,
 };
+
+function buildDefaultProfileForWallet(address: string): User {
+  const isOwner = address === COOKIE_CHAIN_CONFIG.treasuryPublicKey;
+  if (isOwner) {
+    return {
+      ...INITIAL_CREATORS[0],
+      walletAddress: address,
+      isAdmin: true,
+    };
+  }
+  const shortAddr = `${address.slice(0, 4)}...${address.slice(-4)}`;
+  const cleanHandle = `user_${address.slice(0, 4).toLowerCase()}${address.slice(-4).toLowerCase()}`;
+  return {
+    id: `user-${address}`,
+    handle: cleanHandle,
+    name: `@${shortAddr}`,
+    avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${address}`,
+    bio: `Cookie Chain creator and community member (${shortAddr}).`,
+    verified: false,
+    ageVerified: false,
+    walletAddress: address,
+    coverImage: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200&h=400&fit=crop',
+    followersCount: 0,
+    followingCount: 0,
+    isCreator: true,
+    isAdmin: false,
+    storeSettings: {
+      storeName: `${shortAddr}'s Storefront`,
+      storeDescription: 'Digital products, presets, and community assets on Cookie Chain SVM.',
+      supportCookTreasuryPct: 5,
+    },
+  };
+}
 
 export default function Home() {
   const [activeView, setActiveView] = useState<'feed' | 'store' | 'creator' | 'community' | 'analytics'>(
@@ -70,7 +102,7 @@ export default function Home() {
   const [userProfile, setUserProfile] = useState<User>(DEFAULT_USER_PROFILE);
   const [selectedCreator, setSelectedCreator] = useState<User>(INITIAL_CREATORS[0]);
   const [transactions, setTransactions] = useState<TransactionRecord[]>(INITIAL_TRANSACTIONS);
-  const [followingHandles, setFollowingHandles] = useState<string[]>(['creator']);
+  const [followingHandles, setFollowingHandles] = useState<string[]>(['owner']);
   const [metrics, setMetrics] = useState<TreasuryMetrics>(INITIAL_TREASURY_METRICS);
   const [copiedPersonalUrl, setCopiedPersonalUrl] = useState(false);
 
@@ -129,12 +161,12 @@ export default function Home() {
             name: `@${cleanParam}`,
             avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${cleanParam}`,
             bio: `Cookie Chain Creator and Community Member (@${cleanParam}).`,
-            verified: true,
-            ageVerified: true,
-            walletAddress: 'HMnySuX1CdBfqysiLtU4brPawufcHxFTFZu97jrKQwT9',
+            verified: false,
+            ageVerified: false,
+            walletAddress: '',
             coverImage: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200&h=400&fit=crop',
-            followersCount: 1,
-            followingCount: 10,
+            followersCount: 0,
+            followingCount: 0,
             isCreator: true,
           };
           setCreators((prev) => [found!, ...prev.filter((c) => c.handle !== cleanParam)]);
@@ -146,19 +178,25 @@ export default function Home() {
     }
   }, []);
 
-  // Sync wallet address with user profile when connected
+  // Sync wallet address with dedicated user profile space when connected
   useEffect(() => {
     if (connected && walletAddress) {
-      setUserProfile((prev) => {
-        const updated = {
-          ...prev,
-          walletAddress,
-        };
-        try {
-          localStorage.setItem('social_wtf_user_profile', JSON.stringify(updated));
-        } catch (e) {}
-        return updated;
-      });
+      const isOwner = walletAddress === COOKIE_CHAIN_CONFIG.treasuryPublicKey;
+      let profileToSet: User;
+      try {
+        const saved = localStorage.getItem(`social_wtf_profile_${walletAddress}`);
+        if (saved) {
+          profileToSet = JSON.parse(saved);
+          profileToSet.walletAddress = walletAddress;
+          profileToSet.isAdmin = isOwner;
+        } else {
+          profileToSet = buildDefaultProfileForWallet(walletAddress);
+          localStorage.setItem(`social_wtf_profile_${walletAddress}`, JSON.stringify(profileToSet));
+        }
+      } catch (e) {
+        profileToSet = buildDefaultProfileForWallet(walletAddress);
+      }
+      setUserProfile(profileToSet);
     }
   }, [connected, walletAddress]);
 
@@ -279,10 +317,17 @@ export default function Home() {
     });
 
     // If this updated user corresponds to the user's profile, save it
-    if (updated.handle === userProfile.handle || updated.id === userProfile.id) {
+    if (
+      updated.handle === userProfile.handle ||
+      updated.id === userProfile.id ||
+      (updated.walletAddress && updated.walletAddress === userProfile.walletAddress)
+    ) {
       setUserProfile(updated);
       try {
         localStorage.setItem('social_wtf_user_profile', JSON.stringify(updated));
+        if (updated.walletAddress) {
+          localStorage.setItem(`social_wtf_profile_${updated.walletAddress}`, JSON.stringify(updated));
+        }
       } catch (e) {}
     }
   };

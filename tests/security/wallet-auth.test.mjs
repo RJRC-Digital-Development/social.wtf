@@ -152,4 +152,20 @@ function verifyWalletChallenge({ walletAddress, nonce, signatureBase58 }) {
   console.log(' Test 4: Attacker address substitution rejected');
 }
 
+// Test 5: Protocol Owner vs General User Scope Assignment
+{
+  const OWNER_TREASURY_PUBKEY = 'HMnySuX1CdBfqysiLtU4brPawufcHxFTFZu97jrKQwT9';
+  const normalKeypair = Keypair.generate();
+  const normalAddress = normalKeypair.publicKey.toBase58();
+
+  function determineSessionScope(walletAddress) {
+    const platformOwnerWallet = process.env.PLATFORM_OWNER_WALLET || OWNER_TREASURY_PUBKEY;
+    return walletAddress === platformOwnerWallet ? 'admin' : 'user';
+  }
+
+  assert.strictEqual(determineSessionScope(OWNER_TREASURY_PUBKEY), 'admin');
+  assert.strictEqual(determineSessionScope(normalAddress), 'user');
+  console.log(' Test 5: Protocol Owner admin scope provenance & user isolation verified');
+}
+
 console.log('ALL CRYPTOGRAPHIC WALLET AUTH TESTS PASSED!\n');

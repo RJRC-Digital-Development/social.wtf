@@ -8,7 +8,7 @@ export const INITIAL_WIKI_ARTICLES: WikiArticle[] = [
     category: 'creator_sdk',
     summary: 'How to build, customize, and monetize your personal creator storefront and interactive code mini-app on Cookie Chain SVM.',
     lastUpdated: 'Updated today',
-    author: 'The Cookie Baker ',
+    author: 'Social.wtf Core Protocol',
     readTime: '4 min read',
     tags: ['CreatorSDK', 'Storefront', 'MiniApps', 'CookieChain'],
     content: `## Overview
@@ -131,7 +131,7 @@ Query creator digital collectibles, audio NFTs, and VIP passes using the Digital
     category: 'creator_sdk',
     summary: 'How to code, test, and publish interactive browser mini-games and Web3 widgets on your personal profile.',
     lastUpdated: '2 days ago',
-    author: 'ChainSynth ',
+    author: 'Social.wtf Core Protocol',
     readTime: '5 min read',
     tags: ['CodeStudio', 'SandboxedIframe', 'MiniGames', 'JavaScript'],
     content: `## Sandboxed Execution Environment
