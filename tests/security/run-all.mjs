@@ -13,6 +13,8 @@ const testFiles = [
   'session.test.mjs',
   'contract-invariants.test.mjs',
   'distributed-store.test.mjs',
+  'authorization.test.mjs',
+  'trust-wallet-signer.test.mjs',
 ];
 
 let totalPassed = 0;

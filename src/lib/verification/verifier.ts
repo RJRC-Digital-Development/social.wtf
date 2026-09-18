@@ -102,15 +102,28 @@ export async function verifyDualGovId(
   docType: string = "Driver's License",
   onPurgeComplete?: (frontHash: string, backHash: string) => void
 ): Promise<IdProfileCredential> {
-  // In production, dispatch to private Sentinel Enclave worker with ephemeral zero-persistence payload
+  // 1. Dispatch to backend authorization endpoint
   try {
-    const res = await fetch(`${SENTINEL_ENCLAVE_URL}/verify/dual-id`, {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('social_wtf_session_token') : null;
+    const res = await fetch('/api/auth/id', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ docType, hasFront: Boolean(frontData), hasBack: Boolean(backData) }),
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ frontData, backData, docType }),
     });
     if (res.ok) {
-      return await res.json();
+      const data = await res.json();
+      if (onPurgeComplete) onPurgeComplete(data.frontHash, data.backHash);
+      return {
+        verified: data.verified,
+        documentType: data.documentType,
+        frontHash: data.frontHash,
+        backHash: data.backHash,
+        verifiedAt: data.verifiedAt,
+        accountBadge: data.accountBadge,
+      };
     }
   } catch {
     // Fall back to local zero-knowledge sandbox simulation for devnet environments
@@ -170,6 +183,31 @@ export async function verifyPaymentCardAdulthood(
   expiry: string,
   cvv: string
 ): Promise<CardAgeProof> {
+  // 1. Dispatch to backend authorization endpoint
+  try {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('social_wtf_session_token') : null;
+    const res = await fetch('/api/auth/card', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ cardNumber, cardExp: expiry, cardCvc: cvv }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return {
+        verified: data.verified,
+        cardBrand: data.cardBrand,
+        last4: data.last4,
+        authMethod: data.authMethod,
+        verifiedAt: data.verifiedAt,
+      };
+    }
+  } catch {
+    // Fall back to client simulation
+  }
+
   await new Promise((resolve) => setTimeout(resolve, 900));
   const cleanDigits = cardNumber.replace(/\D/g, '');
   const last4 = cleanDigits.slice(-4) || '4242';
@@ -198,15 +236,30 @@ export async function verifyLiveVideoLiveness(
   videoFrameDataUrl: string = 'live_webcam_frame',
   simulatedAge: number = 26
 ): Promise<VideoVerificationProof> {
-  // In production, dispatch to private Sentinel Enclave worker for zero-trace biometric attestation
+  // 1. Dispatch to backend authorization endpoint
   try {
-    const res = await fetch(`${SENTINEL_ENCLAVE_URL}/verify/video-liveness`, {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('social_wtf_session_token') : null;
+    const res = await fetch('/api/auth/video', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ mode: 'ephemeral_liveness' }),
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ videoFrameDataUrl, simulatedAge }),
     });
     if (res.ok) {
-      return await res.json();
+      const data = await res.json();
+      return {
+        verified: data.verified,
+        method: data.method,
+        livenessVerified: data.livenessVerified,
+        estimatedAge: data.estimatedAge,
+        under25Flagged: data.under25Flagged,
+        adultUnlocked: data.adultUnlocked,
+        purgedHash: data.purgedHash,
+        verifiedAt: data.verifiedAt,
+        expiresAt: data.expiresAt,
+      };
     }
   } catch {
     // Fall back to local zero-knowledge sandbox simulation for devnet environments

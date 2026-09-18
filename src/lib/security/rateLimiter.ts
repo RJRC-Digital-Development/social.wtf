@@ -141,3 +141,4 @@ export class SlidingWindowRateLimiter {
 
 // Global shared instances for common operations
 export const globalRateLimiter = new SlidingWindowRateLimiter();
+export const rateLimiter = globalRateLimiter;

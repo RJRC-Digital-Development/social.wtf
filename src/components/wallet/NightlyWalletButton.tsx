@@ -23,6 +23,9 @@ export const NightlyWalletButton: React.FC = () => {
     cookBalance,
     walletType,
     isNightlyInstalled,
+    isTrustWalletInstalled,
+    isServerSignerConfigured,
+    serverSignerAddress,
     isAuthenticated,
     authenticating,
     authenticateWallet,
@@ -68,7 +71,7 @@ export const NightlyWalletButton: React.FC = () => {
                   </div>
                   <div>
                     <h3 className="font-bold text-slate-100">Connect to Cookie Chain</h3>
-                    <p className="text-xs text-slate-400">Select your preferred SVM wallet</p>
+                    <p className="text-xs text-slate-400">Select your preferred SVM Web3 wallet</p>
                   </div>
                 </div>
                 <button
@@ -80,6 +83,41 @@ export const NightlyWalletButton: React.FC = () => {
               </div>
 
               <div className="mt-4 space-y-3">
+                {/* Trust Wallet Option */}
+                <button
+                  onClick={() => {
+                    connect('trust');
+                    setShowSelectModal(false);
+                  }}
+                  className="w-full flex items-center justify-between p-3.5 rounded-xl border border-blue-500/40 bg-blue-950/20 hover:bg-blue-900/30 hover:border-blue-400 transition-all text-left group"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-[#0500FF]/20 border border-[#0500FF]/40 flex items-center justify-center font-bold text-blue-400">
+                      <Shield className="w-5 h-5 text-blue-400" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-slate-200 group-hover:text-blue-300">
+                          Trust Wallet
+                        </span>
+                        <span className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                          WEB3 & MOBILE
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-400">Official Extension & Mobile dApp Browser</p>
+                    </div>
+                  </div>
+                  {isTrustWalletInstalled ? (
+                    <span className="text-xs text-emerald-400 flex items-center gap-1 font-medium">
+                      <CheckCircle className="w-3.5 h-3.5" /> Ready
+                    </span>
+                  ) : (
+                    <span className="text-xs text-slate-400 flex items-center gap-1 group-hover:text-blue-300">
+                      Auto-Detect / Install
+                    </span>
+                  )}
+                </button>
+
                 {/* Nightly Wallet Option */}
                 <button
                   onClick={() => {
@@ -166,6 +204,16 @@ export const NightlyWalletButton: React.FC = () => {
               <div className="mt-4 p-3 rounded-xl bg-slate-900/80 border border-slate-800 text-[11px] text-slate-400 leading-relaxed">
                 <span className="text-amber-400 font-semibold">Cookie Chain Network:</span> RPC: <code className="text-slate-300">rpc.cookiescan.io</code> | 1-sec block times | Native token: <span className="text-amber-300 font-semibold">$COOK</span>.
               </div>
+
+              {isServerSignerConfigured && (
+                <div className="mt-3 p-2.5 rounded-xl bg-emerald-950/40 border border-emerald-500/30 text-[11px] text-emerald-300 flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Server Signer Active (PLATFORM_PRIVATE_KEY)</span>
+                  </div>
+                  <span className="font-mono text-[10px] text-emerald-400">On-Chain Ready</span>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -204,7 +252,9 @@ export const NightlyWalletButton: React.FC = () => {
       {isOpen && (
         <div className="absolute right-0 mt-2 w-64 rounded-2xl bg-[#0d1527] border border-slate-700/80 p-3 shadow-2xl z-50 animate-fade-in text-xs">
           <div className="pb-2.5 mb-2 border-b border-slate-800">
-            <div className="text-[11px] text-slate-400">Connected Wallet ({walletType})</div>
+            <div className="text-[11px] text-slate-400">
+              Connected Wallet ({walletType === 'trust' ? 'Trust Wallet' : walletType === 'nightly' ? 'Nightly' : walletType === 'solana' ? 'Solana / Phantom' : 'Demo'})
+            </div>
             <div className="font-mono text-slate-200 break-all font-medium mt-0.5 text-[11px]">
               {walletAddress}
             </div>

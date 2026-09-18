@@ -31,6 +31,7 @@ interface ShieldContextType {
   revokeVideoVerification: () => void;
   revokeIdVerification: () => void;
   revokeVerification: () => void;
+  syncBackendAuthorization: () => Promise<void>;
   shieldStats: {
     totalShieldedHidden: number;
     unshieldedVisible: boolean;
@@ -50,12 +51,48 @@ export const ShieldProvider: React.FC<{ children: React.ReactNode }> = ({
   const [isCardVerified, setIsCardVerified] = useState(false);
   const [isVideoVerified, setIsVideoVerified] = useState(false);
   const [isIdVerified, setIsIdVerified] = useState(false);
+  const [isUnder25FlaggedState, setIsUnder25FlaggedState] = useState(false);
   const [unshieldedMode, setUnshieldedMode] = useState(false);
   const [cardProof, setCardProof] = useState<CardAgeProof | null>(null);
   const [videoProof, setVideoProof] = useState<VideoVerificationProof | EphemeralVerificationProof | null>(null);
   const [idCredential, setIdCredential] = useState<IdProfileCredential | null>(null);
 
-  // Restore session proofs if still valid
+  /**
+   * Synchronize client state with authoritative backend authorization claims
+   */
+  const syncBackendAuthorization = async () => {
+    if (typeof window === 'undefined') return;
+    try {
+      const token = localStorage.getItem('social_wtf_session_token');
+      if (!token) return;
+
+      const res = await fetch('/api/auth/authorize', {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.authenticated && data.claims) {
+          if (data.claims.isCardVerified) setIsCardVerified(true);
+          if (data.claims.isVideoVerified) setIsVideoVerified(true);
+          if (data.claims.isIdVerified) setIsIdVerified(true);
+          if (data.claims.isUnder25Flagged !== undefined) {
+            setIsUnder25FlaggedState(Boolean(data.claims.isUnder25Flagged));
+          }
+          if (data.claims.isAdultAuthorized) {
+            setUnshieldedMode(true);
+          }
+        }
+      }
+    } catch {
+      // Silently handle offline/network errors during background introspection
+    }
+  };
+
+  // Restore session proofs if still valid & sync backend claims
   useEffect(() => {
     if (typeof window !== 'undefined') {
       // 1. Check card verification proof
@@ -80,6 +117,9 @@ export const ShieldProvider: React.FC<{ children: React.ReactNode }> = ({
           if (parsed.expiresAt > Date.now()) {
             setIsVideoVerified(true);
             setVideoProof(parsed);
+            if (parsed.under25Flagged) {
+              setIsUnder25FlaggedState(true);
+            }
             const pref = sessionStorage.getItem(STORAGE_KEY_UNSHIELD) === 'true';
             setUnshieldedMode(pref);
           } else {
@@ -103,6 +143,9 @@ export const ShieldProvider: React.FC<{ children: React.ReactNode }> = ({
           console.error(e);
         }
       }
+
+      // 4. Introspect backend authorization claims
+      syncBackendAuthorization();
     }
   }, []);
 
@@ -115,6 +158,7 @@ export const ShieldProvider: React.FC<{ children: React.ReactNode }> = ({
     if (typeof window !== 'undefined') {
       sessionStorage.setItem(STORAGE_KEY_CARD, JSON.stringify(proof));
     }
+    syncBackendAuthorization();
   };
 
   /**
@@ -125,10 +169,14 @@ export const ShieldProvider: React.FC<{ children: React.ReactNode }> = ({
     setIsVideoVerified(true);
     setUnshieldedMode(true);
     setVideoProof(proof);
+    if ('under25Flagged' in proof && proof.under25Flagged) {
+      setIsUnder25FlaggedState(true);
+    }
     if (typeof window !== 'undefined') {
       sessionStorage.setItem(STORAGE_KEY_VIDEO, JSON.stringify(proof));
       sessionStorage.setItem(STORAGE_KEY_UNSHIELD, 'true');
     }
+    syncBackendAuthorization();
   };
 
   /**
@@ -141,6 +189,7 @@ export const ShieldProvider: React.FC<{ children: React.ReactNode }> = ({
     if (typeof window !== 'undefined') {
       sessionStorage.setItem(STORAGE_KEY_ID, JSON.stringify(cred));
     }
+    syncBackendAuthorization();
   };
 
   // Legacy setVerification helper (maps to video verification if liveness)
@@ -170,6 +219,7 @@ export const ShieldProvider: React.FC<{ children: React.ReactNode }> = ({
     setIsVideoVerified(false);
     setUnshieldedMode(false);
     setVideoProof(null);
+    setIsUnder25FlaggedState(false);
     if (typeof window !== 'undefined') {
       sessionStorage.removeItem(STORAGE_KEY_VIDEO);
       sessionStorage.removeItem(STORAGE_KEY_UNSHIELD);
@@ -190,11 +240,13 @@ export const ShieldProvider: React.FC<{ children: React.ReactNode }> = ({
     revokeIdVerification();
   };
 
-  const isUnder25Flagged = !!(
-    videoProof &&
-    'under25Flagged' in videoProof &&
-    (videoProof as any).under25Flagged
-  );
+  const isUnder25Flagged =
+    isUnder25FlaggedState ||
+    !!(
+      videoProof &&
+      'under25Flagged' in videoProof &&
+      (videoProof as any).under25Flagged
+    );
 
   // 18+ Adult Entertainment Access Rules:
   // 1. Payment card verification ($0 authorization check) provides cardholder adulthood proof.
@@ -243,6 +295,7 @@ export const ShieldProvider: React.FC<{ children: React.ReactNode }> = ({
         revokeVideoVerification,
         revokeIdVerification,
         revokeVerification,
+        syncBackendAuthorization,
         shieldStats: {
           totalShieldedHidden: canAccessAdultContent ? 0 : 2,
           unshieldedVisible: canAccessAdultContent,

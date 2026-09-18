@@ -15,18 +15,31 @@ import {
   getCookieConnection,
 } from '../solana/cookieChain';
 
+export function getTrustWalletProvider() {
+  if (typeof window === 'undefined') return null;
+  const win = window as any;
+  if (win.trustwallet?.solana) return win.trustwallet.solana;
+  if (win.trustWallet?.solana) return win.trustWallet.solana;
+  if (win.trustwallet && typeof win.trustwallet.signMessage === 'function') return win.trustwallet;
+  if (win.solana?.isTrust) return win.solana;
+  return null;
+}
+
 export interface WalletContextType {
   connected: boolean;
   connecting: boolean;
   walletAddress: string | null;
   publicKey: PublicKey | null;
   cookBalance: number;
-  walletType: 'nightly' | 'solana' | 'demo' | null;
+  walletType: 'trust' | 'nightly' | 'solana' | 'demo' | null;
   isNightlyInstalled: boolean;
+  isTrustWalletInstalled: boolean;
+  isServerSignerConfigured: boolean;
+  serverSignerAddress: string | null;
   sessionToken: string | null;
   isAuthenticated: boolean;
   authenticating: boolean;
-  connect: (type?: 'nightly' | 'solana' | 'demo') => Promise<void>;
+  connect: (type?: 'trust' | 'nightly' | 'solana' | 'demo') => Promise<void>;
   disconnect: () => Promise<void>;
   refreshBalance: () => Promise<void>;
   signAndSendTransaction: (transaction: any) => Promise<string>;
@@ -51,24 +64,41 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [publicKey, setPublicKey] = useState<PublicKey | null>(null);
   const [cookBalance, setCookBalance] = useState<number>(0);
-  const [walletType, setWalletType] = useState<'nightly' | 'solana' | 'demo' | null>(
+  const [walletType, setWalletType] = useState<'trust' | 'nightly' | 'solana' | 'demo' | null>(
     null
   );
   const [isNightlyInstalled, setIsNightlyInstalled] = useState(false);
+  const [isTrustWalletInstalled, setIsTrustWalletInstalled] = useState(false);
+  const [isServerSignerConfiguredState, setIsServerSignerConfiguredState] = useState(false);
+  const [serverSignerAddress, setServerSignerAddress] = useState<string | null>(null);
   const [sessionToken, setSessionToken] = useState<string | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authenticating, setAuthenticating] = useState(false);
 
-  // Check if Nightly extension is available
+  // Check if Web3 providers (Nightly, Trust Wallet) and Server Signer are available
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const checkNightly = () => {
+      const checkProviders = () => {
         const nightly = (window as any)?.nightly?.solana || (window as any)?.nightly;
         setIsNightlyInstalled(!!nightly);
+        const trust = getTrustWalletProvider();
+        setIsTrustWalletInstalled(!!trust);
       };
-      checkNightly();
-      window.addEventListener('load', checkNightly);
-      return () => window.removeEventListener('load', checkNightly);
+      checkProviders();
+      window.addEventListener('load', checkProviders);
+
+      // Check if server-side signer private key is configured
+      fetch('/api/transactions/execute')
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.isConfigured) {
+            setIsServerSignerConfiguredState(true);
+            setServerSignerAddress(data.signerAddress);
+          }
+        })
+        .catch(() => {});
+
+      return () => window.removeEventListener('load', checkProviders);
     }
   }, []);
 
@@ -129,16 +159,36 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   }, [connected, publicKey, refreshBalance]);
 
-  // Connect handler supporting Nightly, general Solana, and Demo Web3 wallet
-  const connect = async (type: 'nightly' | 'solana' | 'demo' = 'nightly') => {
+  // Connect handler supporting Trust Wallet, Nightly, general Solana, and Demo Web3 wallet
+  const connect = async (type: 'trust' | 'nightly' | 'solana' | 'demo' = 'trust') => {
     setConnecting(true);
     try {
       if (typeof window === 'undefined') return;
 
+      const trust = getTrustWalletProvider();
       const nightly = (window as any)?.nightly?.solana || (window as any)?.nightly;
       const solana = (window as any)?.solana;
 
-      if (type === 'nightly' && nightly) {
+      if (type === 'trust') {
+        if (trust) {
+          await trust.connect();
+          const pubkeyStr = trust.publicKey?.toString() || trust.account?.address?.toString();
+          if (pubkeyStr) {
+            const pk = new PublicKey(pubkeyStr);
+            setPublicKey(pk);
+            setWalletAddress(pubkeyStr);
+            setWalletType('trust');
+            setConnected(true);
+            localStorage.setItem(WALLET_CONNECTED_KEY, 'trust');
+            return;
+          }
+        } else {
+          if (typeof window !== 'undefined') {
+            window.open('https://trustwallet.com/browser-extension', '_blank');
+          }
+          throw new Error('Trust Wallet not detected. Please install Trust Wallet or open in Trust Wallet App.');
+        }
+      } else if (type === 'nightly' && nightly) {
         await nightly.connect();
         const pubkeyStr = nightly.publicKey?.toString();
         if (pubkeyStr) {
@@ -215,7 +265,15 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
       let signatureBase58 = '';
 
       // 2. Sign challenge message using wallet
-      if (walletType === 'nightly') {
+      if (walletType === 'trust') {
+        const trust = getTrustWalletProvider();
+        if (!trust?.signMessage) {
+          throw new Error('Trust Wallet does not support message signing');
+        }
+        const signed = await (trust.signMessage(messageBytes, 'utf8') || trust.signMessage(messageBytes));
+        const sigBytes: Uint8Array = signed.signature || signed;
+        signatureBase58 = bs58.encode(sigBytes);
+      } else if (walletType === 'nightly') {
         const nightly = (window as any)?.nightly?.solana || (window as any)?.nightly;
         if (!nightly?.signMessage) {
           throw new Error('Nightly wallet does not support message signing');
@@ -307,20 +365,67 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
       throw new Error('Wallet not connected to Cookie Chain');
     }
 
+    const trust = getTrustWalletProvider();
     const nightly = (window as any)?.nightly?.solana || (window as any)?.nightly;
     const solana = (window as any)?.solana;
 
+    // 1. Trust Wallet native signing and broadcasting
+    if (walletType === 'trust') {
+      if (trust?.signAndSendTransaction) {
+        const response = await trust.signAndSendTransaction(tx);
+        return response.signature || response;
+      } else if (trust?.signTransaction) {
+        const signed = await trust.signTransaction(tx);
+        const raw = signed.serialize
+          ? signed.serialize().toString('base64')
+          : Buffer.from(signed).toString('base64');
+        const res = await fetch('/api/transactions/execute', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ rawTransaction: raw }),
+        });
+        const data = await res.json();
+        if (data.success && data.signature) {
+          return data.signature;
+        }
+      }
+    }
+
+    // 2. Nightly Wallet
     if (walletType === 'nightly' && nightly?.signAndSendTransaction) {
       const response = await nightly.signAndSendTransaction(tx);
       return response.signature || response;
     }
 
+    // 3. Solana / Phantom standard adapter
     if (walletType === 'solana' && solana?.signAndSendTransaction) {
       const response = await solana.signAndSendTransaction(tx);
       return response.signature || response;
     }
 
-    // Demo/Simulated SVM Mode: simulate real on-chain transaction hash
+    // 4. Server Signer execution (via PLATFORM_PRIVATE_KEY env var)
+    if (isServerSignerConfiguredState && (tx.to || tx.recipient)) {
+      try {
+        const res = await fetch('/api/transactions/execute', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            recipientPublicKey: tx.to || tx.recipient,
+            amountCook: typeof tx.amount === 'number' ? tx.amount : 0.5,
+            action: tx.action || 'tip',
+            memo: tx.memo || '',
+          }),
+        });
+        const data = await res.json();
+        if (data.success && data.signature) {
+          return data.signature;
+        }
+      } catch (err) {
+        console.warn('Server signer transaction execution failed, falling back:', err);
+      }
+    }
+
+    // 5. Demo/Simulated SVM Mode: simulate real on-chain transaction hash
     await new Promise((resolve) => setTimeout(resolve, 1400));
     
     // Deduct simulated balance
@@ -342,7 +447,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
   // Auto-reconnect on mount if previously connected
   useEffect(() => {
     const prev = localStorage.getItem(WALLET_CONNECTED_KEY);
-    if (prev === 'nightly' || prev === 'solana' || prev === 'demo') {
+    if (prev === 'trust' || prev === 'nightly' || prev === 'solana' || prev === 'demo') {
       connect(prev);
     }
   }, []);
@@ -357,6 +462,9 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
         cookBalance,
         walletType,
         isNightlyInstalled,
+        isTrustWalletInstalled,
+        isServerSignerConfigured: isServerSignerConfiguredState,
+        serverSignerAddress,
         sessionToken,
         isAuthenticated,
         authenticating,
