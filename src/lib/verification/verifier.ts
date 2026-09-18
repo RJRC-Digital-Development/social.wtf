@@ -178,6 +178,23 @@ export async function verifyDualGovId(
  * Required for 18+ Adult Entertainment access: performs $0 card authorization check
  * without persisting raw card numbers or CVV.
  */
+function isValidLuhn(cardNumber: string): boolean {
+  const digits = cardNumber.replace(/\D/g, '');
+  if (digits.length < 13 || digits.length > 19) return false;
+  let sum = 0;
+  let shouldDouble = false;
+  for (let i = digits.length - 1; i >= 0; i--) {
+    let digit = parseInt(digits.charAt(i), 10);
+    if (shouldDouble) {
+      digit *= 2;
+      if (digit > 9) digit -= 9;
+    }
+    sum += digit;
+    shouldDouble = !shouldDouble;
+  }
+  return sum % 10 === 0;
+}
+
 export async function verifyPaymentCardAdulthood(
   cardNumber: string,
   expiry: string,
@@ -203,18 +220,31 @@ export async function verifyPaymentCardAdulthood(
         authMethod: data.authMethod,
         verifiedAt: data.verifiedAt,
       };
+    } else {
+      const errData = await res.json().catch(() => ({}));
+      if (res.status === 400 && errData.error) {
+        throw new Error(errData.error);
+      }
     }
-  } catch {
-    // Fall back to client simulation
+  } catch (err: any) {
+    if (err.message && err.message.includes('Invalid')) {
+      throw err;
+    }
+    // Fall back to client verification if network partition
   }
 
   await new Promise((resolve) => setTimeout(resolve, 900));
   const cleanDigits = cardNumber.replace(/\D/g, '');
+  if (!isValidLuhn(cleanDigits)) {
+    throw new Error('Invalid card number checksum. Please enter a valid card.');
+  }
+
   const last4 = cleanDigits.slice(-4) || '4242';
-  let cardBrand = 'Visa / Mastercard';
+  let cardBrand = 'Visa';
   if (cleanDigits.startsWith('4')) cardBrand = 'Visa';
   else if (cleanDigits.startsWith('5')) cardBrand = 'Mastercard';
   else if (cleanDigits.startsWith('3')) cardBrand = 'American Express';
+  else if (cleanDigits.startsWith('6')) cardBrand = 'Discover';
 
   return {
     verified: true,

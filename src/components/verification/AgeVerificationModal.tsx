@@ -136,14 +136,17 @@ export const AgeVerificationModal: React.FC<AgeVerificationModalProps> = ({
     setStatusText('Sentinel AI Agent: Aligning face within biometric liveness oval...');
 
     try {
-      if (navigator.mediaDevices?.getUserMedia) {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      if (typeof navigator !== 'undefined' && navigator.mediaDevices?.getUserMedia) {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
+        });
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
+          videoRef.current.play().catch(() => {});
         }
       }
     } catch (err) {
-      console.log('Webcam permission not granted or simulated video fallback active');
+      console.log('Webcam permission not granted or browser fallback active');
     }
 
     // Step 2: Prompt active liveness (blink / tilt head)
@@ -157,14 +160,31 @@ export const AgeVerificationModal: React.FC<AgeVerificationModalProps> = ({
       setLivenessStage('analyzing');
       setStatusText('Sentinel AI Agent: Running biometric liveness evaluation & neural age estimation...');
 
+      let capturedFrame = 'live_stream_frame';
+      if (videoRef.current && videoRef.current.videoWidth > 0) {
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = videoRef.current.videoWidth;
+          canvas.height = videoRef.current.videoHeight;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(videoRef.current, 0, 0);
+            capturedFrame = canvas.toDataURL('image/jpeg', 0.85);
+          }
+        } catch (e) {
+          console.warn('Canvas snapshot fallback:', e);
+        }
+      }
+
       // Stop camera stream immediately for absolute privacy
       if (videoRef.current?.srcObject) {
         const stream = videoRef.current.srcObject as MediaStream;
         stream.getTracks().forEach((track) => track.stop());
+        videoRef.current.srcObject = null;
       }
       setIsCameraActive(false);
 
-      const result = await verifyLiveVideoLiveness('live_stream_frame', simulatedAgeInput);
+      const result = await verifyLiveVideoLiveness(capturedFrame, simulatedAgeInput);
       setVideoPurgeHash(result.purgedHash);
       setVideoVerification(result);
 
