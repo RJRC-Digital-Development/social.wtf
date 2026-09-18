@@ -6,6 +6,10 @@ Social.wtf is a decentralized Web3 social platform built natively for the **[Coo
 
 Every economic transaction—from store purchases to tips and subscriptions—automatically routes a **5% protocol fee** to the platform treasury to fund ongoing platform innovation and validator grants. Sensitive or explicit content is continuously screened by real-time multimodal AI and completely shielded from unverified feeds with **zero traces or hints**, unlockable exclusively via ephemeral, zero-data age verification.
 
+<div align="center">
+  <img src="./docs/images/social_wtf_preview.jpg" alt="Social.wtf Web3 Social Dashboard & Creator Storefront Preview" width="100%" />
+</div>
+
 ---
 
 ## 🏛️ Core Pillars & Architecture
