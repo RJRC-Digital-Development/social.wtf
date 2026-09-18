@@ -1,6 +1,6 @@
 # Social.wtf Security Policy & Threat Model
 
-##  Core Architectural Principle
+## Core Architectural Principle
 > **"Never trust the client. Never trust a supplied relationship. Never trust a supplied price. Never trust an authorization claim. Verify every security-critical invariant at the enforcement layer."**
 
 ---
@@ -17,9 +17,9 @@
 ### B. On-Chain vs. Off-Chain Separation of Concerns
 | Layer | Responsibilities | Security Enforcement |
 | :--- | :--- | :--- |
-| **On-Chain (SVM Anchor Program)** | • Product ownership & pricing<br>• Automated 5% fee split routing<br>• Creator proceeds delivery<br>• Unique purchase receipt PDA creation<br>• Emergency pause & governance | • Strict Anchor account constraints<br>• Deterministic PDAs (`platform`, `product`, `receipt`)<br>• Checked integer arithmetic (`checked_add`, `checked_mul`, `checked_div`)<br>• Invariant: `creator + treasury == total` |
-| **Server / API Layer (`Next.js`)** | • Cryptographic wallet challenge issuance & verification<br>• Multimodal AI vision screening (`/api/shield/scan`)<br>• Sliding-window rate limiting<br>• Anti-SSRF URL filtering | • Ed25519 signature checks (SIWS standard)<br>• Replay attack prevention via single-use nonces<br>• Cloud metadata (`169.254.169.254`) and private IP rejection<br>• Payload size limits (5MB) |
-| **Client / Creator SDK Layer** | • Storefront presentation<br>• Nightly wallet connector<br>• Ephemeral RAM zeroing for biometric verifications | • Input sanitization (XSS defense)<br>• Sandbox mocks for devnet testing<br>• Zero persistent storage of sensitive biometrics |
+| **On-Chain (SVM Anchor Program)** | - Product ownership and pricing<br>- Automated 5% fee split routing<br>- Creator proceeds delivery<br>- Unique purchase receipt PDA creation<br>- Emergency pause and governance | - Strict Anchor account constraints<br>- Deterministic PDAs (`platform`, `product`, `receipt`)<br>- Checked integer arithmetic (`checked_add`, `checked_mul`, `checked_div`)<br>- Invariant: `creator + treasury == total` |
+| **Server / API Layer (`Next.js`)** | - Cryptographic wallet challenge issuance and verification<br>- Multimodal AI vision screening (`/api/shield/scan`)<br>- Sliding-window rate limiting<br>- Anti-SSRF URL filtering<br>- Admin-only platform operations | - Ed25519 signature checks (SIWS standard)<br>- Replay attack prevention via single-use nonces<br>- Cloud metadata (`169.254.169.254`) and private IP rejection<br>- Payload size limits (5MB) |
+| **Client / Creator SDK Layer** | - Storefront presentation<br>- Nightly wallet connector<br>- Ephemeral RAM transient processing | - Input sanitization (XSS defense)<br>- Sandbox mocks for devnet testing<br>- Zero persistent storage of sensitive biometrics |
 
 ---
 
@@ -30,7 +30,7 @@ For every on-chain economic transfer:
 $$\text{creator\_amount} + \text{treasury\_fee} \equiv \text{total\_payment}$$
 - **Single Source of Truth**: The fee rate is dynamically retrieved from `PlatformState.fee_bps`. No constants are duplicated across instruction handlers.
 - **Bounded Fees**: Maximum fee is hard-capped at 25.00% (`MAX_FEE_BPS = 2_500`).
-- **Mathematical Safety**: Checked integer arithmetic prevents overflow and underflow across all amounts from 1 lamport to maximum safe $u64$.
+- **Mathematical Safety**: Checked integer arithmetic prevents overflow and underflow across all amounts from 1 lamport to maximum safe u64.
 
 ### 2. Product Pricing & Ownership Invariant
 - **Never Trust Client Price**: `purchase_product` reads `product.price_lamports` strictly from the on-chain `Product` account PDA derived from `[b"product", creator, product_id]`.
@@ -53,7 +53,7 @@ $$\text{creator\_amount} + \text{treasury\_fee} \equiv \text{total\_payment}$$
 
 ## 3. Adversarial Security Verification Suite
 
-Permanent security regression tests are located under [`tests/security/`](file:///c:/Users/SnapCopy/OneDrive/Documents/CoinSwag/social.wtf/tests/security):
+Permanent security regression tests are located under [`tests/security/`](./tests/security):
 - `fee-invariant.test.mjs`: Fuzzes 1,000 randomized amounts and boundary edge cases (1 lamport, 19 lamports, 100, 10,000, 1M COOK) confirming 100% preservation of the fee invariant.
 - `sanitize.test.mjs`: Tests XSS payloads and SSRF vectors (cloud metadata, loopback, private IPv4 blocks).
 - `wallet-auth.test.mjs`: Tests Ed25519 signature verification, nonce expiry, address mismatch rejection, and anti-replay nonce consumption.
@@ -61,6 +61,8 @@ Permanent security regression tests are located under [`tests/security/`](file:/
 - `session.test.mjs`: Tests v1 token generation, tampering detection, fail-closed secrets, expiration, and authenticated revocation.
 - `contract-invariants.test.mjs`: Tests anti-wash self-tipping rejection, self-purchase wash trading rejection, CEI ordering, and destination constraints.
 - `distributed-store.test.mjs`: Tests atomic `GETDEL` nonce consumption, distributed TTL pruning, rate limiting increments, and REST protocol conformity.
+- `authorization.test.mjs`: Tests multi-factor adulthood verification, role hierarchy, under-25 safeguards, and server-side feed shielding.
+- `trust-wallet-signer.test.mjs`: Tests private key formats, SIWS challenge verification, and zero-leak platform administration controls.
 
 Execute all suites locally with:
 ```bash
@@ -74,4 +76,5 @@ npm test
 If you discover a security vulnerability, please do NOT create a public issue.
 
 - **Private Vulnerability Reporting**: Enabled on this repository. Visit [Security Advisories](https://github.com/RJRC-Digital-Development/social.wtf/security/advisories/new) to submit a confidential report.
-- Our security response team will review submissions within 24 hours.
+- Our security response team will review submissions promptly.
+

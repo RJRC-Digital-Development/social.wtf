@@ -552,9 +552,9 @@ setInterval(() => {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 font-mono text-[11px] text-slate-400">
-            <span className="text-amber-400">SVM Address:</span>
-            <span className="bg-slate-900/80 px-2 py-0.5 rounded border border-slate-800">
+          <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 font-mono text-[11px] text-slate-400 max-w-full overflow-hidden">
+            <span className="text-amber-400 shrink-0">SVM Address:</span>
+            <span className="bg-slate-900/80 px-2.5 py-1 rounded-xl border border-slate-800 text-[10px] sm:text-[11px] text-slate-300 break-all select-all inline-block max-w-full">
               {creator.walletAddress}
             </span>
           </div>

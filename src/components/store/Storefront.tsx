@@ -140,23 +140,23 @@ export const Storefront: React.FC<StorefrontProps> = ({
   return (
     <div className="space-y-6">
       {/* Category Pills and Add Product Button */}
-      <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-800">
+      <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-200 dark:border-slate-800">
         <div className="flex flex-wrap gap-2">
           {[
             { id: 'all', label: 'All Digital Goods' },
-            { id: 'code_script', label: ' Code & Developer Scripts' },
-            { id: 'digital_art', label: ' 3D & Digital Art' },
-            { id: 'music_stem', label: ' Music & Stems' },
-            { id: 'vip_pass', label: ' VIP Passes' },
-            { id: 'preset', label: ' Presets & LUTs' },
+            { id: 'code_script', label: 'Code & Developer Scripts' },
+            { id: 'digital_art', label: '3D & Digital Art' },
+            { id: 'music_stem', label: 'Music & Stems' },
+            { id: 'vip_pass', label: 'VIP Passes' },
+            { id: 'preset', label: 'Presets & LUTs' },
           ].map((cat) => (
             <button
               key={cat.id}
               onClick={() => setSelectedCategory(cat.id)}
               className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all ${
                 selectedCategory === cat.id
-                  ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20 font-bold'
-                  : 'bg-slate-900 border border-slate-700/80 text-slate-400 hover:text-slate-200'
+                  ? 'bg-amber-500 text-slate-950 shadow-sm font-bold'
+                  : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/80 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
               }`}
             >
               {cat.label}
@@ -166,22 +166,22 @@ export const Storefront: React.FC<StorefrontProps> = ({
 
         <button
           onClick={() => setShowAddModal(true)}
-          className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-amber-300 font-semibold text-xs transition-all shadow-sm"
+          className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 dark:bg-slate-800 dark:hover:bg-slate-700 border border-amber-300 dark:border-slate-700 text-amber-800 dark:text-amber-300 font-semibold text-xs transition-all shadow-sm"
         >
-          <PlusCircle className="w-4 h-4" />
+          <PlusCircle className="w-4 h-4 text-amber-600 dark:text-amber-400" />
           <span>List New Product</span>
         </button>
       </div>
 
       {/* Product Grid */}
       {filteredProducts.length === 0 ? (
-        <div className="p-12 rounded-3xl bg-[#0d1527] border border-slate-700/60 text-center space-y-4">
-          <div className="w-12 h-12 mx-auto rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
+        <div className="p-12 rounded-3xl bg-white dark:bg-[#0d1527] border border-slate-200 dark:border-slate-700/60 text-center space-y-4 transition-colors">
+          <div className="w-12 h-12 mx-auto rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-600 dark:text-amber-400">
             <ShoppingBag className="w-6 h-6" />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-slate-200">No Products Listed Yet</h3>
-            <p className="text-xs text-slate-400 max-w-sm mx-auto mt-1">
+            <h3 className="text-sm font-bold text-slate-900 dark:text-slate-200">No Products Listed Yet</h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto mt-1">
               List your digital goods, music stems, VIP passes, or presets to see on-chain Cookie Chain purchases in action.
             </p>
           </div>
@@ -201,11 +201,11 @@ export const Storefront: React.FC<StorefrontProps> = ({
             return (
               <div
                 key={product.id}
-                className="rounded-3xl bg-[#0d1527] border border-slate-700/70 overflow-hidden shadow-xl hover:border-slate-600 transition-all flex flex-col justify-between group"
+                className="rounded-3xl bg-white dark:bg-[#0d1527] border border-slate-200 dark:border-slate-700/70 overflow-hidden shadow-sm dark:shadow-xl hover:border-slate-300 dark:hover:border-slate-600 transition-all flex flex-col justify-between group"
               >
                 <div>
                   {/* Preview Image */}
-                  <div className="relative aspect-video overflow-hidden bg-black">
+                  <div className="relative aspect-video overflow-hidden bg-slate-100 dark:bg-black">
                     <img
                       src={product.previewUrl}
                       alt={product.title}
@@ -224,32 +224,32 @@ export const Storefront: React.FC<StorefrontProps> = ({
                   {/* Details */}
                   <div className="p-5">
                     <div className="flex justify-between items-start gap-2 mb-1.5">
-                      <h3 className="font-bold text-slate-100 text-base line-clamp-1 group-hover:text-amber-300 transition-colors">
+                      <h3 className="font-bold text-slate-900 dark:text-slate-100 text-base line-clamp-1 group-hover:text-amber-600 dark:group-hover:text-amber-300 transition-colors">
                         {product.title}
                       </h3>
                     </div>
-                    <p className="text-xs text-slate-400 line-clamp-2 mb-3 leading-relaxed">
+                    <p className="text-xs text-slate-600 dark:text-slate-400 line-clamp-2 mb-3 leading-relaxed">
                       {product.description}
                     </p>
 
-                    <div className="flex items-center gap-3 text-[11px] text-slate-400 font-mono py-2 border-t border-slate-800/80">
-                      <span> {product.fileSize || 'Instant DL'}</span>
+                    <div className="flex items-center gap-3 text-[11px] text-slate-500 dark:text-slate-400 font-mono py-2 border-t border-slate-100 dark:border-slate-800/80">
+                      <span>{product.fileSize || 'Instant DL'}</span>
                       <span>•</span>
-                      <span> {product.fileFormat || 'Digital'}</span>
+                      <span>{product.fileFormat || 'Digital'}</span>
                       <span>•</span>
-                      <span> {product.salesCount} sold</span>
+                      <span>{product.salesCount} sold</span>
                     </div>
                   </div>
                 </div>
 
                 {/* Purchase Footer */}
                 <div className="p-5 pt-0">
-                  <div className="flex items-center justify-between pt-3 border-t border-slate-800">
+                  <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800">
                     <div>
                       <span className="text-[10px] text-slate-500 uppercase font-semibold block">
                         Cookie Chain Price
                       </span>
-                      <span className="text-base font-bold font-mono text-amber-300">
+                      <span className="text-base font-bold font-mono text-amber-600 dark:text-amber-300">
                         {product.priceCook} COOK
                       </span>
                     </div>
@@ -285,49 +285,49 @@ export const Storefront: React.FC<StorefrontProps> = ({
 
       {/* Checkout Confirmation Modal */}
       {selectedProduct && split && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-          <div className="relative w-full max-w-sm bg-[#0d1527] border border-slate-700 rounded-3xl p-6 shadow-2xl">
-            <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-800">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 dark:bg-black/80 backdrop-blur-sm animate-fade-in">
+          <div className="relative w-full max-w-sm bg-white dark:bg-[#0d1527] border border-slate-200 dark:border-slate-700 rounded-3xl p-6 shadow-2xl">
+            <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-100 dark:border-slate-800">
               <div className="flex items-center gap-2">
-                <div className="p-2 rounded-xl bg-amber-500/15 text-amber-400">
+                <div className="p-2 rounded-xl bg-amber-500/15 text-amber-600 dark:text-amber-400">
                   <ShoppingBag className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-slate-100 text-sm">Checkout Digital Good</h3>
-                  <p className="text-[11px] text-slate-400">Cookie Chain SVM Settlement</p>
+                  <h3 className="font-bold text-slate-900 dark:text-slate-100 text-sm">Checkout Digital Good</h3>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">Cookie Chain SVM Settlement</p>
                 </div>
               </div>
               <button
                 onClick={() => setSelectedProduct(null)}
-                className="p-1 rounded-lg text-slate-400 hover:text-white"
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white"
               >
-                
+                ✕
               </button>
             </div>
 
             <div className="mb-4">
-              <h4 className="font-bold text-slate-200 text-sm">{selectedProduct.title}</h4>
-              <p className="text-xs text-slate-400 mt-1">{selectedProduct.description}</p>
+              <h4 className="font-bold text-slate-900 dark:text-slate-200 text-sm">{selectedProduct.title}</h4>
+              <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">{selectedProduct.description}</p>
             </div>
 
             {/* Split Breakdown */}
-            <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-2 mb-5 text-xs">
-              <div className="flex justify-between items-center text-slate-300">
+            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 space-y-2 mb-5 text-xs">
+              <div className="flex justify-between items-center text-slate-700 dark:text-slate-300">
                 <span>Item Price:</span>
-                <span className="font-bold font-mono text-amber-300 text-sm">
+                <span className="font-bold font-mono text-amber-600 dark:text-amber-300 text-sm">
                   {selectedProduct.priceCook} COOK
                 </span>
               </div>
-              <div className="pt-2 border-t border-slate-800 space-y-1 text-[11px]">
-                <div className="flex justify-between text-slate-400">
+              <div className="pt-2 border-t border-slate-200 dark:border-slate-800 space-y-1 text-[11px]">
+                <div className="flex justify-between text-slate-600 dark:text-slate-400">
                   <span>↳ Creator Cut (95%):</span>
-                  <span className="font-mono text-emerald-400">
+                  <span className="font-mono text-emerald-600 dark:text-emerald-400">
                     +{split.creatorAmount.toFixed(3)} COOK
                   </span>
                 </div>
-                <div className="flex justify-between text-slate-400">
+                <div className="flex justify-between text-slate-600 dark:text-slate-400">
                   <span>↳ Social.wtf Treasury (5%):</span>
-                  <span className="font-mono text-blue-400">
+                  <span className="font-mono text-blue-600 dark:text-blue-400">
                     +{split.treasuryAmount.toFixed(3)} COOK
                   </span>
                 </div>
@@ -340,7 +340,7 @@ export const Storefront: React.FC<StorefrontProps> = ({
                 setSelectedProduct(null);
                 handleExecuteCheckout();
               }}
-              className="w-full py-3 rounded-2xl bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 font-bold text-sm hover:brightness-110 active:scale-95 transition-all shadow-lg shadow-amber-500/20"
+              className="w-full py-3 rounded-2xl bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 font-bold text-sm hover:brightness-110 active:scale-95 transition-all shadow-md shadow-amber-500/20"
             >
               Sign & Pay {selectedProduct.priceCook} COOK
             </button>
@@ -350,47 +350,47 @@ export const Storefront: React.FC<StorefrontProps> = ({
 
       {/* Add Product Modal for Creators */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-          <div className="relative w-full max-w-md bg-[#0d1527] border border-slate-700 rounded-3xl p-6 shadow-2xl">
-            <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-800">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 dark:bg-black/80 backdrop-blur-sm animate-fade-in">
+          <div className="relative w-full max-w-md bg-white dark:bg-[#0d1527] border border-slate-200 dark:border-slate-700 rounded-3xl p-6 shadow-2xl">
+            <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-100 dark:border-slate-800">
               <div className="flex items-center gap-2">
-                <div className="p-2 rounded-xl bg-amber-500/15 text-amber-400">
+                <div className="p-2 rounded-xl bg-amber-500/15 text-amber-600 dark:text-amber-400">
                   <PlusCircle className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-slate-100 text-sm">List New Digital Asset</h3>
-                  <p className="text-[11px] text-slate-400">Set price in $COOK with 5% treasury split</p>
+                  <h3 className="font-bold text-slate-900 dark:text-slate-100 text-sm">List New Digital Asset</h3>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">Set price in $COOK with 5% treasury split</p>
                 </div>
               </div>
               <button
                 onClick={() => setShowAddModal(false)}
-                className="p-1 rounded-lg text-slate-400 hover:text-white"
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white"
               >
-                
+                ✕
               </button>
             </div>
 
             <form onSubmit={handleCreateProduct} className="space-y-3.5 text-xs">
               <div>
-                <label className="block text-slate-400 mb-1">Product Title</label>
+                <label className="block text-slate-600 dark:text-slate-400 mb-1">Product Title</label>
                 <input
                   type="text"
                   required
                   placeholder="e.g. Master Synth Stem Pack Vol. 2"
                   value={newTitle}
                   onChange={(e) => setNewTitle(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-amber-400"
+                  className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-slate-900 dark:text-slate-200 focus:outline-none focus:border-amber-500"
                 />
               </div>
 
               <div>
-                <label className="block text-slate-400 mb-1">Category</label>
+                <label className="block text-slate-600 dark:text-slate-400 mb-1">Category</label>
                 <select
                   value={newCategory}
                   onChange={(e) => setNewCategory(e.target.value as any)}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-amber-400"
+                  className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-slate-900 dark:text-slate-200 focus:outline-none focus:border-amber-500"
                 >
-                  <option value="code_script"> Code Snippet / Smart Contract / Script</option>
+                  <option value="code_script">Code Snippet / Smart Contract / Script</option>
                   <option value="digital_art">3D Asset / Digital Art</option>
                   <option value="music_stem">Music WAV Stems / Audio</option>
                   <option value="vip_pass">VIP Access Pass / Token</option>
@@ -400,7 +400,7 @@ export const Storefront: React.FC<StorefrontProps> = ({
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-slate-400 mb-1">Price (in $COOK)</label>
+                  <label className="block text-slate-600 dark:text-slate-400 mb-1">Price (in $COOK)</label>
                   <input
                     type="number"
                     min="0.1"
@@ -408,33 +408,33 @@ export const Storefront: React.FC<StorefrontProps> = ({
                     required
                     value={newPrice}
                     onChange={(e) => setNewPrice(parseFloat(e.target.value) || 0.1)}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-slate-200 font-mono focus:outline-none focus:border-amber-400"
+                    className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-slate-900 dark:text-slate-200 font-mono focus:outline-none focus:border-amber-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-slate-400 mb-1">File Format / Spec</label>
+                  <label className="block text-slate-600 dark:text-slate-400 mb-1">File Format / Spec</label>
                   <input
                     type="text"
                     value={newFormat}
                     onChange={(e) => setNewFormat(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-amber-400"
+                    className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-slate-900 dark:text-slate-200 focus:outline-none focus:border-amber-500"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-slate-400 mb-1">Description</label>
+                <label className="block text-slate-600 dark:text-slate-400 mb-1">Description</label>
                 <textarea
                   rows={3}
                   placeholder="Describe your digital goods..."
                   value={newDesc}
                   onChange={(e) => setNewDesc(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-amber-400"
+                  className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-slate-900 dark:text-slate-200 focus:outline-none focus:border-amber-500"
                 />
               </div>
 
-              <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800 text-[11px] text-slate-400 leading-relaxed">
-                When purchased: <span className="text-emerald-400 font-semibold">95%</span> routes directly to your wallet, and <span className="text-blue-400 font-semibold">5%</span> funds the platform treasury on Cookie Chain.
+              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
+                When purchased: <span className="text-emerald-600 dark:text-emerald-400 font-semibold">95%</span> routes directly to your wallet, and <span className="text-blue-600 dark:text-blue-400 font-semibold">5%</span> funds the platform treasury on Cookie Chain.
               </div>
 
               <button

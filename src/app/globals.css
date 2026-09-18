@@ -4,44 +4,63 @@
 
 @layer base {
   :root {
-    --background: 222 47% 6%;
-    --foreground: 210 40% 98%;
+    --bg-main: #f8fafc;
+    --bg-card: #ffffff;
+    --bg-card-subtle: #f1f5f9;
+    --border-main: #e2e8f0;
+    --border-subtle: #cbd5e1;
+    --text-main: #0f172a;
+    --text-muted: #64748b;
+    --text-secondary: #475569;
+    --accent-amber: #d97706;
+  }
+
+  .dark {
+    --bg-main: #070b14;
+    --bg-card: #0d1527;
+    --bg-card-subtle: #131c2e;
+    --border-main: #1e293b;
+    --border-subtle: #334155;
+    --text-main: #f8fafc;
+    --text-muted: #94a3b8;
+    --text-secondary: #cbd5e1;
+    --accent-amber: #f59e0b;
   }
 
   body {
-    @apply bg-[#070b14] text-slate-100 antialiased selection:bg-amber-500 selection:text-black;
+    @apply bg-slate-50 text-slate-900 dark:bg-[#070b14] dark:text-slate-100 antialiased selection:bg-amber-500 selection:text-black transition-colors duration-200;
     font-feature-settings: "rlig" 1, "calt" 1;
   }
 }
 
-/* Custom Web3 scrollbars */
+/* Custom goal-setting calm scrollbars */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #070b14;
+  @apply bg-slate-100 dark:bg-[#070b14];
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #1e293b;
-  border-radius: 4px;
+  @apply bg-slate-300 dark:bg-[#1e293b] rounded;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #334155;
+  @apply bg-slate-400 dark:bg-[#334155];
 }
 
-/* Gradient text utility */
+/* Focused gradient text utility */
 .cookie-gradient-text {
-  background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 50%, #fcd34d 100%);
+  background: linear-gradient(135deg, #d97706 0%, #f59e0b 50%, #fbbf24 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
 .blue-gradient-text {
-  background: linear-gradient(135deg, #38bdf8 0%, #3b82f6 50%, #818cf8 100%);
+  background: linear-gradient(135deg, #0284c7 0%, #2563eb 50%, #6366f1 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
+

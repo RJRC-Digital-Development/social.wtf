@@ -102,74 +102,30 @@ export async function verifyDualGovId(
   docType: string = "Driver's License",
   onPurgeComplete?: (frontHash: string, backHash: string) => void
 ): Promise<IdProfileCredential> {
-  // 1. Dispatch to backend authorization endpoint
-  try {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('social_wtf_session_token') : null;
-    const res = await fetch('/api/auth/id', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      body: JSON.stringify({ frontData, backData, docType }),
-    });
-    if (res.ok) {
-      const data = await res.json();
-      if (onPurgeComplete) onPurgeComplete(data.frontHash, data.backHash);
-      return {
-        verified: data.verified,
-        documentType: data.documentType,
-        frontHash: data.frontHash,
-        backHash: data.backHash,
-        verifiedAt: data.verifiedAt,
-        accountBadge: data.accountBadge,
-      };
-    }
-  } catch {
-    // Fall back to local zero-knowledge sandbox simulation for devnet environments
+  const token = typeof window !== 'undefined' ? localStorage.getItem('social_wtf_session_token') : null;
+  const res = await fetch('/api/auth/id', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({ frontData, backData, docType }),
+  });
+
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(errData.error || `Government ID verification failed (status ${res.status})`);
   }
 
-  // Local client-side ephemeral memory zeroing & proof generation
-  await new Promise((resolve) => setTimeout(resolve, 1400));
-
-  let frontBuffer: string | null = frontData;
-  let backBuffer: string | null = backData;
-
-  const encoder = new TextEncoder();
-  const fData = encoder.encode('front_' + (frontBuffer || 'sample').slice(0, 100) + Date.now());
-  const bData = encoder.encode('back_' + (backBuffer || 'sample').slice(0, 100) + Date.now());
-
-  const fBuf = await crypto.subtle.digest('SHA-256', fData);
-  const bBuf = await crypto.subtle.digest('SHA-256', bData);
-
-  const frontHash = Array.from(new Uint8Array(fBuf))
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('')
-    .slice(0, 16);
-  const backHash = Array.from(new Uint8Array(bBuf))
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('')
-    .slice(0, 16);
-
-  // Instantly wipe memory buffers
-  frontBuffer = null;
-  backBuffer = null;
-
-  if (onPurgeComplete) {
-    onPurgeComplete(frontHash, backHash);
-  }
-
+  const data = await res.json();
+  if (onPurgeComplete) onPurgeComplete(data.frontHash || '', data.backHash || '');
   return {
-    verified: true,
-    documentType: docType,
-    frontHash: `sha256_front_${frontHash}`,
-    backHash: `sha256_back_${backHash}`,
-    verifiedAt: new Date().toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    }),
-    accountBadge: 'ID Verified Account (Front & Back on Profile for Login)',
+    verified: Boolean(data.verified),
+    documentType: data.documentType || docType,
+    frontHash: data.frontHash || '',
+    backHash: data.backHash || '',
+    verifiedAt: data.verifiedAt || new Date().toISOString(),
+    accountBadge: data.accountBadge || 'Verified Profile',
   };
 }
 
@@ -200,58 +156,33 @@ export async function verifyPaymentCardAdulthood(
   expiry: string,
   cvv: string
 ): Promise<CardAgeProof> {
-  // 1. Dispatch to backend authorization endpoint
-  try {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('social_wtf_session_token') : null;
-    const res = await fetch('/api/auth/card', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      body: JSON.stringify({ cardNumber, cardExp: expiry, cardCvc: cvv }),
-    });
-    if (res.ok) {
-      const data = await res.json();
-      return {
-        verified: data.verified,
-        cardBrand: data.cardBrand,
-        last4: data.last4,
-        authMethod: data.authMethod,
-        verifiedAt: data.verifiedAt,
-      };
-    } else {
-      const errData = await res.json().catch(() => ({}));
-      if (res.status === 400 && errData.error) {
-        throw new Error(errData.error);
-      }
-    }
-  } catch (err: any) {
-    if (err.message && err.message.includes('Invalid')) {
-      throw err;
-    }
-    // Fall back to client verification if network partition
-  }
-
-  await new Promise((resolve) => setTimeout(resolve, 900));
   const cleanDigits = cardNumber.replace(/\D/g, '');
   if (!isValidLuhn(cleanDigits)) {
     throw new Error('Invalid card number checksum. Please enter a valid card.');
   }
 
-  const last4 = cleanDigits.slice(-4) || '4242';
-  let cardBrand = 'Visa';
-  if (cleanDigits.startsWith('4')) cardBrand = 'Visa';
-  else if (cleanDigits.startsWith('5')) cardBrand = 'Mastercard';
-  else if (cleanDigits.startsWith('3')) cardBrand = 'American Express';
-  else if (cleanDigits.startsWith('6')) cardBrand = 'Discover';
+  const token = typeof window !== 'undefined' ? localStorage.getItem('social_wtf_session_token') : null;
+  const res = await fetch('/api/auth/card', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({ cardNumber, cardExp: expiry, cardCvc: cvv }),
+  });
 
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(errData.error || `Payment card authorization failed (status ${res.status})`);
+  }
+
+  const data = await res.json();
   return {
-    verified: true,
-    cardBrand,
-    last4,
-    authMethod: 'zero_charge_auth',
-    verifiedAt: Date.now(),
+    verified: Boolean(data.verified),
+    cardBrand: data.cardBrand || 'Payment Card',
+    last4: data.last4 || cleanDigits.slice(-4),
+    authMethod: data.authMethod || 'zero_charge_auth',
+    verifiedAt: data.verifiedAt || Date.now(),
   };
 }
 
@@ -266,56 +197,32 @@ export async function verifyLiveVideoLiveness(
   videoFrameDataUrl: string = 'live_webcam_frame',
   simulatedAge: number = 26
 ): Promise<VideoVerificationProof> {
-  // 1. Dispatch to backend authorization endpoint
-  try {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('social_wtf_session_token') : null;
-    const res = await fetch('/api/auth/video', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      body: JSON.stringify({ videoFrameDataUrl, simulatedAge }),
-    });
-    if (res.ok) {
-      const data = await res.json();
-      return {
-        verified: data.verified,
-        method: data.method,
-        livenessVerified: data.livenessVerified,
-        estimatedAge: data.estimatedAge,
-        under25Flagged: data.under25Flagged,
-        adultUnlocked: data.adultUnlocked,
-        purgedHash: data.purgedHash,
-        verifiedAt: data.verifiedAt,
-        expiresAt: data.expiresAt,
-      };
-    }
-  } catch {
-    // Fall back to local zero-knowledge sandbox simulation for devnet environments
+  const token = typeof window !== 'undefined' ? localStorage.getItem('social_wtf_session_token') : null;
+  const res = await fetch('/api/auth/video', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({ videoFrameDataUrl, simulatedAge }),
+  });
+
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(errData.error || `Video biometric liveness verification failed (status ${res.status})`);
   }
 
-  // Local client-side liveness detection & neural age estimation in ephemeral memory
-  await new Promise((resolve) => setTimeout(resolve, 1800));
-
-  let frameRef: string | null = videoFrameDataUrl;
-  const hash = 'liveness_purge_' + Math.random().toString(36).substring(2, 14);
-  frameRef = null; // Zero memory immediately
-
-  const now = Date.now();
-  const estimatedAge = simulatedAge;
-  const under25Flagged = estimatedAge < 25;
-
+  const data = await res.json();
   return {
-    verified: true,
-    method: 'live_video_liveness',
-    livenessVerified: true,
-    estimatedAge,
-    under25Flagged,
-    adultUnlocked: !under25Flagged,
-    purgedHash: hash,
-    verifiedAt: now,
-    expiresAt: now + 24 * 60 * 60 * 1000,
+    verified: Boolean(data.verified),
+    method: data.method || 'live_video_liveness',
+    livenessVerified: Boolean(data.livenessVerified),
+    estimatedAge: data.estimatedAge ?? 27,
+    under25Flagged: Boolean(data.under25Flagged),
+    adultUnlocked: Boolean(data.adultUnlocked),
+    purgedHash: data.purgedHash || data.authProof || '',
+    verifiedAt: data.verifiedAt || Date.now(),
+    expiresAt: data.expiresAt || Date.now() + 24 * 60 * 60 * 1000,
   };
 }
 
@@ -327,7 +234,7 @@ export async function verifyFacialAgeEstimation(
 ): Promise<EphemeralVerificationProof> {
   const videoResult = await verifyLiveVideoLiveness(videoFrameDataUrl);
   return {
-    verified: true,
+    verified: videoResult.verified,
     age: videoResult.estimatedAge,
     method: 'live_video_liveness',
     purgedHash: videoResult.purgedHash,
@@ -337,3 +244,4 @@ export async function verifyFacialAgeEstimation(
     adultUnlocked: videoResult.adultUnlocked,
   };
 }
+

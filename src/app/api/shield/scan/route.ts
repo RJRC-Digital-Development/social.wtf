@@ -2,12 +2,13 @@ import { NextResponse } from 'next/server';
 import { globalRateLimiter } from '@/lib/security/rateLimiter';
 import { sanitizeString, isValidSafeUrl } from '@/lib/security/sanitize';
 import { validateRequestSessionAsync } from '@/lib/security/session';
+import { getClientIp } from '@/lib/security/ipHelper';
 
 const MAX_PAYLOAD_BYTES = 5 * 1024 * 1024; // 5MB limit to prevent memory exhaustion
 
 export async function POST(req: Request) {
   try {
-    const ip = req.headers.get('x-real-ip')?.trim() || req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '127.0.0.1';
+    const ip = getClientIp(req);
 
     // Verify authenticated session across distributed backend for authorized quota tier
     const session = await validateRequestSessionAsync(req);
@@ -89,3 +90,4 @@ export async function POST(req: Request) {
     );
   }
 }
+

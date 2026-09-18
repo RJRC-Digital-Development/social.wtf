@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import { ThemeProvider } from '@/lib/theme/themeContext';
 import { WalletProvider } from '@/lib/wallet/walletContext';
 import { ShieldProvider } from '@/lib/shield/shieldContext';
 
@@ -39,12 +40,14 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body className="min-h-screen bg-[#070b14] text-slate-100 flex flex-col font-sans">
-        <WalletProvider>
-          <ShieldProvider>
-            {children}
-          </ShieldProvider>
-        </WalletProvider>
+      <body className="min-h-screen bg-slate-50 text-slate-900 dark:bg-[#070b14] dark:text-slate-100 flex flex-col font-sans transition-colors duration-200">
+        <ThemeProvider>
+          <WalletProvider>
+            <ShieldProvider>
+              {children}
+            </ShieldProvider>
+          </WalletProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

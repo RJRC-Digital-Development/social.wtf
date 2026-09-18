@@ -1,14 +1,14 @@
-# Cookie Chain cApp Submission: Social.wtf 
+# Cookie Chain cApp Submission: Social.wtf
 
-**Category:** Social Platform • Creator Tools • Marketplace • AI Application • Developer Tooling  
-**Target Chain:** Cookie Chain (SVM - Solana Virtual Machine)  
-**Live URL:** [https://social-wtf.vercel.app](https://social-wtf.vercel.app) (or your deployment domain)  
-**GitHub Repository:** [https://github.com/thepros2014/social.wtf](https://github.com/thepros2014/social.wtf)  
-**Telegram Submission Target:** [https://t.me/TheCookieNetChain](https://t.me/TheCookieNetChain)  
+**Category:** Social Platform | Creator Tools | Marketplace | AI Application | Developer Tooling
+**Target Chain:** Cookie Chain (SVM - Solana Virtual Machine)
+**Live URL:** [https://socialwtf.vercel.app](https://socialwtf.vercel.app)
+**GitHub Repository:** [https://github.com/RJRC-Digital-Development/social.wtf](https://github.com/RJRC-Digital-Development/social.wtf)
+**Telegram Submission Target:** [https://t.me/TheCookieNetChain](https://t.me/TheCookieNetChain)
 
 ---
 
-##  Executive Summary & Objective
+## Executive Summary & Objective
 
 **Social.wtf** is a unified decentralized Web3 social ecosystem and creator storefront hub built natively on **Cookie Chain**. It consolidates micro-blogging, video streaming, music hubs, and digital storefronts into a single interface where **every profile functions as a customizable mini-app**.
 
@@ -16,7 +16,7 @@ Every economic transaction—from digital good purchases to tips and subscriptio
 
 ---
 
-##  Comprehensive Requirements Checklist
+## Comprehensive Requirements Checklist
 
 ### 1. Wallet Connection & Status
 - [x] **Nightly Wallet Support (`window.nightly.solana`):** Native integration with auto-detection and 1-click connection.
@@ -33,27 +33,27 @@ Every economic transaction—from digital good purchases to tips and subscriptio
 ### 3. Application-Specific Features & Dashboards
 - [x] **Multi-Format Feed:** Native renderers for Text micro-blogging, Photos, HTML5 Video, and Audio/Music streams with waveform visualizers.
 - [x] **Modular Creator Profile Mini-Apps:** Custom storefronts, audio spotlights, crowdfund tip goal progress bars, and verified links.
-- [x] **Creator Code Studio (Programmable Profiles):** In-browser live editor allowing creators to author, preview in a sandboxed iframe, and deploy their own custom code mini-apps (games, animations, widgets)!
+- [x] **Creator Code Studio (Programmable Profiles):** In-browser live editor allowing creators to author, preview in a sandboxed iframe, and deploy their own custom code mini-apps (games, animations, widgets).
 - [x] **Creator Analytics Dashboard:** Live tracking of gross platform volume, net creator revenue, treasury collections, and on-chain transaction history.
 - [x] **Zero-Trace Invisible Content Shielding:** Flagged mature media is completely omitted from public feeds with zero traces or blurry placeholders.
 - [x] **Privacy-First Ephemeral Age Verification:** Client-side Ephemeral Government ID OCR with immediate RAM buffer zeroing and live video selfie age check.
 
 ---
 
-##  Cookie Ecosystem Integrations (Encouraged & Optional)
+## Cookie Ecosystem Integrations
 
 | Tool / Service | Integration in Social.wtf | Link / Status |
 | :--- | :--- | :--- |
-| **Cookieswap** | Quick swap simulator & direct liquidity/trading integration for `$COOK` and creator tokens | [cookieswap.fun](https://cookieswap.fun/)  Integrated |
-| **Cookiebox** | Ecosystem application launcher and cApp directory indexing | [cookiebox.app](https://cookiebox.app/)  Integrated |
-| **Cookie DAS API** | Metaplex Digital Asset Standard client (`src/lib/solana/cookieDas.ts`) querying assets via `https://api.cookiescan.io` | [api.cookiescan.io](https://api.cookiescan.io/)  Integrated |
-| **CookieScan** | Direct block explorer verification for all transactions and addresses | [cookiescan.io](https://cookiescan.io/)  Integrated |
-| **cookie-mcp** | Tool definitions conforming to `cookie-mcp` (`src/lib/ai/cookieMcp.ts`) for AI agents | [github.com/cookiechain/cookie-mcp](https://github.com/cookiechain/cookie-mcp)  Integrated |
-| **Hyperlane Bridge** | Step-by-step bridge guide & direct portal linking Solana to Cookie Chain | [hyperlane.cookiescan.io](https://hyperlane.cookiescan.io/)  Integrated |
+| **Cookieswap** | Quick swap simulator & direct liquidity/trading integration for `$COOK` and creator tokens | [cookieswap.fun](https://cookieswap.fun/) - Integrated |
+| **Cookiebox** | Ecosystem application launcher and cApp directory indexing | [cookiebox.app](https://cookiebox.app/) - Integrated |
+| **Cookie DAS API** | Metaplex Digital Asset Standard client (`src/lib/solana/cookieDas.ts`) querying assets via `https://api.cookiescan.io` | [api.cookiescan.io](https://api.cookiescan.io/) - Integrated |
+| **CookieScan** | Direct block explorer verification for all transactions and addresses | [cookiescan.io](https://cookiescan.io/) - Integrated |
+| **cookie-mcp** | Tool definitions conforming to `cookie-mcp` (`src/lib/ai/cookieMcp.ts`) for AI agents | [github.com/cookiechain/cookie-mcp](https://github.com/cookiechain/cookie-mcp) - Integrated |
+| **Hyperlane Bridge** | Step-by-step bridge guide & direct portal linking Solana to Cookie Chain | [hyperlane.cookiescan.io](https://hyperlane.cookiescan.io/) - Integrated |
 
 ---
 
-##  Relevant Addresses & Technical Specs
+## Relevant Addresses & Technical Specs
 
 - **Anchor Program ID:** `9iapGcxDbDtZ2bWtwM2kLYNW67XH2qzPxLxXfSUbQQZq`
 - **Platform Treasury Address:** `HMnySuX1CdBfqysiLtU4brPawufcHxFTFZu97jrKQwT9`
@@ -62,6 +62,7 @@ Every economic transaction—from digital good purchases to tips and subscriptio
 - **Genesis Hash:** `9wDaBRDgArEUpvhHxGguNkwozsZh4UpGZB9o2EoEcBB2`
 - **Solana-Core Version:** `4.1.2` (Feature set: `3345198602`)
 - **Native Token:** `$COOK` (9 Decimals)
+
 
 ---
 

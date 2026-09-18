@@ -145,7 +145,7 @@ export const PostCard: React.FC<PostCardProps> = ({
 
   return (
     <>
-      <article className="rounded-3xl bg-[#0d1527] border border-slate-700/70 p-5 shadow-xl transition-all hover:border-slate-600/80 mb-5">
+      <article className="rounded-3xl bg-white dark:bg-[#0d1527] border border-slate-200 dark:border-slate-700/70 p-5 shadow-sm dark:shadow-xl transition-all hover:border-slate-300 dark:hover:border-slate-600/80 mb-5">
         {/* Author Header */}
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
@@ -156,21 +156,21 @@ export const PostCard: React.FC<PostCardProps> = ({
             />
             <div>
               <div className="flex items-center gap-1.5">
-                <span className="font-bold text-slate-100 text-sm hover:underline cursor-pointer">
+                <span className="font-bold text-slate-900 dark:text-slate-100 text-sm hover:underline cursor-pointer">
                   {post.author.name}
                 </span>
                 {post.author.verified && (
-                  <span className="w-4 h-4 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center text-[10px] font-bold">
-                    
+                  <span className="w-4 h-4 rounded-full bg-blue-500/15 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400 flex items-center justify-center text-[10px] font-bold">
+                    ✓
                   </span>
                 )}
                 {post.isShielded && (
-                  <span className="px-2 py-0.5 rounded-md bg-red-500/15 border border-red-500/30 text-[10px] font-bold text-red-400 flex items-center gap-1">
+                  <span className="px-2 py-0.5 rounded-md bg-red-50 border border-red-200 text-red-700 dark:bg-red-500/15 dark:border-red-500/30 text-[10px] font-bold dark:text-red-400 flex items-center gap-1">
                     <ShieldAlert className="w-3 h-3" /> 18+ RESTRICTED UNLOCKED
                   </span>
                 )}
               </div>
-              <div className="flex items-center gap-2 text-xs text-slate-400">
+              <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
                 <span>@{post.author.handle}</span>
                 <span>•</span>
                 <span>{post.createdAt}</span>
@@ -183,7 +183,7 @@ export const PostCard: React.FC<PostCardProps> = ({
             {post.author.isCreator && (
               <button
                 onClick={() => onOpenStore && onOpenStore(post.author.handle)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 text-xs font-semibold transition-all"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 dark:bg-amber-500/10 dark:hover:bg-amber-500/20 border border-amber-300 dark:border-amber-500/30 text-amber-800 dark:text-amber-300 text-xs font-semibold transition-all"
               >
                 <ShoppingBag className="w-3.5 h-3.5" />
                 <span>Visit Store</span>
@@ -193,7 +193,7 @@ export const PostCard: React.FC<PostCardProps> = ({
         </div>
 
         {/* Post Text Content */}
-        <div className="text-slate-200 text-sm leading-relaxed mb-4 whitespace-pre-line">
+        <div className="text-slate-700 dark:text-slate-200 text-sm leading-relaxed mb-4 whitespace-pre-line break-words [overflow-wrap:anywhere] max-w-full">
           {post.content}
         </div>
 
@@ -203,7 +203,7 @@ export const PostCard: React.FC<PostCardProps> = ({
             {post.tags.map((tag) => (
               <span
                 key={tag}
-                className="px-2 py-0.5 rounded-lg bg-slate-800/80 text-[11px] font-medium text-amber-400/90 border border-slate-700/50"
+                className="px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800/80 text-[11px] font-medium text-amber-700 dark:text-amber-400/90 border border-slate-200 dark:border-slate-700/50"
               >
                 #{tag}
               </span>
@@ -233,7 +233,7 @@ export const PostCard: React.FC<PostCardProps> = ({
         )}
 
         {post.type === 'photo' && post.mediaUrl && (
-          <div className="mb-4 rounded-2xl overflow-hidden border border-slate-800 bg-black/40">
+          <div className="mb-4 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-black/40">
             <img
               src={post.mediaUrl}
               alt="Post media"
@@ -243,30 +243,30 @@ export const PostCard: React.FC<PostCardProps> = ({
         )}
 
         {/* AI Screening Metadata Badge */}
-        <div className="flex items-center justify-between py-2 px-3 mb-4 rounded-xl bg-slate-900/60 border border-slate-800 text-[11px] text-slate-400">
+        <div className="flex items-center justify-between py-2 px-3 mb-4 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 text-[11px] text-slate-600 dark:text-slate-400">
           <div className="flex items-center gap-1.5">
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
             <span>
               AI Vision Status: {post.isShielded ? 'Verified Age-Gated 18+' : 'Passed Safe Screening'}
             </span>
           </div>
-          <div className="font-mono text-amber-400 text-[10px]">
+          <div className="font-mono text-amber-700 dark:text-amber-400 text-[10px]">
             Cookie Chain SVM • 5% Protocol Fee Protected
           </div>
         </div>
 
         {/* Bottom Social Interactions Bar */}
-        <div className="flex items-center justify-between pt-3 border-t border-slate-800/80">
+        <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800/80">
           {/* Like */}
           <button
             onClick={handleLike}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
               liked
-                ? 'text-rose-400 bg-rose-500/10'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                ? 'text-rose-600 bg-rose-50 dark:text-rose-400 dark:bg-rose-500/10'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
             }`}
           >
-            <Heart className={`w-4 h-4 ${liked ? 'fill-rose-400' : ''}`} />
+            <Heart className={`w-4 h-4 ${liked ? 'fill-rose-500 text-rose-500' : ''}`} />
             <span>{likesCount}</span>
           </button>
 
@@ -275,8 +275,8 @@ export const PostCard: React.FC<PostCardProps> = ({
             onClick={handleRepost}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
               reposted
-                ? 'text-emerald-400 bg-emerald-500/10'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                ? 'text-emerald-700 bg-emerald-50 dark:text-emerald-400 dark:bg-emerald-500/10'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
             }`}
           >
             <Repeat2 className="w-4 h-4" />
@@ -286,7 +286,7 @@ export const PostCard: React.FC<PostCardProps> = ({
           {/* Comments */}
           <button
             onClick={() => setShowComments(!showComments)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-all"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
           >
             <MessageCircle className="w-4 h-4" />
             <span>{commentsList.length}</span>
@@ -295,23 +295,23 @@ export const PostCard: React.FC<PostCardProps> = ({
           {/* On-Chain Tip Button ($COOK with 5% split) */}
           <button
             onClick={() => setShowTipModal(true)}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/15 via-amber-500/20 to-yellow-500/15 border border-amber-500/40 text-amber-300 hover:brightness-125 transition-all text-xs font-bold shadow-sm"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-amber-50 dark:bg-gradient-to-r dark:from-amber-500/15 dark:via-amber-500/20 dark:to-yellow-500/15 border border-amber-300 dark:border-amber-500/40 text-amber-800 dark:text-amber-300 hover:brightness-105 dark:hover:brightness-125 transition-all text-xs font-bold shadow-sm"
           >
-            <Coins className="w-3.5 h-3.5 text-amber-400" />
+            <Coins className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
             <span>Tip {post.totalTipsCook.toFixed(1)} COOK</span>
           </button>
         </div>
 
         {/* Comment Drawer */}
         {showComments && (
-          <div className="mt-4 pt-4 border-t border-slate-800/80 animate-fade-in">
+          <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800/80 animate-fade-in">
             <form onSubmit={handleAddComment} className="flex gap-2 mb-4">
               <input
                 type="text"
                 placeholder="Add on-chain comment..."
                 value={newCommentText}
                 onChange={(e) => setNewCommentText(e.target.value)}
-                className="flex-1 bg-slate-900 border border-slate-700/80 rounded-xl px-3 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-amber-400"
+                className="flex-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700/80 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-amber-500"
               />
               <button
                 type="submit"
@@ -327,14 +327,14 @@ export const PostCard: React.FC<PostCardProps> = ({
                   <img
                     src={comm.author.avatar}
                     alt={comm.author.name}
-                    className="w-7 h-7 rounded-xl object-cover border border-slate-700 mt-0.5"
+                    className="w-7 h-7 rounded-xl object-cover border border-slate-200 dark:border-slate-700 mt-0.5"
                   />
-                  <div className="flex-1 bg-slate-900/60 p-2.5 rounded-xl border border-slate-800">
+                  <div className="flex-1 bg-slate-50 dark:bg-slate-900/60 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800">
                     <div className="flex justify-between items-center mb-1">
-                      <span className="font-bold text-slate-200">{comm.author.name}</span>
+                      <span className="font-bold text-slate-900 dark:text-slate-200">{comm.author.name}</span>
                       <span className="text-[10px] text-slate-500">{comm.createdAt}</span>
                     </div>
-                    <p className="text-slate-300">{comm.content}</p>
+                    <p className="text-slate-700 dark:text-slate-300">{comm.content}</p>
                   </div>
                 </div>
               ))}
@@ -345,23 +345,23 @@ export const PostCard: React.FC<PostCardProps> = ({
 
       {/* Tip Amount Picker Modal */}
       {showTipModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-          <div className="relative w-full max-w-sm bg-[#0d1527] border border-slate-700 rounded-3xl p-6 shadow-2xl">
-            <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-800">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 dark:bg-black/80 backdrop-blur-sm animate-fade-in">
+          <div className="relative w-full max-w-sm bg-white dark:bg-[#0d1527] border border-slate-200 dark:border-slate-700 rounded-3xl p-6 shadow-2xl">
+            <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-100 dark:border-slate-800">
               <div className="flex items-center gap-2">
-                <div className="p-2 rounded-xl bg-amber-500/15 text-amber-400">
+                <div className="p-2 rounded-xl bg-amber-500/15 text-amber-600 dark:text-amber-400">
                   <Coins className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-slate-100 text-sm">Send Tip in $COOK</h3>
-                  <p className="text-[11px] text-slate-400">To {post.author.name}</p>
+                  <h3 className="font-bold text-slate-900 dark:text-slate-100 text-sm">Send Tip in $COOK</h3>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">To {post.author.name}</p>
                 </div>
               </div>
               <button
                 onClick={() => setShowTipModal(false)}
-                className="p-1 rounded-lg text-slate-400 hover:text-white"
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white"
               >
-                
+                ✕
               </button>
             </div>
 
@@ -373,8 +373,8 @@ export const PostCard: React.FC<PostCardProps> = ({
                   onClick={() => setTipAmount(amt)}
                   className={`py-2 rounded-xl font-mono text-xs font-bold transition-all ${
                     tipAmount === amt
-                      ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
-                      : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                      ? 'bg-amber-500 text-slate-950 shadow-sm'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
                   }`}
                 >
                   {amt} COOK
@@ -384,35 +384,35 @@ export const PostCard: React.FC<PostCardProps> = ({
 
             {/* Custom input */}
             <div className="mb-4">
-              <label className="text-[11px] text-slate-400 block mb-1">Custom Amount</label>
-              <div className="flex items-center bg-slate-900 border border-slate-700 rounded-xl px-3 py-2">
+              <label className="text-[11px] text-slate-500 dark:text-slate-400 block mb-1">Custom Amount</label>
+              <div className="flex items-center bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2">
                 <input
                   type="number"
                   min="0.1"
                   step="0.5"
                   value={tipAmount}
                   onChange={(e) => setTipAmount(Math.max(0.1, parseFloat(e.target.value) || 0.1))}
-                  className="bg-transparent flex-1 text-sm font-mono text-amber-300 focus:outline-none"
+                  className="bg-transparent flex-1 text-sm font-mono text-amber-600 dark:text-amber-300 focus:outline-none"
                 />
-                <span className="text-xs font-bold text-slate-400">COOK</span>
+                <span className="text-xs font-bold text-slate-500 dark:text-slate-400">COOK</span>
               </div>
             </div>
 
             {/* Automated Split Transparency */}
-            <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800 text-[11px] space-y-1.5 mb-5">
-              <div className="flex justify-between text-slate-300 font-medium">
+            <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 text-[11px] space-y-1.5 mb-5">
+              <div className="flex justify-between text-slate-700 dark:text-slate-300 font-medium">
                 <span>Creator Proceeds (95%):</span>
-                <span className="font-mono text-emerald-400">
+                <span className="font-mono text-emerald-600 dark:text-emerald-400">
                   +{split.creatorAmount.toFixed(3)} COOK
                 </span>
               </div>
-              <div className="flex justify-between text-slate-400">
+              <div className="flex justify-between text-slate-500 dark:text-slate-400">
                 <span>Social.wtf Treasury (5%):</span>
-                <span className="font-mono text-blue-400">
+                <span className="font-mono text-blue-600 dark:text-blue-400">
                   +{split.treasuryAmount.toFixed(3)} COOK
                 </span>
               </div>
-              <p className="text-[10px] text-slate-500 pt-1 border-t border-slate-800">
+              <p className="text-[10px] text-slate-400 dark:text-slate-500 pt-1 border-t border-slate-200 dark:border-slate-800">
                 Automated protocol fee split executed atomically on Cookie Chain SVM.
               </p>
             </div>
@@ -420,7 +420,7 @@ export const PostCard: React.FC<PostCardProps> = ({
             {/* Submit */}
             <button
               onClick={handleExecuteTip}
-              className="w-full py-3 rounded-2xl bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 font-bold text-sm hover:brightness-110 active:scale-95 transition-all shadow-lg shadow-amber-500/20"
+              className="w-full py-3 rounded-2xl bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 font-bold text-sm hover:brightness-110 active:scale-95 transition-all shadow-md shadow-amber-500/20"
             >
               Sign & Send {tipAmount} COOK
             </button>

@@ -2,10 +2,12 @@ import { NextResponse } from 'next/server';
 import { verifyWalletChallengeAsync } from '@/lib/security/walletAuth';
 import { globalRateLimiter } from '@/lib/security/rateLimiter';
 import { createSession, verifySessionToken, createSessionCookie } from '@/lib/security/session';
+import { getClientIp } from '@/lib/security/ipHelper';
 
 export async function POST(req: Request) {
   try {
-    const ip = req.headers.get('x-real-ip')?.trim() || req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '127.0.0.1';
+    const ip = getClientIp(req);
+
 
     // Distributed Rate Limit: 10 verification attempts per minute per IP
     const rateCheck = await globalRateLimiter.checkAsync(`verify:${ip}`, 10, 60_000);

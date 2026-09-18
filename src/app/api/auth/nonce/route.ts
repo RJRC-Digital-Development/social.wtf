@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
-import { generateAuthChallenge, formatChallengeMessage } from '@/lib/security/walletAuth';
+import { generateAuthChallengeAsync, formatChallengeMessage } from '@/lib/security/walletAuth';
 import { globalRateLimiter } from '@/lib/security/rateLimiter';
+import { getClientIp } from '@/lib/security/ipHelper';
 import { PublicKey } from '@solana/web3.js';
 
 async function handleNonceRequest(walletAddress: string | null, ip: string) {
@@ -24,7 +25,7 @@ async function handleNonceRequest(walletAddress: string | null, ip: string) {
     return NextResponse.json({ error: 'Malformed Solana wallet public key' }, { status: 400 });
   }
 
-  const challenge = generateAuthChallenge(walletAddress);
+  const challenge = await generateAuthChallengeAsync(walletAddress);
   const message = formatChallengeMessage(challenge);
 
   return NextResponse.json({
@@ -36,7 +37,7 @@ async function handleNonceRequest(walletAddress: string | null, ip: string) {
 
 export async function GET(req: Request) {
   try {
-    const ip = req.headers.get('x-real-ip')?.trim() || req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '127.0.0.1';
+    const ip = getClientIp(req);
     const { searchParams } = new URL(req.url);
     const walletAddress = searchParams.get('walletAddress');
     return await handleNonceRequest(walletAddress, ip);
@@ -47,7 +48,7 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
-    const ip = req.headers.get('x-real-ip')?.trim() || req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '127.0.0.1';
+    const ip = getClientIp(req);
     const body = await req.json().catch(() => ({}));
     const { walletAddress } = body;
     return await handleNonceRequest(walletAddress, ip);
@@ -55,3 +56,4 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Failed to generate authentication challenge' }, { status: 500 });
   }
 }
+

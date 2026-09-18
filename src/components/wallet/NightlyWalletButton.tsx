@@ -250,12 +250,12 @@ export const NightlyWalletButton: React.FC = () => {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-64 rounded-2xl bg-[#0d1527] border border-slate-700/80 p-3 shadow-2xl z-50 animate-fade-in text-xs">
+        <div className="absolute right-0 mt-2 w-72 max-w-[calc(100vw-2rem)] rounded-2xl bg-[#0d1527] border border-slate-700/80 p-3 shadow-2xl z-50 animate-fade-in text-xs">
           <div className="pb-2.5 mb-2 border-b border-slate-800">
             <div className="text-[11px] text-slate-400">
               Connected Wallet ({walletType === 'trust' ? 'Trust Wallet' : walletType === 'nightly' ? 'Nightly' : walletType === 'solana' ? 'Solana / Phantom' : 'Demo'})
             </div>
-            <div className="font-mono text-slate-200 break-all font-medium mt-0.5 text-[11px]">
+            <div className="font-mono text-slate-200 break-all font-medium mt-0.5 text-[11px] select-all bg-slate-900/80 p-1.5 rounded-lg border border-slate-800">
               {walletAddress}
             </div>
             <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-800/60">

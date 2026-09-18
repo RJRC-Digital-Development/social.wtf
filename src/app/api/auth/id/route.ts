@@ -6,13 +6,13 @@ import {
   updateAuthorizationClaimsAsync,
   createAuthorizationToken,
 } from '@/lib/security/authorization';
+import { getClientIp } from '@/lib/security/ipHelper';
+import { createVerificationRecord } from '@/lib/security/verificationRecord';
+import { getAppEnvironment, isProductionEnvironment } from '@/lib/security/envConfig';
 
 export async function POST(req: Request) {
   try {
-    const ip =
-      req.headers.get('x-real-ip')?.trim() ||
-      req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
-      '127.0.0.1';
+    const ip = getClientIp(req);
 
     // 1. Rate Limiting: 5 ID verification attempts per minute per IP
     const rateCheck = await globalRateLimiter.checkAsync(`auth:id:${ip}`, 5, 60_000);
@@ -33,8 +33,27 @@ export async function POST(req: Request) {
     }
 
     const { walletAddress, scope } = sessionResult.payload;
+    const environment = getAppEnvironment();
 
-    // 3. Parse and validate dual ID payload
+    // 3. Fail-Closed Check in Production
+    const isIdProviderConfigured = Boolean(
+      process.env.STRIPE_IDENTITY_KEY ||
+      process.env.SUMSUB_API_KEY ||
+      process.env.PERSONA_API_KEY
+    );
+
+    if (isProductionEnvironment() && !isIdProviderConfigured) {
+      return NextResponse.json(
+        {
+          error:
+            'Production government ID verification provider is not configured. ID verification cannot be completed.',
+          code: 'PROVIDER_UNAVAILABLE',
+        },
+        { status: 503 }
+      );
+    }
+
+    // 4. Parse and validate dual ID payload
     const body = await req.json().catch(() => ({}));
     const frontData = body.frontData;
     const backData = body.backData;
@@ -54,21 +73,19 @@ export async function POST(req: Request) {
       );
     }
 
-    // 4. Ephemeral Zero-Data OCR & Hash calculation
     const now = Date.now();
-    const frontHash = `front_purge_${crypto
-      .createHash('sha256')
-      .update(`${walletAddress}:front:${now}`)
-      .digest('hex')
-      .substring(0, 16)}`;
+    const provider = isIdProviderConfigured ? 'stripe_identity' : 'sandbox_id_ocr';
 
-    const backHash = `back_purge_${crypto
-      .createHash('sha256')
-      .update(`${walletAddress}:back:${now}`)
-      .digest('hex')
-      .substring(0, 16)}`;
+    // 5. Issue authoritative VerificationRecord
+    const record = createVerificationRecord({
+      walletAddress,
+      factor: 'id',
+      provider,
+      environment,
+      metadata: { docType },
+    });
 
-    // 5. Update backend authorization claims (satisfies under-25 safeguard)
+    // 6. Update backend authorization claims (satisfies under-25 safeguard)
     const updatedClaims = await updateAuthorizationClaimsAsync(
       walletAddress,
       {
@@ -85,8 +102,8 @@ export async function POST(req: Request) {
       verified: true,
       documentType: docType,
       accountBadge: 'Verified Profile',
-      frontHash,
-      backHash,
+      verificationRecord: record,
+      authProof: record.proofId,
       adultUnlocked: updatedClaims.isAdultAuthorized,
       verifiedAt: new Date(now).toISOString(),
       claims: updatedClaims,
@@ -99,3 +116,4 @@ export async function POST(req: Request) {
     );
   }
 }
+

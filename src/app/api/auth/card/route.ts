@@ -6,6 +6,9 @@ import {
   updateAuthorizationClaimsAsync,
   createAuthorizationToken,
 } from '@/lib/security/authorization';
+import { getClientIp } from '@/lib/security/ipHelper';
+import { createVerificationRecord } from '@/lib/security/verificationRecord';
+import { getAppEnvironment, isProductionEnvironment } from '@/lib/security/envConfig';
 
 // Helper: Luhn checksum validator
 function isValidLuhn(cardNumber: string): boolean {
@@ -58,10 +61,7 @@ function isValidExpiry(exp: string): boolean {
 
 export async function POST(req: Request) {
   try {
-    const ip =
-      req.headers.get('x-real-ip')?.trim() ||
-      req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
-      '127.0.0.1';
+    const ip = getClientIp(req);
 
     // 1. Rate Limiting: 5 card verification attempts per minute per IP
     const rateCheck = await globalRateLimiter.checkAsync(`auth:card:${ip}`, 5, 60_000);
@@ -82,8 +82,27 @@ export async function POST(req: Request) {
     }
 
     const { walletAddress, scope } = sessionResult.payload;
+    const environment = getAppEnvironment();
 
-    // 3. Parse and validate card input
+    // 3. Fail-Closed Check in Production: Require configured payment processor
+    const isCardProviderConfigured = Boolean(
+      process.env.STRIPE_SECRET_KEY ||
+      process.env.CARD_VERIFIER_API_KEY ||
+      process.env.PAYMENT_PROCESSOR_URL
+    );
+
+    if (isProductionEnvironment() && !isCardProviderConfigured) {
+      return NextResponse.json(
+        {
+          error:
+            'Production payment card verification provider is not configured. Adulthood verification cannot be completed.',
+          code: 'PROVIDER_UNAVAILABLE',
+        },
+        { status: 503 }
+      );
+    }
+
+    // 4. Parse and validate card input
     const body = await req.json().catch(() => ({}));
     let rawNumber: string = String(body.cardNumber || '').trim();
     let rawExp: string = String(body.cardExp || '').trim();
@@ -92,7 +111,6 @@ export async function POST(req: Request) {
     const digitsOnly = rawNumber.replace(/\D/g, '');
 
     if (!isValidLuhn(digitsOnly)) {
-      // Memory scrub
       rawNumber = '';
       rawCvc = '';
       return NextResponse.json(
@@ -120,25 +138,26 @@ export async function POST(req: Request) {
       );
     }
 
-    // 4. Extract safe non-sensitive metadata for records
+    // 5. Extract safe non-sensitive metadata
     const brand = detectCardBrand(digitsOnly);
     const last4 = digitsOnly.slice(-4);
-
-    // 5. Ephemeral Zero-Charge ($0) Authorization simulation
     const now = Date.now();
-    const authProof = `card_auth_${crypto.randomBytes(16).toString('hex')}`;
+    const provider = isCardProviderConfigured ? 'stripe_zero_auth' : 'sandbox_card_verifier';
 
-    // Cryptographic memory wipe receipt
-    const wipeReceipt = `sha256_purge_${crypto
-      .createHash('sha256')
-      .update(`${digitsOnly}:${cvcDigits}:${authProof}`)
-      .digest('hex')}`;
+    // 6. Issue authoritative VerificationRecord
+    const record = createVerificationRecord({
+      walletAddress,
+      factor: 'card',
+      provider,
+      environment,
+      metadata: { brand, last4 },
+    });
 
-    // Zero raw memory immediately
+    // Zero raw memory buffers immediately
     rawNumber = '0'.repeat(rawNumber.length);
     rawCvc = '0'.repeat(rawCvc.length);
 
-    // 6. Update backend authorization claims bound to this wallet
+    // 7. Update backend authorization claims bound to this wallet
     const updatedClaims = await updateAuthorizationClaimsAsync(
       walletAddress,
       {
@@ -157,8 +176,8 @@ export async function POST(req: Request) {
       cardBrand: brand,
       last4,
       authMethod: 'zero_charge_auth',
-      authProof,
-      wipeReceipt,
+      verificationRecord: record,
+      authProof: record.proofId,
       verifiedAt: now,
       claims: updatedClaims,
       authToken,
@@ -170,3 +189,4 @@ export async function POST(req: Request) {
     );
   }
 }
+

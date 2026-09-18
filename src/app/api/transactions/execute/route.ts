@@ -4,6 +4,8 @@ import {
   isServerSignerConfigured,
   getServerSignerPublicKey,
   executeOnChainSplitTransaction,
+  ALLOWED_PLATFORM_OPERATIONS,
+  AllowedPlatformOperation,
 } from '@/lib/solana/serverSigner';
 import {
   getCookieConnection,
@@ -13,6 +15,7 @@ import {
 import { rateLimiter } from '@/lib/security/rateLimiter';
 import { sanitizeString } from '@/lib/security/sanitize';
 import { validateRequestSessionAsync } from '@/lib/security/session';
+import { getClientIp } from '@/lib/security/ipHelper';
 
 const MAX_COOK_PER_TRANSACTION = 10_000;
 
@@ -28,13 +31,13 @@ export async function GET(req: Request) {
     treasuryAddress: PLATFORM_TREASURY_PUBKEY.toBase58(),
     instructions: isConfigured
       ? 'Server signer is ready to sign and complete transactions on Cookie Chain.'
-      : 'Set PLATFORM_PRIVATE_KEY in .env.local (Base58 or JSON format) to enable automated on-chain execution.',
+      : 'Set PLATFORM_PRIVATE_KEY in environment to enable automated on-chain execution.',
   });
 }
 
 export async function POST(req: Request) {
-  const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || '127.0.0.1';
-  
+  const ip = getClientIp(req);
+
   // 1. IP-level Rate Limiting
   const ipRateResult = await rateLimiter.checkAsync(`tx_exec_ip:${ip}`, 30, 60 * 1000);
   if (!ipRateResult.allowed) {
@@ -53,7 +56,7 @@ export async function POST(req: Request) {
       rawTransaction,
       recipientPublicKey,
       amountCook,
-      action = 'transfer',
+      action = 'platform_sweep',
       memo = '',
     } = body;
 
@@ -91,16 +94,36 @@ export async function POST(req: Request) {
       }
     }
 
-    // Case 2: Server-side signing and execution using configured PLATFORM_PRIVATE_KEY
-    // Require session authentication to prevent unauthorized server key draining
+    // Case 2: Server-side signing using platform hot wallet
+    // Enforce strict security boundary: NEVER allow ordinary authenticated users to direct platform-owned funds
     const authResult = await validateRequestSessionAsync(req);
     if (!authResult.authenticated) {
       return NextResponse.json(
         {
-          error: 'Authentication required for automated server-signed transactions. Please sign in with your wallet.',
+          error: 'Authentication required for server-signed operations. Please sign in with your wallet.',
           code: 'AUTH_REQUIRED',
         },
         { status: 401 }
+      );
+    }
+
+    if (authResult.payload.scope !== 'admin') {
+      return NextResponse.json(
+        {
+          error: 'Ordinary user sessions cannot authorize platform hot wallet transfers. Client wallet signature required.',
+          code: 'FORBIDDEN_SCOPE',
+        },
+        { status: 403 }
+      );
+    }
+
+    if (!ALLOWED_PLATFORM_OPERATIONS.includes(action as AllowedPlatformOperation)) {
+      return NextResponse.json(
+        {
+          error: `Disallowed platform operation '${action}'. Allowed operations: ${ALLOWED_PLATFORM_OPERATIONS.join(', ')}`,
+          code: 'INVALID_OPERATION',
+        },
+        { status: 400 }
       );
     }
 
@@ -159,7 +182,7 @@ export async function POST(req: Request) {
         {
           success: false,
           error:
-            'Server signer is not configured. Please set PLATFORM_PRIVATE_KEY in your .env.local file with your Trust Wallet or Solana private key.',
+            'Server signer is not configured in environment.',
           code: 'SERVER_KEY_NOT_CONFIGURED',
         },
         { status: 503 }
@@ -169,6 +192,7 @@ export async function POST(req: Request) {
     const execResult = await executeOnChainSplitTransaction({
       recipientPublicKey: sanitizeString(recipientPublicKey, 64),
       amountCook: numericAmount,
+      operation: action as AllowedPlatformOperation,
       memo: sanitizeString(memo, 120),
     });
 
@@ -194,3 +218,4 @@ export async function POST(req: Request) {
     );
   }
 }
+

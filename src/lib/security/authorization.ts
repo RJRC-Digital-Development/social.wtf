@@ -8,6 +8,8 @@ import {
   extractSessionToken,
 } from './session';
 
+import { FACTOR_TTL_MS, VerificationRecord } from './verificationRecord';
+
 export interface AuthorizationClaims {
   walletAddress: string;
   scope: SessionScope;
@@ -25,6 +27,7 @@ export interface AuthorizationClaims {
   isAdultAuthorized: boolean;
   authorizedAt: number;
   expiresAt: number;
+  verificationRecords?: Record<string, VerificationRecord>;
 }
 
 export interface AuthorizationPolicy {
@@ -38,19 +41,36 @@ const DEFAULT_AUTH_TTL_SECONDS = 24 * 60 * 60; // 24 hours
 
 /**
  * Derives adult entertainment access strictly according to platform policy:
- * 1. Payment card verification ($0 authorization) confirms cardholder adulthood.
- * 2. AI Sentinel Live video verification confirms active biometric human presence.
- * 3. Anyone estimated under 25 MUST produce a valid Driver's License or Government ID.
+ * 1. Payment card verification ($0 authorization) confirms cardholder adulthood (30 day TTL).
+ * 2. AI Sentinel Live video verification confirms active biometric human presence (24 hour TTL).
+ * 3. Anyone estimated under 25 MUST produce a valid Driver's License or Government ID (30 day TTL).
  */
 export function calculateAdultAuthorization(
-  claims: Pick<AuthorizationClaims, 'isCardVerified' | 'isVideoVerified' | 'isUnder25Flagged' | 'isIdVerified'>
+  claims: Pick<
+    AuthorizationClaims,
+    | 'isCardVerified'
+    | 'isVideoVerified'
+    | 'isUnder25Flagged'
+    | 'isIdVerified'
+    | 'cardVerifiedAt'
+    | 'videoVerifiedAt'
+    | 'idVerifiedAt'
+  >,
+  now: number = Date.now()
 ): boolean {
-  return Boolean(
+  const cardValid =
     claims.isCardVerified &&
-      claims.isVideoVerified &&
-      (!claims.isUnder25Flagged || claims.isIdVerified)
-  );
+    (claims.cardVerifiedAt ? now - claims.cardVerifiedAt <= FACTOR_TTL_MS.card : true);
+  const videoValid =
+    claims.isVideoVerified &&
+    (claims.videoVerifiedAt ? now - claims.videoVerifiedAt <= FACTOR_TTL_MS.video : true);
+  const idValid =
+    claims.isIdVerified &&
+    (claims.idVerifiedAt ? now - claims.idVerifiedAt <= FACTOR_TTL_MS.id : true);
+
+  return Boolean(cardValid && videoValid && (!claims.isUnder25Flagged || idValid));
 }
+
 
 function encodeBase64Url(value: string): string {
   return Buffer.from(value, 'utf8')

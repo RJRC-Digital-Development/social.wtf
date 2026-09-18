@@ -172,7 +172,7 @@ export const Feed: React.FC<FeedProps> = ({
   return (
     <div className="space-y-6">
       {/* Create Post Card */}
-      <div className="rounded-3xl bg-[#0d1527] border border-slate-700/80 p-5 shadow-xl">
+      <div className="rounded-3xl bg-white dark:bg-[#0d1527] border border-slate-200 dark:border-slate-700/80 p-5 shadow-sm dark:shadow-xl transition-colors">
         <div className="flex items-center gap-3 mb-3">
           <img
             src={currentUser?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80'}
@@ -180,10 +180,10 @@ export const Feed: React.FC<FeedProps> = ({
             className="w-10 h-10 rounded-2xl object-cover border border-amber-500/30"
           />
           <div>
-            <h3 className="font-bold text-slate-200 text-sm">
+            <h3 className="font-bold text-slate-900 dark:text-slate-200 text-sm">
               {currentUser ? `Post as ${currentUser.name}` : 'Create on Cookie Chain'}
             </h3>
-            <p className="text-[11px] text-slate-400">
+            <p className="text-[11px] text-slate-500 dark:text-slate-400">
               Your posts appear immediately in the following news feeds of all your followers and friends.
             </p>
           </div>
@@ -195,7 +195,7 @@ export const Feed: React.FC<FeedProps> = ({
             value={content}
             onChange={(e) => setContent(e.target.value)}
             placeholder="What's happening on the chain? Drop alpha, track stems, videos, or store drops..."
-            className="w-full bg-slate-900/90 border border-slate-700/80 rounded-2xl p-3.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-amber-400 leading-relaxed resize-none"
+            className="w-full bg-slate-50 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-700/80 rounded-2xl p-3.5 text-xs text-slate-900 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-amber-500 leading-relaxed resize-none"
           />
 
           {/* Media URL Input if Photo / Video / Audio */}
@@ -212,11 +212,11 @@ export const Feed: React.FC<FeedProps> = ({
                 }
                 value={mediaUrl}
                 onChange={(e) => handleMediaUrlChange(e.target.value)}
-                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-amber-400"
+                className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-amber-500"
               />
 
               {/* Sample quick picks */}
-              <div className="flex items-center gap-2 text-[10px] text-slate-400">
+              <div className="flex items-center gap-2 text-[10px] text-slate-500 dark:text-slate-400">
                 <span>Quick demo:</span>
                 {postType === 'audio' && (
                   <button
@@ -226,7 +226,7 @@ export const Feed: React.FC<FeedProps> = ({
                         'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3'
                       )
                     }
-                    className="text-amber-400 hover:underline"
+                    className="text-amber-600 dark:text-amber-400 hover:underline"
                   >
                     Sample Audio
                   </button>
@@ -239,7 +239,7 @@ export const Feed: React.FC<FeedProps> = ({
                         'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4'
                       )
                     }
-                    className="text-amber-400 hover:underline"
+                    className="text-amber-600 dark:text-amber-400 hover:underline"
                   >
                     Sample Video
                   </button>
@@ -252,7 +252,7 @@ export const Feed: React.FC<FeedProps> = ({
                         'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800'
                       )
                     }
-                    className="text-amber-400 hover:underline"
+                    className="text-amber-600 dark:text-amber-400 hover:underline"
                   >
                     Sample Image
                   </button>
@@ -263,7 +263,7 @@ export const Feed: React.FC<FeedProps> = ({
 
           {/* Scanner AI Feedback */}
           {isScanningAI && (
-            <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-300 flex items-center gap-2">
+            <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-700 dark:text-amber-300 flex items-center gap-2">
               <Sparkles className="w-3.5 h-3.5 animate-spin" />
               <span>Multimodal AI scanning media content...</span>
             </div>
@@ -273,18 +273,18 @@ export const Feed: React.FC<FeedProps> = ({
             <div
               className={`p-2.5 rounded-xl border text-xs flex items-center gap-2 ${
                 aiResult.isShielded
-                  ? 'bg-amber-500/10 border-amber-500/30 text-amber-300'
-                  : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
+                  ? 'bg-amber-50 border-amber-200 text-amber-800 dark:bg-amber-500/10 dark:border-amber-500/30 dark:text-amber-300'
+                  : 'bg-emerald-50 border-emerald-200 text-emerald-800 dark:bg-emerald-500/10 dark:border-emerald-500/30 dark:text-emerald-300'
               }`}
             >
               {aiResult.isShielded ? (
                 <>
-                  <ShieldAlert className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                  <ShieldAlert className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
                   <span>AI Shield Active: {aiResult.reason}</span>
                 </>
               ) : (
                 <>
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
                   <span>AI Shield Passed: Safe stream verified.</span>
                 </>
               )}
@@ -293,14 +293,14 @@ export const Feed: React.FC<FeedProps> = ({
 
           {/* Actions & Format Selector */}
           <div className="flex items-center justify-between pt-2">
-            <div className="flex items-center gap-1.5 bg-slate-900/80 p-1 rounded-xl border border-slate-800">
+            <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-900/80 p-1 rounded-xl border border-slate-200 dark:border-slate-800">
               <button
                 type="button"
                 onClick={() => setPostType('text')}
                 className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
                   postType === 'text'
                     ? 'bg-amber-500 text-slate-950 font-bold'
-                    : 'text-slate-400 hover:text-slate-200'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
                 }`}
               >
                 Text
@@ -311,7 +311,7 @@ export const Feed: React.FC<FeedProps> = ({
                 className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
                   postType === 'photo'
                     ? 'bg-amber-500 text-slate-950 font-bold'
-                    : 'text-slate-400 hover:text-slate-200'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
                 }`}
               >
                 <ImageIcon className="w-3 h-3" />
@@ -323,7 +323,7 @@ export const Feed: React.FC<FeedProps> = ({
                 className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
                   postType === 'video'
                     ? 'bg-amber-500 text-slate-950 font-bold'
-                    : 'text-slate-400 hover:text-slate-200'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
                 }`}
               >
                 <Video className="w-3 h-3" />
@@ -335,7 +335,7 @@ export const Feed: React.FC<FeedProps> = ({
                 className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
                   postType === 'audio'
                     ? 'bg-amber-500 text-slate-950 font-bold'
-                    : 'text-slate-400 hover:text-slate-200'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
                 }`}
               >
                 <Music className="w-3 h-3" />
@@ -356,19 +356,19 @@ export const Feed: React.FC<FeedProps> = ({
       </div>
 
       {/* Mode Switcher: Following Feed (Default) vs Explore Network */}
-      <div className="p-3.5 rounded-2xl bg-[#0d1527] border border-amber-500/30 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-lg">
+      <div className="p-3.5 rounded-2xl bg-white dark:bg-[#0d1527] border border-amber-500/30 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-sm dark:shadow-lg transition-colors">
         <div className="flex items-center gap-2.5">
-          <div className="p-2 rounded-xl bg-amber-500/20 text-amber-400">
+          <div className="p-2 rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-400">
             <UserCheck className="w-4 h-4" />
           </div>
           <div>
-            <div className="text-xs font-bold text-slate-100 flex items-center gap-2">
+            <div className="text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
               <span>{feedMode === 'following' ? 'Following News Feed Active' : 'Explore All Network Stream'}</span>
-              <span className="px-2 py-0.5 rounded-full text-[9px] font-mono bg-emerald-500/20 text-emerald-300 font-bold">
+              <span className="px-2 py-0.5 rounded-full text-[9px] font-mono bg-emerald-500/15 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300 font-bold">
                 {feedMode === 'following' ? 'FOLLOWERS ONLY' : 'ALL NETWORK'}
               </span>
             </div>
-            <p className="text-[11px] text-slate-400">
+            <p className="text-[11px] text-slate-500 dark:text-slate-400">
               {feedMode === 'following'
                 ? 'Only reflecting posts from creators and friends you follow (and your personal page).'
                 : 'Showing all public broadcasts across Cookie Chain SVM.'}
@@ -376,13 +376,13 @@ export const Feed: React.FC<FeedProps> = ({
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5 bg-slate-900/90 p-1 rounded-xl border border-slate-700 text-xs shrink-0">
+        <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-900/90 p-1 rounded-xl border border-slate-200 dark:border-slate-700 text-xs shrink-0">
           <button
             onClick={() => setFeedMode('following')}
             className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1.5 ${
               feedMode === 'following'
-                ? 'bg-amber-500 text-slate-950 shadow-md'
-                : 'text-slate-400 hover:text-slate-200'
+                ? 'bg-amber-500 text-slate-950 shadow-sm'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
             }`}
           >
             <Users className="w-3.5 h-3.5" />
@@ -392,8 +392,8 @@ export const Feed: React.FC<FeedProps> = ({
             onClick={() => setFeedMode('explore')}
             className={`px-3 py-1.5 rounded-lg font-semibold transition-all flex items-center gap-1.5 ${
               feedMode === 'explore'
-                ? 'bg-amber-500 text-slate-950 font-bold shadow-md'
-                : 'text-slate-400 hover:text-slate-200'
+                ? 'bg-amber-500 text-slate-950 shadow-sm'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
             }`}
           >
             <Globe className="w-3.5 h-3.5" />
@@ -403,19 +403,19 @@ export const Feed: React.FC<FeedProps> = ({
       </div>
 
       {/* Multi-Channel Format Filter */}
-      <div className="flex items-center justify-between pb-1 border-b border-slate-800">
+      <div className="flex items-center justify-between pb-1 border-b border-slate-200 dark:border-slate-800">
         <div className="flex items-center gap-2">
-          <Filter className="w-4 h-4 text-amber-400" />
-          <span className="text-xs font-bold text-slate-200">Stream Channels</span>
+          <Filter className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+          <span className="text-xs font-bold text-slate-800 dark:text-slate-200">Stream Channels</span>
         </div>
 
-        <div className="flex items-center gap-1 bg-slate-900/80 p-1 rounded-xl border border-slate-800 text-xs overflow-x-auto">
+        <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-900/80 p-1 rounded-xl border border-slate-200 dark:border-slate-800 text-xs overflow-x-auto">
           <button
             onClick={() => setActiveFilter('all')}
             className={`px-2.5 py-1 rounded-lg transition-all shrink-0 ${
               activeFilter === 'all'
                 ? 'bg-amber-500 text-slate-950 font-bold'
-                : 'text-slate-400 hover:text-slate-200'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
             }`}
           >
             All Types
@@ -425,10 +425,10 @@ export const Feed: React.FC<FeedProps> = ({
             className={`flex items-center gap-1 px-2.5 py-1 rounded-lg transition-all shrink-0 ${
               activeFilter === 'trending'
                 ? 'bg-amber-500 text-slate-950 font-bold'
-                : 'text-slate-400 hover:text-slate-200'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
             }`}
           >
-            <Flame className="w-3 h-3 text-amber-400" />
+            <Flame className="w-3 h-3 text-amber-600 dark:text-amber-400" />
             <span>Trending</span>
           </button>
           <button
@@ -436,7 +436,7 @@ export const Feed: React.FC<FeedProps> = ({
             className={`flex items-center gap-1 px-2.5 py-1 rounded-lg transition-all shrink-0 ${
               activeFilter === 'video'
                 ? 'bg-amber-500 text-slate-950 font-bold'
-                : 'text-slate-400 hover:text-slate-200'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
             }`}
           >
             <Tv className="w-3 h-3" />
@@ -447,7 +447,7 @@ export const Feed: React.FC<FeedProps> = ({
             className={`flex items-center gap-1 px-2.5 py-1 rounded-lg transition-all shrink-0 ${
               activeFilter === 'audio'
                 ? 'bg-amber-500 text-slate-950 font-bold'
-                : 'text-slate-400 hover:text-slate-200'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
             }`}
           >
             <Music className="w-3 h-3" />
@@ -458,10 +458,10 @@ export const Feed: React.FC<FeedProps> = ({
             className={`flex items-center gap-1 px-2.5 py-1 rounded-lg transition-all shrink-0 ${
               activeFilter === 'shielded'
                 ? 'bg-amber-500 text-slate-950 font-bold'
-                : 'text-slate-400 hover:text-slate-200'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
             }`}
           >
-            <ShieldAlert className="w-3 h-3 text-amber-400" />
+            <ShieldAlert className="w-3 h-3 text-amber-600 dark:text-amber-400" />
             <span>18+ Adult</span>
           </button>
         </div>
@@ -470,7 +470,7 @@ export const Feed: React.FC<FeedProps> = ({
       {/* Feed Stream List */}
       <div className="space-y-4">
         {streamPosts.length === 0 ? (
-          <div className="p-8 text-center rounded-3xl bg-[#0d1527] border border-slate-800 text-slate-400 text-xs space-y-2">
+          <div className="p-8 text-center rounded-3xl bg-white dark:bg-[#0d1527] border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 text-xs space-y-2">
             <p>No posts found in your Following feed.</p>
             <p className="text-[11px] text-slate-500">
               Publish a new post above, or switch to &quot;Explore All&quot; to discover and follow other Cookie Chain creators.

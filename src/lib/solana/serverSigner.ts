@@ -100,9 +100,19 @@ export function getServerSignerPublicKey(): string | null {
   return kp ? kp.publicKey.toBase58() : null;
 }
 
+export const ALLOWED_PLATFORM_OPERATIONS = [
+  'platform_sweep',
+  'system_settlement',
+  'treasury_rebalance',
+  'emergency_migration',
+] as const;
+
+export type AllowedPlatformOperation = (typeof ALLOWED_PLATFORM_OPERATIONS)[number];
+
 export interface ExecuteTransactionParams {
   recipientPublicKey: string;
   amountCook: number;
+  operation?: AllowedPlatformOperation;
   memo?: string;
   treasuryFeeBps?: number;
 }
@@ -120,11 +130,20 @@ export interface ExecuteTransactionResult {
 }
 
 /**
- * Executes and signs an atomic split transaction directly on Cookie Chain using the server signer.
+ * Executes and signs an allowlisted platform administration transaction directly on Cookie Chain
+ * using the server signer. Ordinary user transactions (tips, product purchases) must NOT
+ * invoke this function and MUST be signed by the user's client wallet.
  */
 export async function executeOnChainSplitTransaction(
   params: ExecuteTransactionParams
 ): Promise<ExecuteTransactionResult> {
+  if (params.operation && !ALLOWED_PLATFORM_OPERATIONS.includes(params.operation)) {
+    return {
+      success: false,
+      error: `Unauthorized platform operation: ${params.operation}. User transactions must be signed by client wallet.`,
+    };
+  }
+
   const signer = getServerSignerKeypair();
   if (!signer) {
     return {
@@ -148,7 +167,7 @@ export async function executeOnChainSplitTransaction(
     const split = calculateFeeSplit(params.amountCook, params.treasuryFeeBps || 500);
     const tx = new Transaction();
 
-    // 1. Creator proceeds
+    // 1. Creator / recipient proceeds
     tx.add(
       SystemProgram.transfer({
         fromPubkey: signer.publicKey,
@@ -195,3 +214,4 @@ export async function executeOnChainSplitTransaction(
     };
   }
 }
+

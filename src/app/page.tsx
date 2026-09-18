@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Navbar } from '@/components/layout/Navbar';
+import { Navbar, MobileBottomNav } from '@/components/layout/Navbar';
 import { Feed } from '@/components/feed/Feed';
 import { Storefront } from '@/components/store/Storefront';
 import { CreatorProfile } from '@/components/profile/CreatorProfile';
@@ -300,7 +300,7 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#070b14]">
+    <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-[#070b14] text-slate-900 dark:text-slate-100 transition-colors duration-200">
       {/* Top Navbar */}
       <Navbar
         activeView={activeView}
@@ -319,30 +319,30 @@ export default function Home() {
       />
 
       {/* Main Container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 pb-24 md:pb-8">
         {/* Top Highlight Banner */}
-        <div className="mb-6 p-4 md:p-5 rounded-3xl bg-gradient-to-r from-amber-500/10 via-[#0d1527] to-blue-500/10 border border-slate-700/80 shadow-2xl flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-3.5">
-            <div className="w-12 h-12 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 shrink-0">
-              <Sparkles className="w-6 h-6" />
+        <div className="mb-5 sm:mb-6 p-3.5 sm:p-4 md:p-5 rounded-3xl bg-gradient-to-r from-amber-500/10 via-white to-blue-500/10 dark:from-amber-500/10 dark:via-[#0d1527] dark:to-blue-500/10 border border-slate-200 dark:border-slate-700/80 shadow-sm dark:shadow-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-3 sm:gap-4 transition-colors">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0">
+              <Sparkles className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
             <div>
-              <h2 className="text-sm md:text-base font-bold text-slate-100 flex items-center gap-2">
+              <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2 flex-wrap">
                 <span>Social.wtf on Cookie Chain SVM</span>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-emerald-500/15 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400 border border-emerald-500/30">
                   Sub-Second Finality
                 </span>
               </h2>
-              <p className="text-xs text-slate-300 mt-0.5">
+              <p className="text-[11px] sm:text-xs text-slate-600 dark:text-slate-300 mt-0.5">
                 Login with Nightly wallet. Customize your personal profile, upload images, and share your personal URL with friends.
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-2 flex-wrap shrink-0 w-full md:w-auto justify-start md:justify-end">
             <button
               onClick={handleOpenMyPage}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 font-bold text-xs hover:brightness-110 active:scale-95 transition-all shadow-md shadow-amber-500/20"
+              className="flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 sm:py-2 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 font-bold text-xs hover:brightness-110 active:scale-95 transition-all shadow-md shadow-amber-500/20"
             >
               <Edit3 className="w-3.5 h-3.5" />
               <span>Customize My Page</span>
@@ -350,9 +350,9 @@ export default function Home() {
 
             <button
               onClick={() => setAiAgentOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-amber-500/20 to-yellow-500/20 hover:from-amber-500/30 hover:to-yellow-500/30 border border-amber-500/40 text-amber-300 text-xs font-semibold transition-all shadow-sm"
+              className="flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 sm:py-2 rounded-xl bg-amber-50 dark:bg-gradient-to-r dark:from-amber-500/20 dark:to-yellow-500/20 hover:bg-amber-100 dark:hover:from-amber-500/30 dark:hover:to-yellow-500/30 border border-amber-300 dark:border-amber-500/40 text-amber-800 dark:text-amber-300 text-xs font-semibold transition-all shadow-sm"
             >
-              <Bot className="w-4 h-4 text-amber-400" />
+              <Bot className="w-4 h-4 text-amber-600 dark:text-amber-400" />
               <span>AI Agent</span>
             </button>
 
@@ -362,40 +362,41 @@ export default function Home() {
                   setVerifyTab('card_auth');
                   setVerifyModalOpen(true);
                 }}
-                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-emerald-500/40 text-emerald-300 text-xs font-semibold transition-all shadow-sm"
+                className="flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 sm:py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-emerald-300 dark:border-emerald-500/40 text-emerald-800 dark:text-emerald-300 text-xs font-semibold transition-all shadow-sm"
               >
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Verify Age (18+)</span>
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                <span>Verify 18+</span>
               </button>
             ) : (
-              <span className="px-3 py-1.5 rounded-xl bg-purple-500/10 border border-purple-500/30 text-purple-300 text-xs font-semibold flex items-center gap-1.5">
-                <ShieldCheck className="w-4 h-4 text-purple-400" />
-                <span>AI Sentinel Verified (18+)</span>
+              <span className="px-3 py-1.5 rounded-xl bg-purple-500/10 border border-purple-500/30 text-purple-700 dark:text-purple-300 text-xs font-semibold flex items-center gap-1.5">
+                <ShieldCheck className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                <span className="hidden sm:inline">AI Sentinel Verified (18+)</span>
+                <span className="sm:hidden">18+ Verified</span>
               </span>
             )}
           </div>
         </div>
 
-        {/* 3-Column Layout: Left Nav / Center Content / Right Feed Alpha */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Left Sidebar: Navigation & Quick Shortcuts */}
-          <aside className="lg:col-span-3 space-y-5">
+        {/* 3-Column Responsive Layout: Left Nav (Desktop/Tablet) / Center Content (All) / Right Stats (Desktop) */}
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-5 lg:gap-6">
+          {/* Left Sidebar: Navigation & Quick Shortcuts (Tablet & Desktop) */}
+          <aside className="hidden md:block md:col-span-4 lg:col-span-3 space-y-5">
             {/* My Personal Profile Quick Card */}
-            <div className="p-4 rounded-3xl bg-[#0d1527] border border-amber-500/30 shadow-xl space-y-3">
+            <div className="p-4 rounded-3xl bg-white dark:bg-[#0d1527] border border-amber-500/30 shadow-sm dark:shadow-xl space-y-3 transition-colors">
               <div className="flex items-center gap-3">
                 <img
                   src={userProfile.avatar}
                   alt={userProfile.name}
-                  className="w-12 h-12 rounded-2xl object-cover border-2 border-amber-400 shrink-0"
+                  className="w-12 h-12 rounded-2xl object-cover border-2 border-amber-500 dark:border-amber-400 shrink-0"
                 />
                 <div className="overflow-hidden">
-                  <div className="font-bold text-slate-100 text-xs truncate">{userProfile.name}</div>
-                  <div className="text-[11px] text-amber-400 font-mono">@{userProfile.handle}</div>
-                  <div className="text-[10px] text-slate-400 truncate mt-0.5">{userProfile.walletAddress.slice(0, 4)}...{userProfile.walletAddress.slice(-4)}</div>
+                  <div className="font-bold text-slate-900 dark:text-slate-100 text-xs truncate">{userProfile.name}</div>
+                  <div className="text-[11px] text-amber-600 dark:text-amber-400 font-mono">@{userProfile.handle}</div>
+                  <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate mt-0.5">{userProfile.walletAddress.slice(0, 4)}...{userProfile.walletAddress.slice(-4)}</div>
                 </div>
               </div>
 
-              <div className="pt-2 border-t border-slate-800 space-y-2">
+              <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-2">
                 <button
                   onClick={handleOpenMyPage}
                   className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 font-bold text-xs hover:brightness-110 active:scale-95 transition-all shadow-md"
@@ -406,16 +407,16 @@ export default function Home() {
 
                 <button
                   onClick={handleCopyMyPersonalUrl}
-                  className="w-full flex items-center justify-center gap-2 py-1.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 text-xs font-semibold transition-all"
+                  className="w-full flex items-center justify-center gap-2 py-1.5 px-3 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold transition-all"
                 >
                   {copiedPersonalUrl ? (
                     <>
-                      <Check className="w-3.5 h-3.5 text-emerald-400" />
-                      <span className="text-emerald-300">Copied Personal Link!</span>
+                      <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                      <span className="text-emerald-700 dark:text-emerald-300">Copied Personal Link!</span>
                     </>
                   ) : (
                     <>
-                      <Copy className="w-3.5 h-3.5 text-amber-400" />
+                      <Copy className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
                       <span>Copy Personal URL</span>
                     </>
                   )}
@@ -424,13 +425,13 @@ export default function Home() {
             </div>
 
             {/* Quick Navigation Box */}
-            <div className="p-4 rounded-3xl bg-[#0d1527] border border-slate-700/70 shadow-xl space-y-1 text-xs font-medium">
+            <div className="p-4 rounded-3xl bg-white dark:bg-[#0d1527] border border-slate-200 dark:border-slate-700/70 shadow-sm dark:shadow-xl space-y-1 text-xs font-medium transition-colors">
               <button
                 onClick={() => setActiveView('feed')}
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl transition-all ${
                   activeView === 'feed'
                     ? 'bg-amber-500 text-slate-950 font-bold shadow-md'
-                    : 'text-slate-300 hover:bg-slate-800/60'
+                    : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'
                 }`}
               >
                 <MessageSquare className="w-4 h-4" />
@@ -442,7 +443,7 @@ export default function Home() {
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl transition-all ${
                   activeView === 'store'
                     ? 'bg-amber-500 text-slate-950 font-bold shadow-md'
-                    : 'text-slate-300 hover:bg-slate-800/60'
+                    : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'
                 }`}
               >
                 <ShoppingBag className="w-4 h-4" />
@@ -454,7 +455,7 @@ export default function Home() {
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl transition-all ${
                   activeView === 'creator'
                     ? 'bg-amber-500 text-slate-950 font-bold shadow-md'
-                    : 'text-slate-300 hover:bg-slate-800/60'
+                    : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'
                 }`}
               >
                 <Globe className="w-4 h-4" />
@@ -466,7 +467,7 @@ export default function Home() {
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl transition-all ${
                   activeView === 'community'
                     ? 'bg-amber-500 text-slate-950 font-bold shadow-md'
-                    : 'text-slate-300 hover:bg-slate-800/60'
+                    : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'
                 }`}
               >
                 <BookOpen className="w-4 h-4" />
@@ -478,7 +479,7 @@ export default function Home() {
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl transition-all ${
                   activeView === 'analytics'
                     ? 'bg-amber-500 text-slate-950 font-bold shadow-md'
-                    : 'text-slate-300 hover:bg-slate-800/60'
+                    : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'
                 }`}
               >
                 <TrendingUp className="w-4 h-4" />
@@ -487,25 +488,25 @@ export default function Home() {
 
               <button
                 onClick={() => setAiAgentOpen(true)}
-                className="w-full flex items-center justify-between px-3 py-2.5 rounded-2xl bg-gradient-to-r from-amber-500/15 to-yellow-500/15 border border-amber-500/30 text-amber-300 hover:brightness-125 transition-all font-semibold"
+                className="w-full flex items-center justify-between px-3 py-2.5 rounded-2xl bg-amber-50/80 dark:bg-gradient-to-r dark:from-amber-500/15 dark:to-yellow-500/15 border border-amber-300 dark:border-amber-500/30 text-amber-800 dark:text-amber-300 hover:brightness-105 dark:hover:brightness-125 transition-all font-semibold"
               >
                 <div className="flex items-center gap-2.5">
-                  <Bot className="w-4 h-4 text-amber-400" />
+                  <Bot className="w-4 h-4 text-amber-600 dark:text-amber-400" />
                   <span>Sentinel AI Agent</span>
                 </div>
-                <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-mono">
+                <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-mono">
                   ACTIVE
                 </span>
               </button>
             </div>
 
             {/* Featured Creators & Social Gathering */}
-            <div className="p-4 rounded-3xl bg-[#0d1527] border border-slate-700/70 shadow-xl space-y-3">
+            <div className="p-4 rounded-3xl bg-white dark:bg-[#0d1527] border border-slate-200 dark:border-slate-700/70 shadow-sm dark:shadow-xl space-y-3 transition-colors">
               <div className="flex items-center justify-between px-1">
-                <h3 className="text-xs font-bold text-slate-200 uppercase tracking-wider">
+                <h3 className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider">
                   Social Gathering
                 </h3>
-                <span className="text-[10px] text-amber-400 font-mono font-bold">
+                <span className="text-[10px] text-amber-600 dark:text-amber-400 font-mono font-bold">
                   {creators.length} Creators
                 </span>
               </div>
@@ -523,22 +524,22 @@ export default function Home() {
                     }}
                     className={`flex items-center justify-between p-2 rounded-2xl cursor-pointer transition-all ${
                       selectedCreator.id === c.id && activeView === 'creator'
-                        ? 'bg-amber-500/15 border border-amber-500/40 text-amber-300'
-                        : 'hover:bg-slate-800/60 text-slate-300'
+                        ? 'bg-amber-500/15 border border-amber-500/40 text-amber-800 dark:text-amber-300'
+                        : 'hover:bg-slate-100 dark:hover:bg-slate-800/60 text-slate-700 dark:text-slate-300'
                     }`}
                   >
                     <div className="flex items-center gap-2.5">
                       <img
                         src={c.avatar}
                         alt={c.name}
-                        className="w-8 h-8 rounded-xl object-cover border border-slate-700"
+                        className="w-8 h-8 rounded-xl object-cover border border-slate-200 dark:border-slate-700"
                       />
                       <div>
                         <div className="font-bold text-xs line-clamp-1">{c.name}</div>
                         <div className="text-[10px] text-slate-500 font-mono">@{c.handle}</div>
                       </div>
                     </div>
-                    <span className="text-[10px] text-amber-400 font-mono">
+                    <span className="text-[10px] text-amber-600 dark:text-amber-400 font-mono">
                       {c.widgets?.length ? 'Mini-App' : 'Store'}
                     </span>
                   </div>
@@ -547,12 +548,12 @@ export default function Home() {
             </div>
 
             {/* Privacy Shielding Info Widget */}
-            <div className="p-4 rounded-3xl bg-slate-900/60 border border-slate-800 text-xs space-y-2">
-              <div className="flex items-center gap-2 text-emerald-400 font-semibold">
+            <div className="p-4 rounded-3xl bg-slate-100/80 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 text-xs space-y-2 transition-colors">
+              <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400 font-semibold">
                 <ShieldCheck className="w-4 h-4" />
                 <span>Privacy &amp; AI Shielding</span>
               </div>
-              <p className="text-slate-400 text-[11px] leading-relaxed">
+              <p className="text-slate-600 dark:text-slate-400 text-[11px] leading-relaxed">
                 {isAgeVerified && unshieldedMode
                   ? 'Your session is age-verified. Unshielded mode allows mature creator sets to render without restriction.'
                   : 'Restricted media is invisibly shielded with zero trace or blur placeholders. Complete privacy verification to unlock.'}
@@ -560,8 +561,52 @@ export default function Home() {
             </div>
           </aside>
 
-          {/* Center Main Stage (View Router) */}
-          <section className="lg:col-span-6 space-y-6">
+          {/* Center Main Stage (View Router - Mobile/Tablet/Desktop Adaptive) */}
+          <section className="col-span-1 md:col-span-8 lg:col-span-6 space-y-5 sm:space-y-6">
+            {/* Mobile Creator Stories & Quick Switcher (Phones) */}
+            <div className="block md:hidden p-3 rounded-2xl bg-white dark:bg-[#0d1527] border border-slate-200 dark:border-slate-800 shadow-sm transition-colors">
+              <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-100 dark:border-slate-800 text-xs">
+                <span className="font-bold text-slate-800 dark:text-slate-200">Creators &amp; Gathering</span>
+                <span className="text-[10px] text-amber-600 dark:text-amber-400 font-mono font-semibold">
+                  {creators.length} Online
+                </span>
+              </div>
+              <div className="flex items-center gap-3 overflow-x-auto pb-1">
+                {creators.map((c) => (
+                  <div
+                    key={c.id}
+                    onClick={() => {
+                      setSelectedCreator(c);
+                      setActiveView('creator');
+                      if (typeof window !== 'undefined' && window.history) {
+                        window.history.replaceState(null, '', `/?u=${c.handle}`);
+                      }
+                    }}
+                    className={`flex flex-col items-center gap-1 shrink-0 cursor-pointer p-1 rounded-xl transition-all ${
+                      selectedCreator.id === c.id && activeView === 'creator'
+                        ? 'opacity-100 scale-105'
+                        : 'opacity-80 hover:opacity-100'
+                    }`}
+                  >
+                    <div className={`relative p-0.5 rounded-2xl ${
+                      selectedCreator.id === c.id && activeView === 'creator'
+                        ? 'bg-gradient-to-tr from-amber-500 to-yellow-400'
+                        : 'bg-slate-200 dark:bg-slate-700'
+                    }`}>
+                      <img
+                        src={c.avatar}
+                        alt={c.name}
+                        className="w-11 h-11 rounded-2xl object-cover"
+                      />
+                    </div>
+                    <span className="text-[10px] font-medium text-slate-700 dark:text-slate-300 truncate max-w-[60px]">
+                      {c.name.split(' ')[0]}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
             {activeView === 'feed' && (
               <Feed
                 posts={posts}
@@ -621,37 +666,37 @@ export default function Home() {
             )}
           </section>
 
-          {/* Right Sidebar: Protocol Metrics & Ecosystem */}
-          <aside className="lg:col-span-3 space-y-5">
+          {/* Right Sidebar: Protocol Metrics & Ecosystem (Wide Desktop) */}
+          <aside className="hidden lg:block lg:col-span-3 space-y-5">
             {/* Quick Financial Snapshot */}
-            <div className="p-5 rounded-3xl bg-[#0d1527] border border-slate-700/70 shadow-xl space-y-3">
-              <div className="flex items-center justify-between pb-2 border-b border-slate-800">
-                <span className="text-xs font-bold text-slate-200">Cookie Chain Stats</span>
-                <span className="text-[10px] font-mono text-emerald-400">Live RPC</span>
+            <div className="p-5 rounded-3xl bg-white dark:bg-[#0d1527] border border-slate-200 dark:border-slate-700/70 shadow-sm dark:shadow-xl space-y-3 transition-colors">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+                <span className="text-xs font-bold text-slate-800 dark:text-slate-200">Cookie Chain Stats</span>
+                <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 font-semibold">Live RPC</span>
               </div>
 
               <div className="space-y-2.5 text-xs">
                 <div className="flex justify-between items-center">
-                  <span className="text-slate-400">Platform Volume:</span>
-                  <span className="font-bold font-mono text-amber-300">
+                  <span className="text-slate-500 dark:text-slate-400">Platform Volume:</span>
+                  <span className="font-bold font-mono text-amber-600 dark:text-amber-300">
                     {metrics.totalPlatformVolumeCook.toLocaleString()} COOK
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-slate-400">Platform Treasury (5%):</span>
-                  <span className="font-bold font-mono text-blue-400">
+                  <span className="text-slate-500 dark:text-slate-400">Platform Treasury (5%):</span>
+                  <span className="font-bold font-mono text-blue-600 dark:text-blue-400">
                     {metrics.totalTreasuryCollectedCook.toFixed(2)} COOK
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-slate-400">Active Creators:</span>
-                  <span className="font-bold font-mono text-slate-200">
+                  <span className="text-slate-500 dark:text-slate-400">Active Creators:</span>
+                  <span className="font-bold font-mono text-slate-800 dark:text-slate-200">
                     {metrics.activeCreatorsCount}
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-slate-400">Total Transactions:</span>
-                  <span className="font-bold font-mono text-slate-200">
+                  <span className="text-slate-500 dark:text-slate-400">Total Transactions:</span>
+                  <span className="font-bold font-mono text-slate-800 dark:text-slate-200">
                     {metrics.totalTransactionsCount}
                   </span>
                 </div>
@@ -659,10 +704,10 @@ export default function Home() {
             </div>
 
             {/* Official Ecosystem Links with 1-Click Interactive Hub */}
-            <div className="p-5 rounded-3xl bg-[#0d1527] border border-slate-700/70 shadow-xl space-y-2.5 text-xs">
-              <div className="flex items-center justify-between pb-1 border-b border-slate-800">
-                <span className="font-bold text-slate-200">Cookie Chain Ecosystem</span>
-                <span className="text-[10px] font-mono text-amber-400">cApp Tools</span>
+            <div className="p-5 rounded-3xl bg-white dark:bg-[#0d1527] border border-slate-200 dark:border-slate-700/70 shadow-sm dark:shadow-xl space-y-2.5 text-xs transition-colors">
+              <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-slate-800">
+                <span className="font-bold text-slate-800 dark:text-slate-200">Cookie Chain Ecosystem</span>
+                <span className="text-[10px] font-mono text-amber-600 dark:text-amber-400 font-semibold">cApp Tools</span>
               </div>
 
               <button
@@ -670,13 +715,13 @@ export default function Home() {
                   setEcosystemTab('bridge');
                   setEcosystemModalOpen(true);
                 }}
-                className="w-full flex items-center justify-between p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 transition-colors text-left group"
+                className="w-full flex items-center justify-between p-2 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 transition-colors text-left group"
               >
                 <div>
-                  <div className="font-semibold text-slate-200 group-hover:text-amber-300">Hyperlane Warp Bridge</div>
+                  <div className="font-semibold text-slate-800 dark:text-slate-200 group-hover:text-amber-600 dark:group-hover:text-amber-300">Hyperlane Warp Bridge</div>
                   <div className="text-[10px] text-slate-500">Bridge SOL / USDC to Cookie Chain</div>
                 </div>
-                <ExternalLink className="w-3.5 h-3.5 text-slate-500 group-hover:text-amber-400" />
+                <ExternalLink className="w-3.5 h-3.5 text-slate-400 group-hover:text-amber-600 dark:group-hover:text-amber-400" />
               </button>
 
               <button
@@ -684,13 +729,13 @@ export default function Home() {
                   setEcosystemTab('cookieswap');
                   setEcosystemModalOpen(true);
                 }}
-                className="w-full flex items-center justify-between p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 transition-colors text-left group"
+                className="w-full flex items-center justify-between p-2 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 transition-colors text-left group"
               >
                 <div>
-                  <div className="font-semibold text-slate-200 group-hover:text-amber-300">CookieSwap DEX</div>
+                  <div className="font-semibold text-slate-800 dark:text-slate-200 group-hover:text-amber-600 dark:group-hover:text-amber-300">CookieSwap DEX</div>
                   <div className="text-[10px] text-slate-500">Fast token swapping &amp; liquidity pools</div>
                 </div>
-                <ExternalLink className="w-3.5 h-3.5 text-slate-500 group-hover:text-amber-400" />
+                <ExternalLink className="w-3.5 h-3.5 text-slate-400 group-hover:text-amber-600 dark:group-hover:text-amber-400" />
               </button>
 
               <button
@@ -698,13 +743,13 @@ export default function Home() {
                   setEcosystemTab('cookiebox');
                   setEcosystemModalOpen(true);
                 }}
-                className="w-full flex items-center justify-between p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 transition-colors text-left group"
+                className="w-full flex items-center justify-between p-2 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 transition-colors text-left group"
               >
                 <div>
-                  <div className="font-semibold text-slate-200 group-hover:text-amber-300">Cookiebox Launchpad</div>
+                  <div className="font-semibold text-slate-800 dark:text-slate-200 group-hover:text-amber-600 dark:group-hover:text-amber-300">Cookiebox Launchpad</div>
                   <div className="text-[10px] text-slate-500">Bonding curve creator token launches</div>
                 </div>
-                <ExternalLink className="w-3.5 h-3.5 text-slate-500 group-hover:text-amber-400" />
+                <ExternalLink className="w-3.5 h-3.5 text-slate-400 group-hover:text-amber-600 dark:group-hover:text-amber-400" />
               </button>
 
               <button
@@ -712,13 +757,13 @@ export default function Home() {
                   setEcosystemTab('das');
                   setEcosystemModalOpen(true);
                 }}
-                className="w-full flex items-center justify-between p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 transition-colors text-left group"
+                className="w-full flex items-center justify-between p-2 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 transition-colors text-left group"
               >
                 <div>
-                  <div className="font-semibold text-slate-200 group-hover:text-amber-300">CookieScan API (DAS)</div>
+                  <div className="font-semibold text-slate-800 dark:text-slate-200 group-hover:text-amber-600 dark:group-hover:text-amber-300">CookieScan API (DAS)</div>
                   <div className="text-[10px] text-slate-500">Digital Asset Standard indexer for NFTs</div>
                 </div>
-                <ExternalLink className="w-3.5 h-3.5 text-slate-500 group-hover:text-amber-400" />
+                <ExternalLink className="w-3.5 h-3.5 text-slate-400 dark:group-hover:text-amber-400" />
               </button>
 
               <button
@@ -726,13 +771,13 @@ export default function Home() {
                   setEcosystemTab('mcp');
                   setEcosystemModalOpen(true);
                 }}
-                className="w-full flex items-center justify-between p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 transition-colors text-left group"
+                className="w-full flex items-center justify-between p-2 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 transition-colors text-left group"
               >
                 <div>
-                  <div className="font-semibold text-slate-200 group-hover:text-amber-300">Cookie-MCP Integration</div>
+                  <div className="font-semibold text-slate-800 dark:text-slate-200 group-hover:text-amber-600 dark:group-hover:text-amber-300">Cookie-MCP Integration</div>
                   <div className="text-[10px] text-slate-500">Autonomous LLM agent tools &amp; execution</div>
                 </div>
-                <ExternalLink className="w-3.5 h-3.5 text-slate-500 group-hover:text-amber-400" />
+                <ExternalLink className="w-3.5 h-3.5 text-slate-400 dark:group-hover:text-amber-400" />
               </button>
             </div>
           </aside>
@@ -763,6 +808,14 @@ export default function Home() {
         }}
         onOpenStore={handleOpenStore}
         onSelectView={setActiveView}
+      />
+
+      {/* Dedicated Mobile Bottom Navigation (Phones) */}
+      <MobileBottomNav
+        activeView={activeView}
+        onSelectView={setActiveView}
+        onOpenAiAgent={() => setAiAgentOpen(true)}
+        userProfile={userProfile}
       />
     </div>
   );

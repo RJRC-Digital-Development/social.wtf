@@ -88,6 +88,27 @@ export function generateAuthChallenge(
 }
 
 /**
+ * Asynchronously generates an authentication challenge and awaits distributed store persistence.
+ */
+export async function generateAuthChallengeAsync(
+  walletAddress: string,
+  domain: string = 'social.wtf'
+): Promise<AuthChallenge> {
+  const challenge = generateAuthChallenge(walletAddress, domain);
+
+  if (distributedStore.isConfigured()) {
+    const ok = await distributedStore.set(`nonce:${challenge.nonce}`, JSON.stringify(challenge), 300);
+    if (!ok && process.env.NODE_ENV === 'production') {
+      activeChallenges.delete(challenge.nonce);
+      throw new Error('Failed to persist authentication challenge to distributed store.');
+    }
+  }
+
+  return challenge;
+}
+
+
+/**
  * Formats a challenge object into the canonical human-readable SIWS message format.
  */
 export function formatChallengeMessage(challenge: AuthChallenge): string {

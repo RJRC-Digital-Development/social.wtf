@@ -1,6 +1,7 @@
 export type MediaType = 'text' | 'photo' | 'video' | 'audio';
 
-export type ShieldClassification = 'safe' | 'nsfw' | 'violence' | 'age_restricted';
+export type ShieldClassification = 'safe' | 'nsfw' | 'violence' | 'age_restricted' | 'quarantined' | 'rejected';
+
 
 export interface User {
   id: string;

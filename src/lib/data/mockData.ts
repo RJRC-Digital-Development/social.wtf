@@ -40,7 +40,7 @@ export const INITIAL_POSTS: Post[] = [
     id: 'post-1',
     author: INITIAL_CREATORS[0],
     type: 'text',
-    content: `Welcome to Social.wtf on Cookie Chain SVM! \n\nEvery profile functions as a modular mini-app with sub-second finality and an automated 5% protocol fee split to the treasury (HMnySuX1CdBfqysiLtU4brPawufcHxFTFZu97jrKQwT9). \n\nPublish your first personal post above, tip in COOK, or list digital products in your Storefront to see live on-chain settlement in action!`,
+    content: `Welcome to Social.wtf on Cookie Chain SVM! \n\nEvery profile functions as a modular mini-app with sub-second finality and an automated 5% protocol fee split to the treasury (HMny...KQwT9). \n\nPublish your first personal post above, tip in COOK, or list digital products in your Storefront to see live on-chain settlement in action!`,
     createdAt: 'Just now',
     likes: 1,
     tipsCount: 0,

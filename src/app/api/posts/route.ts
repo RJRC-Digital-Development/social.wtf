@@ -1,28 +1,41 @@
 import { NextResponse } from 'next/server';
-import { INITIAL_POSTS } from '@/lib/data/mockData';
+import { postsStore } from '@/lib/data/postsStore';
 import { authorizeRequest } from '@/lib/security/authorization';
 import { globalRateLimiter } from '@/lib/security/rateLimiter';
 import { sanitizeString } from '@/lib/security/sanitize';
-import { Post } from '@/types';
+import { getClientIp } from '@/lib/security/ipHelper';
+import { Post, ShieldClassification } from '@/types';
 
-// In-memory posts array for API serving
-let platformPosts: Post[] = [...INITIAL_POSTS];
+// Server-side content scanner helper
+function detectRestrictedContent(text: string, mediaUrl?: string): boolean {
+  const combined = `${text} ${mediaUrl || ''}`.toLowerCase();
+  return (
+    combined.includes('nsfw') ||
+    combined.includes('adult') ||
+    combined.includes('18+') ||
+    combined.includes('nude') ||
+    combined.includes('explicit') ||
+    combined.includes('restricted') ||
+    combined.includes('shield')
+  );
+}
 
 export async function GET(req: Request) {
   // Check authorization for Adult Entertainment access
   const adultAuth = await authorizeRequest(req, { requireAdultAccess: true });
 
   if (adultAuth.authorized) {
-    // Authorized user with valid Card + Video + (ID if under 25): Return all posts
+    // Authorized user with valid Card + Video + (ID if under 25): Return adult authorized posts
+    const posts = await postsStore.getAdultAuthorizedPosts();
     return NextResponse.json({
-      posts: platformPosts,
+      posts,
       adultAccessGranted: true,
-      total: platformPosts.length,
+      total: posts.length,
     });
   }
 
   // Zero-trace server-side shielding: Completely remove all shielded adult posts
-  const publicPosts = platformPosts.filter((p) => !p.isShielded);
+  const publicPosts = await postsStore.getPublicPosts();
 
   return NextResponse.json({
     posts: publicPosts,
@@ -32,10 +45,7 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const ip =
-    req.headers.get('x-real-ip')?.trim() ||
-    req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
-    '127.0.0.1';
+  const ip = getClientIp(req);
 
   // Rate limiting: 10 posts per minute per IP
   const rateCheck = await globalRateLimiter.checkAsync(`post:create:${ip}`, 10, 60_000);
@@ -61,7 +71,6 @@ export async function POST(req: Request) {
   const content = sanitizeString(body.content || '', 2000);
   const mediaType = body.mediaType || 'text';
   const mediaUrl = body.mediaUrl ? sanitizeString(body.mediaUrl, 500) : undefined;
-  const isShielded = Boolean(body.isShielded);
 
   if (!content && !mediaUrl) {
     return NextResponse.json(
@@ -70,21 +79,32 @@ export async function POST(req: Request) {
     );
   }
 
-  // If user attempts to create a shielded/adult post, verify they are adult-authorized
+  // Server-owned content classification: NEVER trust client isShielded claim alone
+  const isContentFlagged = detectRestrictedContent(content, mediaUrl);
+  const isClientShielded = Boolean(body.isShielded);
+  const isShielded = isContentFlagged || isClientShielded;
+  const shieldCategory: ShieldClassification = isShielded ? 'age_restricted' : 'safe';
+
+  // If content is classified as shielded/adult, verify author is 18+ adult-authorized
   if (isShielded && !authResult.claims.isAdultAuthorized) {
     return NextResponse.json(
-      { error: 'Creating Adult Entertainment posts requires verified 18+ adult authorization on your account.' },
+      {
+        error:
+          'Creating Adult Entertainment posts requires verified 18+ adult authorization on your account.',
+        code: 'ADULT_AUTH_REQUIRED',
+      },
       { status: 403 }
     );
   }
 
   const newPost: Post = {
-    id: `post-${Date.now()}`,
+    id: `post-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     author: {
       id: `usr-${walletAddress.slice(0, 8)}`,
       handle: walletAddress.slice(0, 8),
       name: `User ${walletAddress.slice(0, 4)}...${walletAddress.slice(-4)}`,
-      avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
+      avatar:
+        'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
       bio: 'Cookie Chain Creator',
       verified: true,
       ageVerified: authResult.claims.isAdultAuthorized,
@@ -101,16 +121,19 @@ export async function POST(req: Request) {
     totalTipsCook: 0,
     reposts: 0,
     commentsCount: 0,
-    tags: Array.isArray(body.tags) ? body.tags.map((t: string) => sanitizeString(t, 50)) : ['CookieChain'],
+    tags: Array.isArray(body.tags)
+      ? body.tags.map((t: string) => sanitizeString(t, 50))
+      : ['CookieChain'],
     createdAt: 'Just now',
     isShielded,
-    shieldCategory: isShielded ? 'age_restricted' : 'safe',
+    shieldCategory,
   };
 
-  platformPosts = [newPost, ...platformPosts];
+  await postsStore.addPost(newPost);
 
   return NextResponse.json({
     success: true,
     post: newPost,
   });
 }
+
