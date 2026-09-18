@@ -8,7 +8,7 @@ export const INITIAL_WIKI_ARTICLES: WikiArticle[] = [
     category: 'creator_sdk',
     summary: 'How to build, customize, and monetize your personal creator storefront and interactive code mini-app on Cookie Chain SVM.',
     lastUpdated: 'Updated today',
-    author: 'The Cookie Baker 🍪',
+    author: 'The Cookie Baker ',
     readTime: '4 min read',
     tags: ['CreatorSDK', 'Storefront', 'MiniApps', 'CookieChain'],
     content: `## Overview
@@ -131,7 +131,7 @@ Query creator digital collectibles, audio NFTs, and VIP passes using the Digital
     category: 'creator_sdk',
     summary: 'How to code, test, and publish interactive browser mini-games and Web3 widgets on your personal profile.',
     lastUpdated: '2 days ago',
-    author: 'ChainSynth 🎛️',
+    author: 'ChainSynth ',
     readTime: '5 min read',
     tags: ['CodeStudio', 'SandboxedIframe', 'MiniGames', 'JavaScript'],
     content: `## Sandboxed Execution Environment
@@ -147,10 +147,10 @@ Creators can write interactive JavaScript widgets, mini-games, and Web3 tools th
 export const INITIAL_DISCUSSIONS: DiscussionTopic[] = [
   {
     id: 'disc-1',
-    title: '💡 Wishlist: On-Chain Tip Jar Leaderboard & Dynamic Tiered NFT Badges',
+    title: ' Wishlist: On-Chain Tip Jar Leaderboard & Dynamic Tiered NFT Badges',
     category: 'wishlist',
     author: {
-      name: 'The Cookie Baker 🍪',
+      name: 'The Cookie Baker ',
       handle: 'cryptobaker',
       avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
       verified: true,
@@ -193,7 +193,7 @@ The 5% platform fee split would still apply to all tier upgrades! What does ever
   },
   {
     id: 'disc-2',
-    title: '🚀 Platform Update: Social.wtf v1.2 with Sentinel AI Zero-Trace Shielding',
+    title: ' Platform Update: Social.wtf v1.2 with Sentinel AI Zero-Trace Shielding',
     category: 'update',
     author: {
       name: 'Social.wtf Core Team',
@@ -216,7 +216,7 @@ The 5% platform fee split would still apply to all tier upgrades! What does ever
       {
         id: 'rep-3',
         author: {
-          name: 'Aria Vixen ✨',
+          name: 'Aria Vixen ',
           handle: 'sol_vixen',
           avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
           badge: 'Verified Creator',
@@ -229,7 +229,7 @@ The 5% platform fee split would still apply to all tier upgrades! What does ever
   },
   {
     id: 'disc-3',
-    title: '📰 Ecosystem News: Cookie Chain Mainnet Sub-Second Latency Benchmarks',
+    title: ' Ecosystem News: Cookie Chain Mainnet Sub-Second Latency Benchmarks',
     category: 'news',
     author: {
       name: 'CookieScan Explorer',
@@ -248,7 +248,7 @@ With sub-cent transaction costs and instant finality, Social.wtf transactions fe
   },
   {
     id: 'disc-4',
-    title: '💡 Idea: 3D WebGL Virtual Showrooms for Creator Storefronts',
+    title: ' Idea: 3D WebGL Virtual Showrooms for Creator Storefronts',
     category: 'wishlist',
     author: {
       name: 'CyberArtist_99',
@@ -267,7 +267,7 @@ Visitors could walk around in 3D, inspect digital goods, and click an item to bu
   },
   {
     id: 'disc-5',
-    title: '🛠️ Dev Help: How to handle 5% Fee Splitting in Custom Code Studio Mini-Apps',
+    title: ' Dev Help: How to handle 5% Fee Splitting in Custom Code Studio Mini-Apps',
     category: 'dev_support',
     author: {
       name: 'SolanaDev_Alex',

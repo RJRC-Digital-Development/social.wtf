@@ -100,7 +100,7 @@ function closeProduct(product, callerSigner) {
 
   assert.strictEqual(platform.total_volume_lamports, 0n);
   assert.strictEqual(platform.total_transactions, 0n);
-  console.log('✓ Test 1: Self-tipping / wash volume inflation successfully blocked');
+  console.log(' Test 1: Self-tipping / wash volume inflation successfully blocked');
 }
 
 // Test 2: Legitimate Tip Follows CEI and Fee Invariant
@@ -122,7 +122,7 @@ function closeProduct(product, callerSigner) {
   assert.strictEqual(platform.total_transactions, 1n);
   assert.strictEqual(platform.total_treasury_collected, 50_000_000n);
 
-  console.log('✓ Test 2: Legitimate tip correctly split with CEI and invariant enforced');
+  console.log(' Test 2: Legitimate tip correctly split with CEI and invariant enforced');
 }
 
 // Test 3: Treasury has_one Constraint Defense
@@ -144,7 +144,7 @@ function closeProduct(product, callerSigner) {
     'Rogue treasury account substitution must be rejected'
   );
 
-  console.log('✓ Test 3: Rogue treasury destination substitution rejected via has_one constraint');
+  console.log(' Test 3: Rogue treasury destination substitution rejected via has_one constraint');
 }
 
 // Test 4: Default/Zero Address Rejection on Initialization & Treasury Update
@@ -167,7 +167,7 @@ function closeProduct(product, callerSigner) {
     'Default/zero treasury address must be rejected'
   );
 
-  console.log('✓ Test 4: Default / uninitialized address rejection enforced on platform state');
+  console.log(' Test 4: Default / uninitialized address rejection enforced on platform state');
 }
 
 // Test 5: Product Closure and Rent Recovery Authority
@@ -192,7 +192,7 @@ function closeProduct(product, callerSigner) {
   assert.strictEqual(product.is_active, false);
   assert.strictEqual(product.is_closed, true);
 
-  console.log('✓ Test 5: Product closure and rent reclamation strictly bound to creator authority');
+  console.log(' Test 5: Product closure and rent reclamation strictly bound to creator authority');
 }
 
 // Model of PurchaseProduct instruction
@@ -251,7 +251,7 @@ function executePurchaseProduct(platformState, product, buyer, creator, treasury
   assert.strictEqual(product.total_sales, 1n);
   assert.strictEqual(platform.total_volume_lamports, 1_000_000_000n);
 
-  console.log('✓ Test 6: Self-purchase / wash trading volume inflation successfully blocked');
+  console.log(' Test 6: Self-purchase / wash trading volume inflation successfully blocked');
 }
 
 console.log('ALL SMART CONTRACT INVARIANTS & AUTHORITY MODEL TESTS PASSED!\n');

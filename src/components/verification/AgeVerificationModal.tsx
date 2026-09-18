@@ -279,7 +279,7 @@ export const AgeVerificationModal: React.FC<AgeVerificationModalProps> = ({
             onClick={onClose}
             className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
           >
-            ✕
+            
           </button>
         </div>
 
@@ -294,11 +294,11 @@ export const AgeVerificationModal: React.FC<AgeVerificationModalProps> = ({
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 border-t border-slate-800/80 text-[10px] font-mono text-slate-400">
             <div className="flex items-center gap-1.5 text-amber-300/90">
-              <span>⚠️ Under 25 Safeguard:</span>
+              <span> Under 25 Safeguard:</span>
               <span className="text-slate-300">Anyone determined under 25 must provide Driver's License/ID.</span>
             </div>
             <div className="flex items-center gap-1.5 text-emerald-400">
-              <span>🛡️ 100% AI Privacy:</span>
+              <span> 100% AI Privacy:</span>
               <span className="text-slate-300">Verified ONLY by AI agents. Zero human review unless flagged.</span>
             </div>
           </div>
@@ -506,9 +506,9 @@ export const AgeVerificationModal: React.FC<AgeVerificationModalProps> = ({
                 {/* Liveness Stage Prompts */}
                 {isCameraActive && (
                   <div className="absolute bottom-4 inset-x-4 p-2.5 rounded-xl bg-black/80 backdrop-blur-md border border-slate-700 text-center text-xs font-mono text-emerald-300">
-                    {livenessStage === 'align' && '👤 Align your face in the oval'}
-                    {livenessStage === 'blink' && '👁️ Blink or tilt head to confirm liveness'}
-                    {livenessStage === 'analyzing' && '⚡ AI Agent analyzing liveness & estimating age...'}
+                    {livenessStage === 'align' && ' Align your face in the oval'}
+                    {livenessStage === 'blink' && ' Blink or tilt head to confirm liveness'}
+                    {livenessStage === 'analyzing' && ' AI Agent analyzing liveness & estimating age...'}
                   </div>
                 )}
 
@@ -636,7 +636,7 @@ export const AgeVerificationModal: React.FC<AgeVerificationModalProps> = ({
                   <div className="flex items-center justify-between text-xs">
                     <span className="font-bold text-slate-200">1. ID Front</span>
                     {frontImage ? (
-                      <span className="text-emerald-400 text-[10px] font-mono">Loaded ✓</span>
+                      <span className="text-emerald-400 text-[10px] font-mono">Loaded </span>
                     ) : (
                       <span className="text-slate-500 text-[10px]">Required</span>
                     )}
@@ -675,7 +675,7 @@ export const AgeVerificationModal: React.FC<AgeVerificationModalProps> = ({
                   <div className="flex items-center justify-between text-xs">
                     <span className="font-bold text-slate-200">2. ID Back (Barcode/MRZ)</span>
                     {backImage ? (
-                      <span className="text-emerald-400 text-[10px] font-mono">Loaded ✓</span>
+                      <span className="text-emerald-400 text-[10px] font-mono">Loaded </span>
                     ) : (
                       <span className="text-slate-500 text-[10px]">Required</span>
                     )}
@@ -734,7 +734,7 @@ export const AgeVerificationModal: React.FC<AgeVerificationModalProps> = ({
             <span className="text-slate-400">Adult Entertainment Status:</span>
             {isAdultContentUnlocked ? (
               <span className="text-emerald-400 font-bold font-mono">
-                ✓ 18+ ADULT ENTERTAINMENT UNLOCKED
+                 18+ ADULT ENTERTAINMENT UNLOCKED
               </span>
             ) : (
               <span className="text-amber-400 font-mono">

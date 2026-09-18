@@ -1,6 +1,6 @@
 # Social.wtf Security Policy & Threat Model
 
-## 🛡️ Core Architectural Principle
+##  Core Architectural Principle
 > **"Never trust the client. Never trust a supplied relationship. Never trust a supplied price. Never trust an authorization claim. Verify every security-critical invariant at the enforcement layer."**
 
 ---

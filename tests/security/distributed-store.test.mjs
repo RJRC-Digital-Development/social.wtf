@@ -96,7 +96,7 @@ class DistributedStore {
   const deletedVal = await store.get('test:key');
   assert.strictEqual(deletedVal, null);
 
-  console.log('✓ Test 1: Fallback in-memory set, get, and del functions correctly');
+  console.log(' Test 1: Fallback in-memory set, get, and del functions correctly');
 }
 
 // Test 2: Atomic Single-Use GETDEL (Nonce Anti-Replay Simulation)
@@ -118,7 +118,7 @@ class DistributedStore {
   const secondFetch = await store.getdel(nonceKey);
   assert.strictEqual(secondFetch, null, 'Nonce must be consumed atomically and unavailable to subsequent requests');
 
-  console.log('✓ Test 2: Atomic GETDEL strictly guarantees single-use nonce consumption across workers');
+  console.log(' Test 2: Atomic GETDEL strictly guarantees single-use nonce consumption across workers');
 }
 
 // Test 3: TTL Expiration Handling
@@ -128,7 +128,7 @@ class DistributedStore {
   const res = await store.get('expiring:key');
   assert.strictEqual(res, null, 'Expired key must return null');
 
-  console.log('✓ Test 3: Expired keys are cleanly pruned upon access');
+  console.log(' Test 3: Expired keys are cleanly pruned upon access');
 }
 
 // Test 4: Distributed Counter Increment with Expiry (Rate Limiting)
@@ -145,7 +145,7 @@ class DistributedStore {
   const count3 = await store.incrWithExpiry(limitKey, 60);
   assert.strictEqual(count3, 3);
 
-  console.log('✓ Test 4: Sliding window counter increments correctly across simulated requests');
+  console.log(' Test 4: Sliding window counter increments correctly across simulated requests');
 }
 
 // Test 5: Mock Upstash REST RESTful Wire Protocol Verification
@@ -174,7 +174,7 @@ class DistributedStore {
   assert.strictEqual(capturedHeaders.Authorization, 'Bearer test_upstash_secret_bearer_token');
   assert.deepStrictEqual(capturedCommand, ['SET', 'revoked:sess_123', '1', 'EX', 86400]);
 
-  console.log('✓ Test 5: Upstash / Vercel KV REST wire protocol conforms to specification');
+  console.log(' Test 5: Upstash / Vercel KV REST wire protocol conforms to specification');
 }
 
 // Test 6: Network Fault Tolerance (Resilience against REST API outages)
@@ -191,7 +191,7 @@ class DistributedStore {
   const result = await store.executeCommand(['GET', 'any_key'], faultyFetch);
   assert.strictEqual(result, null, 'Network outage must fail gracefully without throwing fatal exceptions');
 
-  console.log('✓ Test 6: Distributed store handles network partitions safely without crashing');
+  console.log(' Test 6: Distributed store handles network partitions safely without crashing');
 }
 
 console.log('ALL DISTRIBUTED STORE TESTS PASSED!\n');

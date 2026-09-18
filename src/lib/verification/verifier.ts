@@ -1,5 +1,5 @@
 /**
- * Social.wtf Sentinel™ Age & Identity Verification Engine
+ * Social.wtf Sentinel Age & Identity Verification Engine
  * 
  * PROPRIETARY & CONFIDENTIAL INTELLECTUAL PROPERTY:
  * Production Biometric Neural Network Weights, Anti-Spoof Enclave Attestations,

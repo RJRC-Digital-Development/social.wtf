@@ -4,7 +4,7 @@ This guide details how to deploy Social.wtf to a live, publicly accessible URL t
 
 ---
 
-## ⚡ 1. One-Click Vercel Deployment (Recommended)
+##  1. One-Click Vercel Deployment (Recommended)
 
 1. **Push Code to GitHub**:
    ```bash
@@ -27,7 +27,7 @@ This guide details how to deploy Social.wtf to a live, publicly accessible URL t
 
 ---
 
-## 🌐 2. Netlify Deployment
+##  2. Netlify Deployment
 
 1. Go to [app.netlify.com](https://app.netlify.com).
 2. Click **Add new site** > **Import an existing project**.
@@ -39,7 +39,7 @@ This guide details how to deploy Social.wtf to a live, publicly accessible URL t
 
 ---
 
-## 🖥️ 3. Self-Hosted VPS / Docker
+##  3. Self-Hosted VPS / Docker
 
 If running on your own VPS (Ubuntu/Debian):
 

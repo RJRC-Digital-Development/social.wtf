@@ -1,4 +1,4 @@
-# Cookie Chain cApp Submission: Social.wtf 🍪⚡
+# Cookie Chain cApp Submission: Social.wtf 
 
 **Category:** Social Platform • Creator Tools • Marketplace • AI Application • Developer Tooling  
 **Target Chain:** Cookie Chain (SVM - Solana Virtual Machine)  
@@ -8,7 +8,7 @@
 
 ---
 
-## 🎯 Executive Summary & Objective
+##  Executive Summary & Objective
 
 **Social.wtf** is a unified decentralized Web3 social ecosystem and creator storefront hub built natively on **Cookie Chain**. It consolidates micro-blogging, video streaming, music hubs, and digital storefronts into a single interface where **every profile functions as a customizable mini-app**.
 
@@ -16,7 +16,7 @@ Every economic transaction—from digital good purchases to tips and subscriptio
 
 ---
 
-## 📋 Comprehensive Requirements Checklist
+##  Comprehensive Requirements Checklist
 
 ### 1. Wallet Connection & Status
 - [x] **Nightly Wallet Support (`window.nightly.solana`):** Native integration with auto-detection and 1-click connection.
@@ -40,20 +40,20 @@ Every economic transaction—from digital good purchases to tips and subscriptio
 
 ---
 
-## 🍪 Cookie Ecosystem Integrations (Encouraged & Optional)
+##  Cookie Ecosystem Integrations (Encouraged & Optional)
 
 | Tool / Service | Integration in Social.wtf | Link / Status |
 | :--- | :--- | :--- |
-| **Cookieswap** | Quick swap simulator & direct liquidity/trading integration for `$COOK` and creator tokens | [cookieswap.fun](https://cookieswap.fun/) ✅ Integrated |
-| **Cookiebox** | Ecosystem application launcher and cApp directory indexing | [cookiebox.app](https://cookiebox.app/) ✅ Integrated |
-| **Cookie DAS API** | Metaplex Digital Asset Standard client (`src/lib/solana/cookieDas.ts`) querying assets via `https://api.cookiescan.io` | [api.cookiescan.io](https://api.cookiescan.io/) ✅ Integrated |
-| **CookieScan** | Direct block explorer verification for all transactions and addresses | [cookiescan.io](https://cookiescan.io/) ✅ Integrated |
-| **cookie-mcp** | Tool definitions conforming to `cookie-mcp` (`src/lib/ai/cookieMcp.ts`) for AI agents | [github.com/cookiechain/cookie-mcp](https://github.com/cookiechain/cookie-mcp) ✅ Integrated |
-| **Hyperlane Bridge** | Step-by-step bridge guide & direct portal linking Solana to Cookie Chain | [hyperlane.cookiescan.io](https://hyperlane.cookiescan.io/) ✅ Integrated |
+| **Cookieswap** | Quick swap simulator & direct liquidity/trading integration for `$COOK` and creator tokens | [cookieswap.fun](https://cookieswap.fun/)  Integrated |
+| **Cookiebox** | Ecosystem application launcher and cApp directory indexing | [cookiebox.app](https://cookiebox.app/)  Integrated |
+| **Cookie DAS API** | Metaplex Digital Asset Standard client (`src/lib/solana/cookieDas.ts`) querying assets via `https://api.cookiescan.io` | [api.cookiescan.io](https://api.cookiescan.io/)  Integrated |
+| **CookieScan** | Direct block explorer verification for all transactions and addresses | [cookiescan.io](https://cookiescan.io/)  Integrated |
+| **cookie-mcp** | Tool definitions conforming to `cookie-mcp` (`src/lib/ai/cookieMcp.ts`) for AI agents | [github.com/cookiechain/cookie-mcp](https://github.com/cookiechain/cookie-mcp)  Integrated |
+| **Hyperlane Bridge** | Step-by-step bridge guide & direct portal linking Solana to Cookie Chain | [hyperlane.cookiescan.io](https://hyperlane.cookiescan.io/)  Integrated |
 
 ---
 
-## 🔑 Relevant Addresses & Technical Specs
+##  Relevant Addresses & Technical Specs
 
 - **Anchor Program ID:** `9iapGcxDbDtZ2bWtwM2kLYNW67XH2qzPxLxXfSUbQQZq`
 - **Platform Treasury Address:** `CookTreasury11111111111111111111111111111111`
@@ -65,66 +65,66 @@ Every economic transaction—from digital good purchases to tips and subscriptio
 
 ---
 
-## 🐦 Ready-to-Post X (Twitter) Thread
+##  Ready-to-Post X (Twitter) Thread
 
 Copy and paste this exact thread on X to satisfy submission requirements:
 
 ### Tweet 1 (Hook & Overview)
 ```text
-1/6 🍪 Introducing Social.wtf — the unified decentralized Web3 social ecosystem & programmable creator storefront hub built natively on @TheCookieChain (SVM)! ⚡
+1/6  Introducing Social.wtf — the unified decentralized Web3 social ecosystem & programmable creator storefront hub built natively on @TheCookieChain (SVM)! 
 
-Consolidating text, photos, video streaming, and live music into one interface where every profile is a custom mini-app. 🧵👇
+Consolidating text, photos, video streaming, and live music into one interface where every profile is a custom mini-app. 
 ```
 
 ### Tweet 2 (Ecosystem & Automated 5% Split)
 ```text
-2/6 💸 Automated Protocol Fee Split:
+2/6  Automated Protocol Fee Split:
 Every transaction on Social.wtf (tips, digital goods, subscriptions) automatically splits proceeds at the SVM contract level:
 • 95% straight to the creator
 • 5% to the platform treasury
 
-Sub-second finality with transactions confirmed on @TheCookieChain! 🚀
+Sub-second finality with transactions confirmed on @TheCookieChain! 
 ```
 
 ### Tweet 3 (Creator Code Studio)
 ```text
-3/6 💻 Creators Can Create Their Own Code!
-Every creator profile is a modular micro-ecosystem. With our Creator Code Studio, creators can write, test, and deploy their own sandboxed HTML/CSS/JS mini-apps, on-chain games (like Cookie Clicker), and custom Web3 widgets directly to their profile! 🎮
+3/6  Creators Can Create Their Own Code!
+Every creator profile is a modular micro-ecosystem. With our Creator Code Studio, creators can write, test, and deploy their own sandboxed HTML/CSS/JS mini-apps, on-chain games (like Cookie Clicker), and custom Web3 widgets directly to their profile! 
 ```
 
 ### Tweet 4 (Privacy AI Shielding)
 ```text
-4/6 🛡️ Zero-Trace Invisible Shielding & Ephemeral Age Gate:
+4/6  Zero-Trace Invisible Shielding & Ephemeral Age Gate:
 Real-time multimodal AI scans uploads. Sensitive media is completely hidden from unverified feeds—zero traces or blur teasers.
 
-Unlocked via Ephemeral Government ID OCR with immediate RAM purging (Zero PII stored) or video selfie checks! 🔒
+Unlocked via Ephemeral Government ID OCR with immediate RAM purging (Zero PII stored) or video selfie checks! 
 ```
 
 ### Tweet 5 (Bridge Guide & Nightly Wallet)
 ```text
-5/6 🌉 How to Bridge to Cookie Chain:
+5/6  How to Bridge to Cookie Chain:
 1. Connect your @Nightly_app wallet
 2. Visit https://hyperlane.cookiescan.io
 3. Bridge SOL / $COOK from Solana to Cookie Chain in <1 minute!
 4. Swap tokens on Cookieswap (https://cookieswap.fun)
 
-Trade, tip, and launch digital storefronts with sub-cent fees! 🍪
+Trade, tip, and launch digital storefronts with sub-cent fees! 
 ```
 
 ### Tweet 6 (Links & Submission)
 ```text
-6/6 🔗 Explore Social.wtf:
+6/6  Explore Social.wtf:
 • Live dApp: https://social-wtf.vercel.app
 • GitHub (Open Source): https://github.com/thepros2014/social.wtf
 • Explorer: https://cookiescan.io
 
-Baking the future of Web3 social on @TheCookieChain! 🍪🔥
+Baking the future of Web3 social on @TheCookieChain! 
 ```
 
 ---
 
-## 📲 Final Submission Step
+##  Final Submission Step
 
 Share your X thread link and live app URL directly in the **[Cookie Chain Telegram](https://t.me/TheCookieNetChain)** community:
 
-> *"Hey @TheCookieNetChain community! 🍪 Just launched Social.wtf on Cookie Chain SVM — unified multi-format social feed, creator code studio mini-apps, automated 5% treasury split, and privacy-first AI shielding. Check out our X thread and live cApp: [Your-X-Thread-URL]"*
+> *"Hey @TheCookieNetChain community!  Just launched Social.wtf on Cookie Chain SVM — unified multi-format social feed, creator code studio mini-apps, automated 5% treasury split, and privacy-first AI shielding. Check out our X thread and live cApp: [Your-X-Thread-URL]"*

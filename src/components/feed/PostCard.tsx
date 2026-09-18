@@ -161,7 +161,7 @@ export const PostCard: React.FC<PostCardProps> = ({
                 </span>
                 {post.author.verified && (
                   <span className="w-4 h-4 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center text-[10px] font-bold">
-                    ✓
+                    
                   </span>
                 )}
                 {post.isShielded && (
@@ -361,7 +361,7 @@ export const PostCard: React.FC<PostCardProps> = ({
                 onClick={() => setShowTipModal(false)}
                 className="p-1 rounded-lg text-slate-400 hover:text-white"
               >
-                ✕
+                
               </button>
             </div>
 

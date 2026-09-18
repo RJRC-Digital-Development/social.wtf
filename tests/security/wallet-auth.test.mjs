@@ -91,7 +91,7 @@ function verifyWalletChallenge({ walletAddress, nonce, signatureBase58 }) {
   });
 
   assert.strictEqual(result.verified, true);
-  console.log('✓ Test 1: Authentic Ed25519 wallet challenge verified successfully');
+  console.log(' Test 1: Authentic Ed25519 wallet challenge verified successfully');
 
   // Test 2: Anti-Replay Attack Protection
   const replayResult = verifyWalletChallenge({
@@ -102,7 +102,7 @@ function verifyWalletChallenge({ walletAddress, nonce, signatureBase58 }) {
 
   assert.strictEqual(replayResult.verified, false);
   assert.strictEqual(replayResult.error, 'Challenge nonce not found or already consumed');
-  console.log('✓ Test 2: Replay attack with previously consumed nonce successfully rejected');
+  console.log(' Test 2: Replay attack with previously consumed nonce successfully rejected');
 }
 
 // Test 3: Signature Forgery / Corruption
@@ -125,7 +125,7 @@ function verifyWalletChallenge({ walletAddress, nonce, signatureBase58 }) {
   });
 
   assert.strictEqual(result.verified, false);
-  console.log('✓ Test 3: Forged / corrupted signature byte rejected');
+  console.log(' Test 3: Forged / corrupted signature byte rejected');
 }
 
 // Test 4: Impersonation / Address Mismatch
@@ -149,7 +149,7 @@ function verifyWalletChallenge({ walletAddress, nonce, signatureBase58 }) {
 
   assert.strictEqual(result.verified, false);
   assert.strictEqual(result.error, 'Wallet address does not match challenge target');
-  console.log('✓ Test 4: Attacker address substitution rejected');
+  console.log(' Test 4: Attacker address substitution rejected');
 }
 
 console.log('ALL CRYPTOGRAPHIC WALLET AUTH TESTS PASSED!\n');

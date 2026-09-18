@@ -40,7 +40,7 @@ console.log('--- RUNNING FEE INVARIANT ADVERSARIAL TESTS ---');
   assert.strictEqual(result.treasuryLamports, 0n);
   assert.strictEqual(result.creatorLamports, 1n);
   assert.strictEqual(result.creatorLamports + result.treasuryLamports, result.totalLamports);
-  console.log('✓ Test 1: 1 lamport edge-case passed');
+  console.log(' Test 1: 1 lamport edge-case passed');
 }
 
 // Test Case 2: 19 lamports prime edge case (0.000000019 COOK)
@@ -50,7 +50,7 @@ console.log('--- RUNNING FEE INVARIANT ADVERSARIAL TESTS ---');
   assert.strictEqual(result.treasuryLamports, 0n);
   assert.strictEqual(result.creatorLamports, 19n);
   assert.strictEqual(result.creatorLamports + result.treasuryLamports, result.totalLamports);
-  console.log('✓ Test 2: 19 lamports prime edge-case passed');
+  console.log(' Test 2: 19 lamports prime edge-case passed');
 }
 
 // Test Case 3: 100 lamports (0.000000100 COOK)
@@ -60,7 +60,7 @@ console.log('--- RUNNING FEE INVARIANT ADVERSARIAL TESTS ---');
   assert.strictEqual(result.treasuryLamports, 5n);
   assert.strictEqual(result.creatorLamports, 95n);
   assert.strictEqual(result.creatorLamports + result.treasuryLamports, result.totalLamports);
-  console.log('✓ Test 3: 100 lamports test passed');
+  console.log(' Test 3: 100 lamports test passed');
 }
 
 // Test Case 4: 10,000 lamports (0.000010000 COOK)
@@ -70,7 +70,7 @@ console.log('--- RUNNING FEE INVARIANT ADVERSARIAL TESTS ---');
   assert.strictEqual(result.treasuryLamports, 500n);
   assert.strictEqual(result.creatorLamports, 9_500n);
   assert.strictEqual(result.creatorLamports + result.treasuryLamports, result.totalLamports);
-  console.log('✓ Test 4: 10,000 lamports test passed');
+  console.log(' Test 4: 10,000 lamports test passed');
 }
 
 // Test Case 5: Large safe amounts (1,000,000 COOK)
@@ -80,7 +80,7 @@ console.log('--- RUNNING FEE INVARIANT ADVERSARIAL TESTS ---');
   assert.strictEqual(result.treasuryLamports, 50_000_000_000_000n);
   assert.strictEqual(result.creatorLamports, 950_000_000_000_000n);
   assert.strictEqual(result.creatorLamports + result.treasuryLamports, result.totalLamports);
-  console.log('✓ Test 5: 1,000,000 COOK large amount test passed');
+  console.log(' Test 5: 1,000,000 COOK large amount test passed');
 }
 
 // Test Case 6: Fuzzing 1,000 random payment amounts
@@ -95,7 +95,7 @@ console.log('--- RUNNING FEE INVARIANT ADVERSARIAL TESTS ---');
       'Fuzz invariant failed'
     );
   }
-  console.log('✓ Test 6: 1,000 iterations of random fee fuzzing verified invariant holds 100%');
+  console.log(' Test 6: 1,000 iterations of random fee fuzzing verified invariant holds 100%');
 }
 
 console.log('ALL FEE INVARIANT ADVERSARIAL TESTS PASSED!\n');

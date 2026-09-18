@@ -64,14 +64,14 @@ export const CreatorProfile: React.FC<CreatorProfileProps> = ({
     {
       id: 'default-custom-code',
       type: 'custom_code',
-      title: '🍪 Cookie Clicker On-Chain Mini-App',
+      title: ' Cookie Clicker On-Chain Mini-App',
       enabled: true,
       data: {
         description: 'Interactive creator-authored game running in client-side sandbox.',
         html: `<div style="text-align: center;">
-  <h3 style="color: #fbbf24; font-size: 15px; margin-bottom: 4px;">🍪 Cookie Baker Mini-Game</h3>
+  <h3 style="color: #fbbf24; font-size: 15px; margin-bottom: 4px;"> Cookie Baker Mini-Game</h3>
   <p style="color: #94a3b8; font-size: 11px; margin-bottom: 10px;">Click the cookie to bake $COOK on Cookie Chain!</p>
-  <button id="cookieBtn" style="font-size: 48px; background: none; border: none; cursor: pointer; transition: transform 0.1s; user-select: none;">🍪</button>
+  <button id="cookieBtn" style="font-size: 48px; background: none; border: none; cursor: pointer; transition: transform 0.1s; user-select: none;"></button>
   <div style="margin: 10px 0; font-family: monospace; font-size: 13px; color: #38bdf8; display: flex; justify-content: space-around; background: #070b14; padding: 8px; border-radius: 12px; border: 1px solid #1e293b;">
     <div>Baked: <strong id="score" style="color: #fbbf24;">0</strong> COOK</div>
     <div>Speed: <span id="cps">0.0</span> /s</div>
@@ -207,7 +207,7 @@ setInterval(() => {
                 </h1>
                 {creator.verified && (
                   <span className="w-5 h-5 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center text-xs font-bold">
-                    ✓
+                    
                   </span>
                 )}
                 <span className="px-2 py-0.5 rounded-lg bg-amber-500/15 border border-amber-500/30 text-[10px] font-bold text-amber-300">

@@ -8,9 +8,9 @@ async function runTests() {
   try {
     const slot = await connection.getSlot();
     const version = await connection.getVersion();
-    console.log('✅ RPC is live! Current slot:', slot, 'Solana-core version:', version);
+    console.log(' RPC is live! Current slot:', slot, 'Solana-core version:', version);
   } catch (err) {
-    console.error('❌ RPC connection failed:', err);
+    console.error(' RPC connection failed:', err);
     process.exit(1);
   }
 
@@ -35,7 +35,7 @@ async function runTests() {
       throw new Error(`Rounding discrepancy detected on ${amt}`);
     }
     console.log(
-      `✅ Total: ${amt.toFixed(2)} COOK -> Creator (95%): ${split.creatorCook.toFixed(4)} COOK | Treasury (5%): ${split.treasuryCook.toFixed(4)} COOK`
+      ` Total: ${amt.toFixed(2)} COOK -> Creator (95%): ${split.creatorCook.toFixed(4)} COOK | Treasury (5%): ${split.treasuryCook.toFixed(4)} COOK`
     );
   }
 
@@ -59,13 +59,13 @@ async function runTests() {
   if (unverifiedView.length !== 2) {
     throw new Error('Unverified feed did not filter cleanly');
   }
-  console.log('✅ Unverified feed contains 0 traces of shielded content. Total visible:', unverifiedView.length);
+  console.log(' Unverified feed contains 0 traces of shielded content. Total visible:', unverifiedView.length);
 
   const verifiedView = filterPosts(testPosts, true, true);
   if (verifiedView.length !== 3) {
     throw new Error('Verified unshielded feed did not reveal restricted post');
   }
-  console.log('✅ Age-Verified unshielded feed reveals unlocked content. Total visible:', verifiedView.length);
+  console.log(' Age-Verified unshielded feed reveals unlocked content. Total visible:', verifiedView.length);
 
   console.log('\n--- ALL ARCHITECTURAL TESTS PASSED SUCCESSFULLY! ---');
 }

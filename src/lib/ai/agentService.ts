@@ -84,7 +84,7 @@ export class SocialWtfAiAgent {
         id: `msg-${Date.now()}`,
         sender: 'agent',
         timestamp,
-        content: '⚠️ Rate limit reached for AI agent requests. Please wait a moment before sending another query.',
+        content: ' Rate limit reached for AI agent requests. Please wait a moment before sending another query.',
       };
     }
 
@@ -105,7 +105,7 @@ export class SocialWtfAiAgent {
         sender: 'agent',
         timestamp,
         content:
-          '🛡️ **Security Notice**: Social.wtf Sentinel AI operates within strict verifiable privacy boundaries. System prompts and zero-trace cryptographic memory states are protected against external extraction.',
+          ' **Security Notice**: Social.wtf Sentinel AI operates within strict verifiable privacy boundaries. System prompts and zero-trace cryptographic memory states are protected against external extraction.',
       };
     }
 
@@ -133,28 +133,28 @@ export class SocialWtfAiAgent {
         id: `msg-${Date.now()}`,
         sender: 'agent',
         timestamp,
-        content: `🛡️ **Sentinel AI Verification Policy & Status:**\n\n- **18+ Age Requirement:** 18 years old and over required to access Adult Entertainment.\n- **Payment Card ($0 Age Check):** ${
-          isCard ? '✅ VERIFIED' : '❌ PENDING (Debit or Credit card required)'
+        content: ` **Sentinel AI Verification Policy & Status:**\n\n- **18+ Age Requirement:** 18 years old and over required to access Adult Entertainment.\n- **Payment Card ($0 Age Check):** ${
+          isCard ? ' VERIFIED' : ' PENDING (Debit or Credit card required)'
         }\n- **AI Live Video Verification:** ${
-          isVideo ? '✅ ACTIVE (Neural liveness confirmed)' : '❌ PENDING'
+          isVideo ? ' ACTIVE (Neural liveness confirmed)' : ' PENDING'
         }\n- **Under-25 Safeguard:** ${
           under25
             ? isId
-              ? '✅ SATISFIED (Valid Driver’s License / ID verified)'
-              : '⚠️ REQUIRED (Under 25 flagged — Driver’s License or ID card required to continue)'
-            : '✅ EXEMPT / SATISFIED'
+              ? ' SATISFIED (Valid Driver’s License / ID verified)'
+              : ' REQUIRED (Under 25 flagged — Driver’s License or ID card required to continue)'
+            : ' EXEMPT / SATISFIED'
         }\n- **Adult Entertainment Access:** ${
-          adultUnlocked ? '🔓 UNLOCKED' : '🔒 SHIELDED (Complete required verification steps)'
+          adultUnlocked ? ' UNLOCKED' : ' SHIELDED (Complete required verification steps)'
         }\n\n*Zero Shortcut & Privacy Guarantee:* Verification is conducted strictly by autonomous AI agents and will not be reviewed by humans for privacy reasons unless flagged for review. Raw video buffers and card checks exist solely in client RAM and are wiped instantly upon verification.`,
         actions: [
           ...(!adultUnlocked
             ? [
                 {
                   label: !isCard
-                    ? '💳 Add Payment Card ($0 Age Check)'
+                    ? ' Add Payment Card ($0 Age Check)'
                     : !isVideo
-                    ? '⚡ Run Live Video Verification'
-                    : '📄 Upload Driver\'s License / ID',
+                    ? ' Run Live Video Verification'
+                    : ' Upload Driver\'s License / ID',
                   actionType: 'open_verify' as const,
                   payload: { tab: !isCard ? 'card_auth' : !isVideo ? 'video_liveness' : 'id_upload' },
                 },
@@ -184,7 +184,7 @@ export class SocialWtfAiAgent {
           id: `msg-${Date.now()}`,
           sender: 'agent',
           timestamp,
-          content: `🔍 **Search Results Found:**\n\nI located ${searchRes.products.length} digital storefront drops and ${searchRes.creators.length} creator mini-apps matching your request on Cookie Chain.`,
+          content: ` **Search Results Found:**\n\nI located ${searchRes.products.length} digital storefront drops and ${searchRes.creators.length} creator mini-apps matching your request on Cookie Chain.`,
           actions: searchRes.products.slice(0, 2).map((prod) => ({
             label: `View ${prod.title} (${prod.priceCook} COOK)`,
             actionType: 'open_store',
@@ -205,7 +205,7 @@ export class SocialWtfAiAgent {
         id: `msg-${Date.now()}`,
         sender: 'agent',
         timestamp,
-        content: `💰 **Cookie Chain 5% Protocol Fee Task Assistant:**\n\nEvery tip or storefront purchase is executed atomically on Cookie Chain SVM:\n- **Creator Direct:** 95% (${splitExample.creatorAmount} COOK for a 5 COOK tip)\n- **Social.wtf Treasury:** 5% (${splitExample.treasuryAmount} COOK to fund validator grants & platform innovation)\n\nWho would you like to tip?`,
+        content: ` **Cookie Chain 5% Protocol Fee Task Assistant:**\n\nEvery tip or storefront purchase is executed atomically on Cookie Chain SVM:\n- **Creator Direct:** 95% (${splitExample.creatorAmount} COOK for a 5 COOK tip)\n- **Social.wtf Treasury:** 5% (${splitExample.treasuryAmount} COOK to fund validator grants & platform innovation)\n\nWho would you like to tip?`,
         actions: [
           {
             label: 'Tip 2.0 COOK to Cookie Baker',
@@ -234,7 +234,7 @@ export class SocialWtfAiAgent {
         id: `msg-${Date.now()}`,
         sender: 'agent',
         timestamp,
-        content: `📊 **Cookie Chain SVM Live Network Metrics:**\n\n- **RPC Endpoint:** \`${COOKIE_CHAIN_CONFIG.rpcUrl}\`\n- **Block Time / Finality:** Sub-second (~1.0s)\n- **Platform Volume:** ${INITIAL_TREASURY_METRICS.totalPlatformVolumeCook.toLocaleString()} COOK\n- **Treasury Collected (5%):** ${INITIAL_TREASURY_METRICS.totalTreasuryCollectedCook.toFixed(
+        content: ` **Cookie Chain SVM Live Network Metrics:**\n\n- **RPC Endpoint:** \`${COOKIE_CHAIN_CONFIG.rpcUrl}\`\n- **Block Time / Finality:** Sub-second (~1.0s)\n- **Platform Volume:** ${INITIAL_TREASURY_METRICS.totalPlatformVolumeCook.toLocaleString()} COOK\n- **Treasury Collected (5%):** ${INITIAL_TREASURY_METRICS.totalTreasuryCollectedCook.toFixed(
           2
         )} COOK\n- **Active SVM Creators:** ${INITIAL_TREASURY_METRICS.activeCreatorsCount}`,
         actions: [
@@ -253,7 +253,7 @@ export class SocialWtfAiAgent {
     // Task 5: Generate Mini-App Code
     if (p.includes('code') || p.includes('mini-app') || p.includes('widget') || p.includes('generate')) {
       const generatedCode = `<div style="text-align: center; padding: 12px; background: #070b14; border-radius: 16px; border: 1px solid #38bdf8;">
-  <h4 style="color: #38bdf8; margin: 0 0 6px 0;">⚡ SVM Alpha Radar</h4>
+  <h4 style="color: #38bdf8; margin: 0 0 6px 0;"> SVM Alpha Radar</h4>
   <p style="color: #94a3b8; font-size: 11px;">Interactive creator widget generated by Sentinel AI Agent</p>
   <button onclick="this.nextElementSibling.textContent = 'Alpha signal locked: Slot #' + Math.floor(Math.random()*1000000);" style="background: #38bdf8; color: #000; font-weight: bold; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer;">Scan Block</button>
   <div style="color: #4ade80; font-size: 11px; margin-top: 8px; min-height: 16px; font-family: monospace;"></div>
@@ -263,7 +263,7 @@ export class SocialWtfAiAgent {
         id: `msg-${Date.now()}`,
         sender: 'agent',
         timestamp,
-        content: `💻 **AI Code Generation Task Complete:**\n\nI generated an interactive SVM creator widget snippet for your personal mini-app profile. You can inspect or copy it below to paste into the Creator Code Studio!`,
+        content: ` **AI Code Generation Task Complete:**\n\nI generated an interactive SVM creator widget snippet for your personal mini-app profile. You can inspect or copy it below to paste into the Creator Code Studio!`,
         actions: [
           {
             label: 'Open Creator Code Studio',
@@ -284,15 +284,15 @@ export class SocialWtfAiAgent {
       id: `msg-${Date.now()}`,
       sender: 'agent',
       timestamp,
-      content: `🤖 I am the **Social.wtf Autonomous AI Agent**. I can help you search the ecosystem, verify your identity & live video presence, inspect Cookie Chain transactions, or generate creator code.\n\n*Matching Items Found:* ${generalSearch.creators.length} creators, ${generalSearch.products.length} storefront items.`,
+      content: ` I am the **Social.wtf Autonomous AI Agent**. I can help you search the ecosystem, verify your identity & live video presence, inspect Cookie Chain transactions, or generate creator code.\n\n*Matching Items Found:* ${generalSearch.creators.length} creators, ${generalSearch.products.length} storefront items.`,
       actions: [
         {
-          label: '🔍 Explore Storefront Drops',
+          label: ' Explore Storefront Drops',
           actionType: 'navigate_tab',
           payload: { view: 'store' },
         },
         {
-          label: '🛡️ Verify with AI Agent',
+          label: ' Verify with AI Agent',
           actionType: 'open_verify',
           payload: { tab: 'video_liveness' },
         },

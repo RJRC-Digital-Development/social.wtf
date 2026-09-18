@@ -100,7 +100,7 @@ export const CommunityHub: React.FC<CommunityHubProps> = ({
 
     const created: DiscussionTopic = {
       id: `disc-${Date.now()}`,
-      title: newCategory === 'wishlist' ? `💡 ${newTitle}` : newTitle,
+      title: newCategory === 'wishlist' ? ` ${newTitle}` : newTitle,
       category: newCategory,
       author: {
         name: 'You (Cookie Chain Creator)',
@@ -188,15 +188,15 @@ export const CommunityHub: React.FC<CommunityHubProps> = ({
   const getCategoryBadge = (cat: DiscussionCategory) => {
     switch (cat) {
       case 'wishlist':
-        return { label: '💡 Feature Wishlist', color: 'bg-amber-500/15 text-amber-300 border-amber-500/30' };
+        return { label: ' Feature Wishlist', color: 'bg-amber-500/15 text-amber-300 border-amber-500/30' };
       case 'update':
-        return { label: '🚀 Platform Update', color: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30' };
+        return { label: ' Platform Update', color: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30' };
       case 'news':
-        return { label: '📰 Ecosystem News', color: 'bg-blue-500/15 text-blue-300 border-blue-500/30' };
+        return { label: ' Ecosystem News', color: 'bg-blue-500/15 text-blue-300 border-blue-500/30' };
       case 'dev_support':
-        return { label: '🛠️ Creator & Dev Support', color: 'bg-purple-500/15 text-purple-300 border-purple-500/30' };
+        return { label: ' Creator & Dev Support', color: 'bg-purple-500/15 text-purple-300 border-purple-500/30' };
       default:
-        return { label: '💬 General', color: 'bg-slate-800 text-slate-300 border-slate-700' };
+        return { label: ' General', color: 'bg-slate-800 text-slate-300 border-slate-700' };
     }
   };
 
@@ -268,11 +268,11 @@ export const CommunityHub: React.FC<CommunityHubProps> = ({
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-1.5 w-full sm:w-auto">
               {[
-                { id: 'all', label: '🌟 All Topics' },
-                { id: 'wishlist', label: '💡 Wishlists' },
-                { id: 'update', label: '🚀 Updates' },
-                { id: 'news', label: '📰 News' },
-                { id: 'dev_support', label: '🛠️ Dev Support' },
+                { id: 'all', label: ' All Topics' },
+                { id: 'wishlist', label: ' Wishlists' },
+                { id: 'update', label: ' Updates' },
+                { id: 'news', label: ' News' },
+                { id: 'dev_support', label: ' Dev Support' },
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -480,11 +480,11 @@ export const CommunityHub: React.FC<CommunityHubProps> = ({
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-1.5 w-full sm:w-auto">
               {[
-                { id: 'all', label: '📖 All Guides' },
-                { id: 'creator_sdk', label: '🎨 Creator SDK & Pages' },
-                { id: 'tokenomics', label: '💰 5% Protocol Fee' },
-                { id: 'privacy_ai', label: '🛡️ Sentinel AI & Privacy' },
-                { id: 'developers', label: '⚡ SVM Tools & RPC' },
+                { id: 'all', label: ' All Guides' },
+                { id: 'creator_sdk', label: ' Creator SDK & Pages' },
+                { id: 'tokenomics', label: ' 5% Protocol Fee' },
+                { id: 'privacy_ai', label: ' Sentinel AI & Privacy' },
+                { id: 'developers', label: ' SVM Tools & RPC' },
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -619,7 +619,7 @@ export const CommunityHub: React.FC<CommunityHubProps> = ({
                 onClick={() => setNewTopicModalOpen(false)}
                 className="p-1 rounded-lg text-slate-400 hover:text-white"
               >
-                ✕
+                
               </button>
             </div>
 
@@ -631,11 +631,11 @@ export const CommunityHub: React.FC<CommunityHubProps> = ({
                   onChange={(e) => setNewCategory(e.target.value as DiscussionCategory)}
                   className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-amber-400"
                 >
-                  <option value="wishlist">💡 Feature Wishlist / Inspired Addition</option>
-                  <option value="idea">✨ Creator Idea &amp; Feedback</option>
-                  <option value="dev_support">🛠️ Creator &amp; Dev Support</option>
-                  <option value="news">📰 Ecosystem News Alpha</option>
-                  <option value="update">🚀 Changelog / Platform Update</option>
+                  <option value="wishlist"> Feature Wishlist / Inspired Addition</option>
+                  <option value="idea"> Creator Idea &amp; Feedback</option>
+                  <option value="dev_support"> Creator &amp; Dev Support</option>
+                  <option value="news"> Ecosystem News Alpha</option>
+                  <option value="update"> Changelog / Platform Update</option>
                 </select>
               </div>
 

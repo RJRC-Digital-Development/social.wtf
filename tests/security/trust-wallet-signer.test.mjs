@@ -98,7 +98,7 @@ async function runTests() {
       generated.publicKey.toBase58(),
       'Parsed public key must match original Keypair'
     );
-    console.log('  ✓ Standard Trust Wallet Base58 exported private key parsed and public address verified');
+    console.log('   Standard Trust Wallet Base58 exported private key parsed and public address verified');
   }
 
   console.log('\n[TEST 2] Solana CLI JSON Byte Array Parsing');
@@ -113,7 +113,7 @@ async function runTests() {
       generated.publicKey.toBase58(),
       'Parsed public key must match original Keypair'
     );
-    console.log('  ✓ Standard JSON byte array [12, 34, ... 64] parsed and public address verified');
+    console.log('   Standard JSON byte array [12, 34, ... 64] parsed and public address verified');
   }
 
   console.log('\n[TEST 3] Hex String Private Key Parsing');
@@ -127,7 +127,7 @@ async function runTests() {
       parsed.publicKey.toBase58(),
       generated.publicKey.toBase58()
     );
-    console.log('  ✓ Standard 64-byte Hex private key parsed and public address verified');
+    console.log('   Standard 64-byte Hex private key parsed and public address verified');
   }
 
   console.log('\n[TEST 4] Malformed & Adversarial Private Key Rejection');
@@ -148,7 +148,7 @@ async function runTests() {
       const result = parsePrivateKey(input);
       assert.strictEqual(result, null, `Invalid input '${input}' must return null safely`);
     }
-    console.log('  ✓ All malformed, truncated, and corrupt private key inputs safely rejected');
+    console.log('   All malformed, truncated, and corrupt private key inputs safely rejected');
   }
 
   console.log('\n[TEST 5] Trust Wallet SIWS Challenge Message Signing');
@@ -168,7 +168,7 @@ async function runTests() {
     const isValid = ed25519.verify(decodedSig, messageBytes, walletKeypair.publicKey.toBytes());
 
     assert.strictEqual(isValid, true, 'SIWS signature signed with Trust Wallet Keypair must be cryptographically valid');
-    console.log('  ✓ Trust Wallet SIWS challenge signing produces verifiable Ed25519 signature');
+    console.log('   Trust Wallet SIWS challenge signing produces verifiable Ed25519 signature');
   }
 
   console.log('\n[TEST 6] Atomic On-Chain Transaction Construction with Fee Split');
@@ -205,7 +205,7 @@ async function runTests() {
     assert.strictEqual(tx.instructions.length, 2);
     assert.strictEqual(tx.signatures.length, 1);
     assert.ok(tx.verifySignatures(), 'Transaction signature must be valid');
-    console.log('  ✓ Server signer successfully signed atomic split transaction adhering to CEI and fee invariants');
+    console.log('   Server signer successfully signed atomic split transaction adhering to CEI and fee invariants');
   }
 
   console.log('\n[TEST 7] Zero-Leak Server Signer Status Introspection');
@@ -226,7 +226,7 @@ async function runTests() {
     const jsonOutput = JSON.stringify(publicStatus);
     assert.ok(!jsonOutput.includes(mockEnv.PLATFORM_PRIVATE_KEY), 'Private key must NEVER be leaked in status API');
     assert.strictEqual(publicStatus.signerAddress, signer.publicKey.toBase58());
-    console.log('  ✓ Server signer status API exposes only public address and readiness (zero secret leakage)');
+    console.log('   Server signer status API exposes only public address and readiness (zero secret leakage)');
   }
 
   console.log('\n[TEST 8] Transaction Amount Bounds & Recipient Public Key Validation');
@@ -255,7 +255,7 @@ async function runTests() {
     assert.doesNotThrow(() => new PublicKey(validPubkey));
     assert.throws(() => new PublicKey('invalid_not_base58_string!!!'));
     assert.throws(() => new PublicKey(''));
-    console.log('  ✓ Amount bounds checking (0 < amount <= 10,000) and Base58 recipient validation verified');
+    console.log('   Amount bounds checking (0 < amount <= 10,000) and Base58 recipient validation verified');
   }
 
   console.log('\n[TEST 9] Server-Signer Unauthenticated Access Rejection');
@@ -266,15 +266,15 @@ async function runTests() {
     };
     const hasAuth = mockRequestNoAuth.headers.has('authorization') || mockRequestNoAuth.headers.has('cookie');
     assert.strictEqual(hasAuth, false, 'Unauthenticated execution request must be detected');
-    console.log('  ✓ Automated server signer execution strictly requires authenticated wallet session (401 guard)');
+    console.log('   Automated server signer execution strictly requires authenticated wallet session (401 guard)');
   }
 
   console.log('\n================================================================');
-  console.log('🛡️  ALL 9 TRUST WALLET & SERVER SIGNER TESTS PASSED! 🛡️');
+  console.log('  ALL 9 TRUST WALLET & SERVER SIGNER TESTS PASSED! ');
   console.log('================================================================\n');
 }
 
 runTests().catch((err) => {
-  console.error('\n❌ TEST FAILED:', err);
+  console.error('\n TEST FAILED:', err);
   process.exit(1);
 });

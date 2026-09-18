@@ -116,18 +116,18 @@ export const EcosystemHubModal: React.FC<EcosystemHubModalProps> = ({
             onClick={onClose}
             className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
           >
-            ✕
+            
           </button>
         </div>
 
         {/* Tab Navigation */}
         <div className="flex gap-2 py-3 border-b border-slate-800 overflow-x-auto shrink-0 text-xs font-semibold">
           {[
-            { id: 'bridge', label: '🌉 Hyperlane Bridge', icon: ArrowRightLeft },
-            { id: 'cookieswap', label: '🔄 Cookieswap (DEX)', icon: Coins },
-            { id: 'cookiebox', label: '📦 Cookiebox', icon: Box },
-            { id: 'das', label: '📊 Cookie DAS API', icon: Database },
-            { id: 'mcp', label: '🤖 cookie-mcp (AI Agents)', icon: Bot },
+            { id: 'bridge', label: ' Hyperlane Bridge', icon: ArrowRightLeft },
+            { id: 'cookieswap', label: ' Cookieswap (DEX)', icon: Coins },
+            { id: 'cookiebox', label: ' Cookiebox', icon: Box },
+            { id: 'das', label: ' Cookie DAS API', icon: Database },
+            { id: 'mcp', label: ' cookie-mcp (AI Agents)', icon: Bot },
           ].map((t) => {
             const Icon = t.icon;
             return (

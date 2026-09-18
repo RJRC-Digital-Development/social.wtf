@@ -57,14 +57,14 @@ const limiter = new SlidingWindowRateLimiter();
     assert.strictEqual(res.allowed, true, `Request ${i} should be allowed`);
     assert.strictEqual(res.remaining, limit - i);
   }
-  console.log('✓ Test 1: Permitted requests up to limit quota (5/5)');
+  console.log(' Test 1: Permitted requests up to limit quota (5/5)');
 
   // Test 2: Throttling / Rejection when limit exceeded
   const rejectedRes = limiter.check(testKey, limit, windowMs);
   assert.strictEqual(rejectedRes.allowed, false, '6th request must be throttled');
   assert.strictEqual(rejectedRes.remaining, 0);
   assert.ok(rejectedRes.resetMs > 0);
-  console.log('✓ Test 2: DoS burst traffic throttled and rejected beyond limit quota');
+  console.log(' Test 2: DoS burst traffic throttled and rejected beyond limit quota');
 }
 
 // Test 3: Key Isolation
@@ -85,7 +85,7 @@ const limiter = new SlidingWindowRateLimiter();
   const resB = limiter.check(ipB, limit, windowMs);
   assert.strictEqual(resB.allowed, true);
   assert.strictEqual(resB.remaining, 2);
-  console.log('✓ Test 3: Per-IP / Per-Identity key isolation strictly enforced');
+  console.log(' Test 3: Per-IP / Per-Identity key isolation strictly enforced');
 }
 
 // Test 4: Reset capability
@@ -96,7 +96,7 @@ const limiter = new SlidingWindowRateLimiter();
 
   limiter.reset(testKey);
   assert.strictEqual(limiter.check(testKey, 1, 10_000).allowed, true);
-  console.log('✓ Test 4: Administrative state reset functions properly');
+  console.log(' Test 4: Administrative state reset functions properly');
 }
 
 console.log('ALL RATE LIMITER & DOS RESISTANCE TESTS PASSED!\n');

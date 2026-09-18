@@ -1,4 +1,4 @@
-# Social.wtf Creator SDK 🍪
+# Social.wtf Creator SDK 
 
 A clean, concise, security-conscious development kit for creators and developers to build, customize, and deploy their own sovereign profile pages, storefronts, and interactive code mini-apps on **Cookie Chain (SVM)**.
 
@@ -24,7 +24,7 @@ export default function MyCreatorPage() {
   return (
     <CreatorPage
       handle="cryptobaker"
-      name="The Cookie Baker 🍪"
+      name="The Cookie Baker "
       avatar="https://.../avatar.jpg"
       bio="Pioneering SVM culture on Cookie Chain."
       walletAddress="CookBaker77777777777777777777777777777777"

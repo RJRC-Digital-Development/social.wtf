@@ -350,10 +350,10 @@ export const Feed: React.FC<FeedProps> = ({
       <div className="flex flex-wrap items-center justify-between gap-3 pb-2 border-b border-slate-800">
         <div className="flex flex-wrap gap-2">
           {[
-            { id: 'all', label: '🌟 All Stream' },
-            { id: 'trending', label: '🔥 Trending' },
-            { id: 'audio', label: '🎵 Music Hub' },
-            { id: 'video', label: '🎬 Video Drops' },
+            { id: 'all', label: ' All Stream' },
+            { id: 'trending', label: ' Trending' },
+            { id: 'audio', label: ' Music Hub' },
+            { id: 'video', label: ' Video Drops' },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -378,7 +378,7 @@ export const Feed: React.FC<FeedProps> = ({
                   : 'bg-rose-500/10 border border-rose-500/30 text-rose-300 hover:bg-rose-500/20'
               }`}
             >
-              🔥 Adult Entertainment (18+)
+               Adult Entertainment (18+)
             </button>
           )}
         </div>

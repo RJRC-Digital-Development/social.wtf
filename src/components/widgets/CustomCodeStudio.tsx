@@ -23,12 +23,12 @@ interface CustomCodeStudioProps {
 const TEMPLATES = [
   {
     id: 'cookie_clicker',
-    name: '🍪 Cookie Clicker On-Chain Game',
+    name: ' Cookie Clicker On-Chain Game',
     description: 'An interactive mini-game where visitors click the cookie to bake points on Cookie Chain.',
     html: `<div class="game-box">
-  <h2>🍪 Cookie Baker Mini-Game</h2>
+  <h2> Cookie Baker Mini-Game</h2>
   <p class="sub">Click to bake $COOK!</p>
-  <button id="cookieBtn" class="big-cookie">🍪</button>
+  <button id="cookieBtn" class="big-cookie"></button>
   <div class="score-board">
     <div>Baked: <span id="score">0</span> COOK</div>
     <div>Speed: <span id="cps">0.0</span> /s</div>
@@ -91,10 +91,10 @@ setInterval(() => {
   },
   {
     id: 'canvas_particles',
-    name: '✨ Cyber SVM Generative Visualizer',
+    name: ' Cyber SVM Generative Visualizer',
     description: 'Interactive HTML5 canvas particle matrix responsive to mouse movements.',
     html: `<div class="vis-container">
-  <div class="header">✨ Generative Particle Canvas</div>
+  <div class="header"> Generative Particle Canvas</div>
   <canvas id="particleCanvas"></canvas>
   <div class="footer">Hover / Click to spawn sub-second energy</div>
 </div>`,
@@ -158,10 +158,10 @@ canvas.addEventListener('click', (e) => {
   },
   {
     id: 'tip_calculator',
-    name: '🧮 Interactive 5% Treasury Split Calculator',
+    name: ' Interactive 5% Treasury Split Calculator',
     description: 'Dynamic visual fee calculator showing real-time creator proceeds and platform cuts.',
     html: `<div class="calc-card">
-  <h3>⚡ Cookie Chain Fee Splitter</h3>
+  <h3> Cookie Chain Fee Splitter</h3>
   <input type="range" id="cookRange" min="1" max="100" value="25" />
   <div class="amt-display"><span id="totalCook">25</span> COOK</div>
   <div class="split-row creator">
@@ -314,7 +314,7 @@ export const CustomCodeStudio: React.FC<CustomCodeStudioProps> = ({
             onClick={onClose}
             className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
           >
-            ✕
+            
           </button>
         </div>
 

@@ -78,7 +78,7 @@ export const NightlyWalletButton: React.FC = () => {
                   onClick={() => setShowSelectModal(false)}
                   className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"
                 >
-                  ✕
+                  
                 </button>
               </div>
 

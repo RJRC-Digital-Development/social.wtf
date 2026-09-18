@@ -92,7 +92,7 @@ console.log('--- RUNNING INPUT SANITIZATION & ANTI-SSRF ADVERSARIAL TESTS ---');
     assert.strictEqual(sanitized.includes('"'), false);
     assert.strictEqual(sanitized.includes("'"), false);
   }
-  console.log('✓ Test Suite 1: All XSS vectors escaped and neutralized safely');
+  console.log(' Test Suite 1: All XSS vectors escaped and neutralized safely');
 }
 
 // Test Suite 2: SSRF & Malicious Scheme Rejection
@@ -119,7 +119,7 @@ console.log('--- RUNNING INPUT SANITIZATION & ANTI-SSRF ADVERSARIAL TESTS ---');
     const isSafe = isValidSafeUrl(url);
     assert.strictEqual(isSafe, false);
   }
-  console.log('✓ Test Suite 2: All SSRF, private IPs, cloud metadata, and malicious URI schemes rejected');
+  console.log(' Test Suite 2: All SSRF, private IPs, cloud metadata, and malicious URI schemes rejected');
 }
 
 // Test Suite 3: Permitted Valid Public Web3 URLs

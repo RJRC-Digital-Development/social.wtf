@@ -49,20 +49,20 @@ export const AiAgentModal: React.FC<AiAgentModalProps> = ({
       id: 'welcome-1',
       sender: 'agent',
       timestamp: 'Just now',
-      content: `👋 **Welcome! I am the Sentinel AI Agent for Social.wtf.**\n\nI can fulfill tasks, search the Cookie Chain ecosystem, guide your 18+ Adult Entertainment verification (debit/credit card age check + AI video verification, with Driver's License or ID if determined under 25, 100% verified by autonomous AI agents with zero human review for viewer privacy), and inspect on-chain transactions with automated 5% fee splitting.`,
+      content: ` **Welcome! I am the Sentinel AI Agent for Social.wtf.**\n\nI can fulfill tasks, search the Cookie Chain ecosystem, guide your 18+ Adult Entertainment verification (debit/credit card age check + AI video verification, with Driver's License or ID if determined under 25, 100% verified by autonomous AI agents with zero human review for viewer privacy), and inspect on-chain transactions with automated 5% fee splitting.`,
       actions: [
         {
-          label: '🛡️ Verify Age (18+ Adult Entertainment)',
+          label: ' Verify Age (18+ Adult Entertainment)',
           actionType: 'open_verify',
           payload: { tab: 'card_auth' },
         },
         {
-          label: '🔍 Search Digital Goods',
+          label: ' Search Digital Goods',
           actionType: 'navigate_tab',
           payload: { view: 'store' },
         },
         {
-          label: '⚡ Check Cookie Chain Stats',
+          label: ' Check Cookie Chain Stats',
           actionType: 'navigate_tab',
           payload: { view: 'analytics' },
         },
@@ -266,11 +266,11 @@ export const AiAgentModal: React.FC<AiAgentModalProps> = ({
         <div className="px-4 py-2 border-t border-slate-800/60 flex items-center gap-1.5 overflow-x-auto bg-slate-900/40 text-[10px] text-slate-400 no-scrollbar">
           <span className="shrink-0 text-slate-500">Suggested:</span>
           {[
-            '🛡️ Check my verification status',
-            '🔍 Search audio stems & 3D art',
-            '💰 Calculate 5% fee split',
-            '⚡ Live Cookie Chain stats',
-            '💻 Generate mini-app code',
+            ' Check my verification status',
+            ' Search audio stems & 3D art',
+            ' Calculate 5% fee split',
+            ' Live Cookie Chain stats',
+            ' Generate mini-app code',
           ].map((prompt, i) => (
             <button
               key={i}

@@ -283,7 +283,7 @@ async function runTests() {
     assert.strictEqual(res.authorized, false);
     assert.strictEqual(res.status, 401);
     assert.strictEqual(res.code, 'AUTH_REQUIRED');
-    console.log('  ✓ Correctly rejected unauthenticated request with 401 AUTH_REQUIRED');
+    console.log('   Correctly rejected unauthenticated request with 401 AUTH_REQUIRED');
   }
 
   console.log('\n[TEST 2] Role Scope Hierarchy Enforcement');
@@ -317,7 +317,7 @@ async function runTests() {
     assert.strictEqual(adminToCreator.authorized, true);
     assert.strictEqual(adminToAdmin.authorized, true);
 
-    console.log('  ✓ Scope hierarchy enforced strictly (admin > creator > user)');
+    console.log('   Scope hierarchy enforced strictly (admin > creator > user)');
   }
 
   console.log('\n[TEST 3] Resource Ownership Verification (requireWalletMatch)');
@@ -330,7 +330,7 @@ async function runTests() {
     assert.strictEqual(mismatchRes.authorized, false);
     assert.strictEqual(mismatchRes.status, 403);
     assert.strictEqual(mismatchRes.code, 'WALLET_MISMATCH');
-    console.log('  ✓ Resource ownership mismatch rejected with 403 WALLET_MISMATCH');
+    console.log('   Resource ownership mismatch rejected with 403 WALLET_MISMATCH');
   }
 
   console.log('\n[TEST 4] Adult Entertainment Gating: Step 1 - Card Verification Required');
@@ -341,7 +341,7 @@ async function runTests() {
     const res = await authorizeMockRequest(session, { requireAdultAccess: true });
     assert.strictEqual(res.authorized, false);
     assert.strictEqual(res.code, 'CARD_REQUIRED');
-    console.log('  ✓ Missing payment card verification correctly returns CARD_REQUIRED');
+    console.log('   Missing payment card verification correctly returns CARD_REQUIRED');
   }
 
   console.log('\n[TEST 5] Adult Entertainment Gating: Step 2 - AI Video Liveness Required');
@@ -353,7 +353,7 @@ async function runTests() {
     const res = await authorizeMockRequest(session, { requireAdultAccess: true });
     assert.strictEqual(res.authorized, false);
     assert.strictEqual(res.code, 'VIDEO_REQUIRED');
-    console.log('  ✓ Verified card without video liveness correctly returns VIDEO_REQUIRED');
+    console.log('   Verified card without video liveness correctly returns VIDEO_REQUIRED');
   }
 
   console.log('\n[TEST 6] Adult Entertainment Gating: Step 3 - Under-25 Safeguard Enforcement');
@@ -372,7 +372,7 @@ async function runTests() {
     const blockedRes = await authorizeMockRequest(session, { requireAdultAccess: true });
     assert.strictEqual(blockedRes.authorized, false);
     assert.strictEqual(blockedRes.code, 'UNDER25_ID_REQUIRED');
-    console.log('  ✓ AI estimated age < 25 without Driver’s License/ID blocked with UNDER25_ID_REQUIRED');
+    console.log('   AI estimated age < 25 without Driver’s License/ID blocked with UNDER25_ID_REQUIRED');
 
     // Now user submits valid Driver's License / ID
     await updateAuthorizationClaimsAsync(under25Wallet, {
@@ -383,7 +383,7 @@ async function runTests() {
     const unblockedRes = await authorizeMockRequest(session, { requireAdultAccess: true });
     assert.strictEqual(unblockedRes.authorized, true);
     assert.strictEqual(unblockedRes.claims.isAdultAuthorized, true);
-    console.log('  ✓ Driver’s License satisfaction unlocks Adult Entertainment for under-25 users');
+    console.log('   Driver’s License satisfaction unlocks Adult Entertainment for under-25 users');
   }
 
   console.log('\n[TEST 7] Adult Entertainment Gating: Step 4 - Age 25+ Direct Unlock');
@@ -402,7 +402,7 @@ async function runTests() {
     const res = await authorizeMockRequest(session, { requireAdultAccess: true });
     assert.strictEqual(res.authorized, true);
     assert.strictEqual(res.claims.isAdultAuthorized, true);
-    console.log('  ✓ Age >= 25 with Card + Video directly authorized without ID bottleneck');
+    console.log('   Age >= 25 with Card + Video directly authorized without ID bottleneck');
   }
 
   console.log('\n[TEST 8] Card Validation & Zero-Data Privacy Scrubbing');
@@ -433,7 +433,7 @@ async function runTests() {
     assert.strictEqual(ephemeralPan, null);
     assert.strictEqual(ephemeralCvc, null);
     assert.strictEqual(purgeReceipt.length, 64);
-    console.log('  ✓ Luhn checksum validated & ephemeral RAM scrubbing verified with SHA-256 purge receipt');
+    console.log('   Luhn checksum validated & ephemeral RAM scrubbing verified with SHA-256 purge receipt');
   }
 
   console.log('\n[TEST 9] HMAC-SHA256 Authorization Grant Token Tamper Resistance');
@@ -482,7 +482,7 @@ async function runTests() {
     assert.strictEqual(expiredCheck.valid, false);
     assert.strictEqual(expiredCheck.reason, 'Authorization token expired.');
 
-    console.log('  ✓ HMAC-SHA256 tokens protected against scope tampering, forgery, and expiration');
+    console.log('   HMAC-SHA256 tokens protected against scope tampering, forgery, and expiration');
   }
 
   console.log('\n[TEST 10] Server-Side Content Gating & Defense-in-Depth Feed Shielding');
@@ -512,15 +512,15 @@ async function runTests() {
     const verifiedFeed = authorizedAdult ? posts : posts.filter((p) => !p.isShielded);
     assert.strictEqual(verifiedFeed.length, 4);
 
-    console.log('  ✓ Server-side post gating zero-trace filtering verified (0 adult traces to unverified clients)');
+    console.log('   Server-side post gating zero-trace filtering verified (0 adult traces to unverified clients)');
   }
 
   console.log('\n================================================================');
-  console.log('🛡️  ALL 10 BACKEND AUTHORIZATION & GATING TESTS PASSED! 🛡️');
+  console.log('  ALL 10 BACKEND AUTHORIZATION & GATING TESTS PASSED! ');
   console.log('================================================================\n');
 }
 
 runTests().catch((err) => {
-  console.error('\n❌ AUTHORIZATION TEST FAILED:', err);
+  console.error('\n AUTHORIZATION TEST FAILED:', err);
   process.exit(1);
 });

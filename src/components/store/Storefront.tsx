@@ -113,7 +113,7 @@ export const Storefront: React.FC<StorefrontProps> = ({
       id: `prod-${Date.now()}`,
       creatorId: 'you',
       creatorHandle: 'cryptobaker',
-      creatorName: 'The Cookie Baker 🍪',
+      creatorName: 'The Cookie Baker ',
       creatorWallet: 'CookBaker77777777777777777777777777777777',
       title: newTitle.trim(),
       description: newDesc.trim() || 'Exclusive creator digital item.',
@@ -144,11 +144,11 @@ export const Storefront: React.FC<StorefrontProps> = ({
         <div className="flex flex-wrap gap-2">
           {[
             { id: 'all', label: 'All Digital Goods' },
-            { id: 'code_script', label: '💻 Code & Developer Scripts' },
-            { id: 'digital_art', label: '🎨 3D & Digital Art' },
-            { id: 'music_stem', label: '🎧 Music & Stems' },
-            { id: 'vip_pass', label: '🎟️ VIP Passes' },
-            { id: 'preset', label: '📸 Presets & LUTs' },
+            { id: 'code_script', label: ' Code & Developer Scripts' },
+            { id: 'digital_art', label: ' 3D & Digital Art' },
+            { id: 'music_stem', label: ' Music & Stems' },
+            { id: 'vip_pass', label: ' VIP Passes' },
+            { id: 'preset', label: ' Presets & LUTs' },
           ].map((cat) => (
             <button
               key={cat.id}
@@ -213,11 +213,11 @@ export const Storefront: React.FC<StorefrontProps> = ({
                   </p>
 
                   <div className="flex items-center gap-3 text-[11px] text-slate-400 font-mono py-2 border-t border-slate-800/80">
-                    <span>📦 {product.fileSize || 'Instant DL'}</span>
+                    <span> {product.fileSize || 'Instant DL'}</span>
                     <span>•</span>
-                    <span>📑 {product.fileFormat || 'Digital'}</span>
+                    <span> {product.fileFormat || 'Digital'}</span>
                     <span>•</span>
-                    <span>⚡ {product.salesCount} sold</span>
+                    <span> {product.salesCount} sold</span>
                   </div>
                 </div>
               </div>
@@ -280,7 +280,7 @@ export const Storefront: React.FC<StorefrontProps> = ({
                 onClick={() => setSelectedProduct(null)}
                 className="p-1 rounded-lg text-slate-400 hover:text-white"
               >
-                ✕
+                
               </button>
             </div>
 
@@ -345,7 +345,7 @@ export const Storefront: React.FC<StorefrontProps> = ({
                 onClick={() => setShowAddModal(false)}
                 className="p-1 rounded-lg text-slate-400 hover:text-white"
               >
-                ✕
+                
               </button>
             </div>
 
@@ -369,7 +369,7 @@ export const Storefront: React.FC<StorefrontProps> = ({
                   onChange={(e) => setNewCategory(e.target.value as any)}
                   className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-amber-400"
                 >
-                  <option value="code_script">💻 Code Snippet / Smart Contract / Script</option>
+                  <option value="code_script"> Code Snippet / Smart Contract / Script</option>
                   <option value="digital_art">3D Asset / Digital Art</option>
                   <option value="music_stem">Music WAV Stems / Audio</option>
                   <option value="vip_pass">VIP Access Pass / Token</option>

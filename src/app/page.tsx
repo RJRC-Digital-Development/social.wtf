@@ -448,7 +448,7 @@ export default function Home() {
                 }}
                 className="w-full flex items-center justify-between p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 transition-colors text-left group"
               >
-                <span>🌉 Hyperlane Bridge Guide</span>
+                <span> Hyperlane Bridge Guide</span>
                 <ExternalLink className="w-3.5 h-3.5 text-slate-500 group-hover:text-amber-400" />
               </button>
 
@@ -459,7 +459,7 @@ export default function Home() {
                 }}
                 className="w-full flex items-center justify-between p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 transition-colors text-left group"
               >
-                <span>🔄 Cookieswap.fun (DEX)</span>
+                <span> Cookieswap.fun (DEX)</span>
                 <ExternalLink className="w-3.5 h-3.5 text-slate-500 group-hover:text-amber-400" />
               </button>
 
@@ -470,7 +470,7 @@ export default function Home() {
                 }}
                 className="w-full flex items-center justify-between p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 transition-colors text-left group"
               >
-                <span>📦 Cookiebox.app</span>
+                <span> Cookiebox.app</span>
                 <ExternalLink className="w-3.5 h-3.5 text-slate-500 group-hover:text-amber-400" />
               </button>
 
@@ -481,7 +481,7 @@ export default function Home() {
                 }}
                 className="w-full flex items-center justify-between p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 transition-colors text-left group"
               >
-                <span>📊 Cookie DAS API (api.cookiescan.io)</span>
+                <span> Cookie DAS API (api.cookiescan.io)</span>
                 <ExternalLink className="w-3.5 h-3.5 text-slate-500 group-hover:text-amber-400" />
               </button>
 
@@ -492,7 +492,7 @@ export default function Home() {
                 }}
                 className="w-full flex items-center justify-between p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 transition-colors text-left group"
               >
-                <span>🤖 cookie-mcp (AI Tools)</span>
+                <span> cookie-mcp (AI Tools)</span>
                 <ExternalLink className="w-3.5 h-3.5 text-slate-500 group-hover:text-amber-400" />
               </button>
 

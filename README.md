@@ -1,4 +1,4 @@
-# Social.wtf 🍪⚡
+# Social.wtf 
 
 **A Unified Decentralized Web3 Social Ecosystem & Creator Storefront Hub on Cookie Chain (SVM)**
 
@@ -12,7 +12,7 @@ Every economic transaction—from store purchases to tips and subscriptions—au
 
 ---
 
-## 🏛️ Core Pillars & Architecture
+##  Core Pillars & Architecture
 
 ### 1. Multi-Format Social Stream & Creator Storefronts
 - **4 Native Formats**: Text micro-blogging, high-res photography galleries, HTML5 video streaming, and real-time audio playback with waveform visualizers.
@@ -35,9 +35,9 @@ Every economic transaction—from store purchases to tips and subscriptions—au
 - **Under-25 ID Safeguard**: Anyone determined by the AI agent to be under 25 is required to produce a valid Driver's License or Government ID card (front & back) to continue.
 - **Zero Shortcuts & 100% Autonomous AI Privacy**: Verification is conducted strictly by autonomous AI agents and is never reviewed by humans for viewer privacy reasons unless flagged for compliance review. Raw video buffers and card checks exist solely in ephemeral RAM and are cryptographically scrubbed with purge receipts.
 
-### 5. Open Creator SDK vs. Proprietary Sentinel™ Enclave (IP Architecture)
+### 5. Open Creator SDK vs. Proprietary Sentinel Enclave (IP Architecture)
 - **Open Creator SDK (`/creator-sdk`)**: Public developer kit and UI templates allowing creators and 3rd parties to build custom storefront mini-apps, personal profiles, and widgets.
-- **Proprietary Sentinel™ Enclave**: Production neural model weights, ZK-SNARK proving circuits, and hardware enclave attestation keys are hosted exclusively on Social.wtf's private infrastructure tier, preventing unauthorized reproduction or replication of the verification core.
+- **Proprietary Sentinel Enclave**: Production neural model weights, ZK-SNARK proving circuits, and hardware enclave attestation keys are hosted exclusively on Social.wtf's private infrastructure tier, preventing unauthorized reproduction or replication of the verification core.
 
 ### 6. Interactive Community Wiki & Discussion Board
 - Built-in community knowledge base covering Cookie Chain SVM architecture, $COOK economics, and developer tutorials.
@@ -50,7 +50,7 @@ Every economic transaction—from store purchases to tips and subscriptions—au
 
 ---
 
-## ⛓️ Cookie Chain Network Specifications
+##  Cookie Chain Network Specifications
 
 | Parameter | Value |
 | :--- | :--- |
@@ -68,7 +68,7 @@ Every economic transaction—from store purchases to tips and subscriptions—au
 
 ---
 
-## 🛠️ Project Structure
+##  Project Structure
 
 ```
 social.wtf/
@@ -107,7 +107,7 @@ social.wtf/
 
 ---
 
-## 🚀 Quick Start Guide
+##  Quick Start Guide
 
 ### Prerequisites
 - Node.js >= 18.0.0
@@ -131,7 +131,7 @@ Visit `http://localhost:3000` in your browser.
 
 ---
 
-## 🧪 Testing the 5 Core Phases
+##  Testing the 5 Core Phases
 
 ### Phase 1: Multi-Format Feed & Storefronts
 1. Filter the feed between **All**, **Music Hub**, and **Video Drops**.
@@ -168,56 +168,56 @@ Visit `http://localhost:3000` in your browser.
 
 ---
 
-## 📦 Hackathon & Grant Submission Checklist
+##  Hackathon & Grant Submission Checklist
 
 | Requirement | Implementation Details | Status |
 | :--- | :--- | :---: |
-| **Built on Cookie Chain (SVM)** | Targets `https://rpc.cookiescan.io` (SVM, Solana-core 4.1.2) with native `$COOK` transactions and Anchor program | ✅ **Complete** |
-| **Wallet Connectivity** | First-class support for **Nightly Wallet**, **Trust Wallet**, and standard Solana adapters with SIWS auth | ✅ **Complete** |
-| **Transaction Execution** | Atomic 5% platform fee split & 95% creator payout with sub-second finality and real-time confirmations | ✅ **Complete** |
-| **Data & Analytics** | Real-time creator revenue dashboard, platform treasury telemetry, and live volume metrics | ✅ **Complete** |
-| **Ecosystem Tools** | Integrated Cookiebox, Cookieswap, Cookie DAS API (`api.cookiescan.io`), and `cookie-mcp` AI tool schemas | ✅ **Complete** |
-| **Live Deployment** | Deployed and publicly accessible on Vercel: [https://socialwtf.vercel.app/](https://socialwtf.vercel.app/) | ✅ **Complete** |
-| **Open Source** | Full source code with tests and setup guide at [github.com/thepros2014/social.wtf](https://github.com/thepros2014/social.wtf) | ✅ **Complete** |
+| **Built on Cookie Chain (SVM)** | Targets `https://rpc.cookiescan.io` (SVM, Solana-core 4.1.2) with native `$COOK` transactions and Anchor program |  **Complete** |
+| **Wallet Connectivity** | First-class support for **Nightly Wallet**, **Trust Wallet**, and standard Solana adapters with SIWS auth |  **Complete** |
+| **Transaction Execution** | Atomic 5% platform fee split & 95% creator payout with sub-second finality and real-time confirmations |  **Complete** |
+| **Data & Analytics** | Real-time creator revenue dashboard, platform treasury telemetry, and live volume metrics |  **Complete** |
+| **Ecosystem Tools** | Integrated Cookiebox, Cookieswap, Cookie DAS API (`api.cookiescan.io`), and `cookie-mcp` AI tool schemas |  **Complete** |
+| **Live Deployment** | Deployed and publicly accessible on Vercel: [https://socialwtf.vercel.app/](https://socialwtf.vercel.app/) |  **Complete** |
+| **Open Source** | Full source code with tests and setup guide at [github.com/thepros2014/social.wtf](https://github.com/thepros2014/social.wtf) |  **Complete** |
 
 ---
 
-## 🎥 X (Twitter) Demo Thread Script
+##  X (Twitter) Demo Thread Script
 
 Ready-to-post thread for submission to **X** and **Telegram** ([t.me/TheCookieNetChain](https://t.me/TheCookieNetChain)):
 
 ```
-1/ 🍪 Proud to introduce Social.wtf — the unified Web3 social ecosystem and creator storefront hub built natively on @TheCookieChain SVM! ⚡
+1/  Proud to introduce Social.wtf — the unified Web3 social ecosystem and creator storefront hub built natively on @TheCookieChain SVM! 
 
 Explore live: https://socialwtf.vercel.app
 Source: https://github.com/thepros2014/social.wtf
 
 #CookieChain #cApp #Solana #SVM #Web3
 
-2/ 🎯 What is Social.wtf?
+2/  What is Social.wtf?
 It consolidates 4 native social streams (Micro-blogging, Photography, Video, Audio) where every creator profile is a customizable mini-app. 
 
 Every tip and store purchase executes with sub-second finality on Cookie Chain with an automated 5% fee split to the treasury!
 
-3/ 🌉 How to get started on Cookie Chain:
+3/  How to get started on Cookie Chain:
 1. Connect your @Nightly_App or Trust Wallet
 2. Need $COOK? Bridge SOL or assets in <1 min via the Hyperlane Bridge at https://hyperlane.cookiescan.io
 3. Swap on Cookieswap (https://cookieswap.fun) & explore cApps on Cookiebox (https://cookiebox.app)
 
-4/ 🛡️ Zero-Trace Multimodal AI Privacy:
+4/  Zero-Trace Multimodal AI Privacy:
 Social.wtf uses autonomous real-time AI vision screening and ephemeral zero-data age verification. Mature content is completely invisible with zero hints until verified—protecting both creators and viewers.
 
-5/ 🚀 Built for the community, powered by Cookie Chain SVM infrastructure!
+5/  Built for the community, powered by Cookie Chain SVM infrastructure!
 Check out the live cApp: https://socialwtf.vercel.app
-Join the discussion and let us know what you want to see next! 🍪⚡
+Join the discussion and let us know what you want to see next! 
 ```
 
 ---
 
-## 📄 License & Intellectual Property
+##  License & Intellectual Property
 
 This project is licensed under the **Social.wtf Community & Creator Source-Available License (v1.0)**:
 - **Open Permitted Use**: The **Creator SDK (`/creator-sdk`)**, UI templates, and Cookie Chain client integrations are open for creators and developers to build custom storefront pages, widgets, and community tools.
-- **Proprietary Retained Core**: The **Social.wtf Sentinel™ Biometric Neural Verification Models**, zero-trace ephemeral memory scrubbers, hardware enclave attestation keys, and automated treasury routing mechanics are proprietary trade secrets of RJRC Digital Development and cannot be reproduced, cloned, or deployed in competing platforms without prior authorization.
+- **Proprietary Retained Core**: The **Social.wtf Sentinel Biometric Neural Verification Models**, zero-trace ephemeral memory scrubbers, hardware enclave attestation keys, and automated treasury routing mechanics are proprietary trade secrets of RJRC Digital Development and cannot be reproduced, cloned, or deployed in competing platforms without prior authorization.
 
-See [LICENSE](file:///c:/Users/SnapCopy/OneDrive/Documents/CoinSwag/social.wtf/LICENSE) for complete terms. Built with 🍪 for the Cookie Chain ecosystem.
+See [LICENSE](file:///c:/Users/SnapCopy/OneDrive/Documents/CoinSwag/social.wtf/LICENSE) for complete terms. Built with  for the Cookie Chain ecosystem.

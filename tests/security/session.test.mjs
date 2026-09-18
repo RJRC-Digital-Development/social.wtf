@@ -307,7 +307,7 @@ function createClearSessionCookie() {
   assert.strictEqual(result.valid, true);
   assert.strictEqual(result.payload.walletAddress, wallet);
   assert.strictEqual(result.payload.scope, 'user');
-  console.log('✓ Test 1: Authentic session token created and verified successfully');
+  console.log(' Test 1: Authentic session token created and verified successfully');
 }
 
 // Test 2: Cryptographic Tampering and Forgery Detection
@@ -340,7 +340,7 @@ function createClearSessionCookie() {
   assert.strictEqual(rogueResult.valid, false);
   assert.strictEqual(rogueResult.reason, 'Invalid session token signature.');
 
-  console.log('✓ Test 2: Payload tampering, signature corruption, and attacker keys rejected');
+  console.log(' Test 2: Payload tampering, signature corruption, and attacker keys rejected');
 }
 
 // Test 3: Expiration Enforcement
@@ -361,7 +361,7 @@ function createClearSessionCookie() {
   const result = verifySessionToken(expiredToken);
   assert.strictEqual(result.valid, false);
   assert.strictEqual(result.reason, 'Session expired.');
-  console.log('✓ Test 3: Expired session token rejected');
+  console.log(' Test 3: Expired session token rejected');
 }
 
 // Test 4: Server-Side Revocation Registry (Logout)
@@ -378,7 +378,7 @@ function createClearSessionCookie() {
   assert.strictEqual(afterRevoke.valid, false);
   assert.strictEqual(afterRevoke.reason, 'Session revoked.');
 
-  console.log('✓ Test 4: Server-side session revocation & immediate invalidation verified');
+  console.log(' Test 4: Server-side session revocation & immediate invalidation verified');
 }
 
 // Test 5: Session Registry Pruning
@@ -404,7 +404,7 @@ function createClearSessionCookie() {
   assert.ok(sessionRegistry.get(vActive.payload.sessionId) !== undefined, 'Active session must remain');
   assert.strictEqual(sessionRegistry.get(expiredSessionId), undefined, 'Expired session must be pruned');
 
-  console.log('✓ Test 5: Registry pruning cleanly purges expired sessions');
+  console.log(' Test 5: Registry pruning cleanly purges expired sessions');
 }
 
 // Test 6: Wallet Address Binding Enforcement
@@ -421,7 +421,7 @@ function createClearSessionCookie() {
   assert.strictEqual(result.valid, false);
   assert.strictEqual(result.reason, 'Session wallet mismatch.');
 
-  console.log('✓ Test 6: Cryptographic wallet binding strictly enforced against address tampering');
+  console.log(' Test 6: Cryptographic wallet binding strictly enforced against address tampering');
 }
 
 // Test 7: Token Extraction from Headers and Cookies
@@ -436,7 +436,7 @@ function createClearSessionCookie() {
 
   assert.strictEqual(extractSessionToken({}), null);
 
-  console.log('✓ Test 7: Dual Bearer and HttpOnly Cookie credential extraction verified');
+  console.log(' Test 7: Dual Bearer and HttpOnly Cookie credential extraction verified');
 }
 
 // Test 8: Cookie Header Formatting
@@ -453,7 +453,7 @@ function createClearSessionCookie() {
   assert.ok(clearCookie.includes('session=;'));
   assert.ok(clearCookie.includes('Max-Age=0'));
 
-  console.log('✓ Test 8: HttpOnly / SameSite=Strict cookie headers generated correctly');
+  console.log(' Test 8: HttpOnly / SameSite=Strict cookie headers generated correctly');
 }
 
 // Test 9: Serverless / Multi-Instance Cross-Worker Verification (Vercel / Lambda Test)
@@ -483,7 +483,7 @@ function createClearSessionCookie() {
   assert.strictEqual(afterRevokeResult.valid, false);
   assert.strictEqual(afterRevokeResult.reason, 'Session revoked.');
 
-  console.log('✓ Test 9: Serverless cross-instance verification passes without in-memory dependency');
+  console.log(' Test 9: Serverless cross-instance verification passes without in-memory dependency');
 }
 
 // Test 10: Fail-Closed Secret Enforcement
@@ -510,7 +510,7 @@ function createClearSessionCookie() {
     validSecret
   );
 
-  console.log('✓ Test 10: Production and development fail-closed secret enforcement strictly verified');
+  console.log(' Test 10: Production and development fail-closed secret enforcement strictly verified');
 }
 
 console.log('ALL CRYPTOGRAPHIC SESSION TESTS PASSED!\n');

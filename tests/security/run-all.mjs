@@ -40,6 +40,6 @@ console.log('================================================================');
 if (totalFailed > 0) {
   process.exit(1);
 } else {
-  console.log('🛡️  ALL ADVERSARIAL SECURITY TESTS PASSED WITH ZERO FAILURES! 🛡️\n');
+  console.log('  ALL ADVERSARIAL SECURITY TESTS PASSED WITH ZERO FAILURES! \n');
   process.exit(0);
 }
