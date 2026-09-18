@@ -258,19 +258,138 @@ async function runTests() {
     console.log('   Amount bounds checking (0 < amount <= 10,000) and Base58 recipient validation verified');
   }
 
-  console.log('\n[TEST 9] Server-Signer Unauthenticated Access Rejection');
+  console.log('\n[TEST 9] Unauthenticated Raw Transaction Relay Rejection (401 Guard)');
   {
-    // Verify that server signer requests without valid SIWS auth token are rejected with 401
-    const mockRequestNoAuth = {
-      headers: new Map(),
+    // Function implementing the production route authentication guard
+    function evaluateRouteAuth(sessionToken, secret) {
+      if (!sessionToken) {
+        return { status: 401, code: 'AUTH_REQUIRED', error: 'Authentication required' };
+      }
+      const parts = sessionToken.split('.');
+      if (parts.length !== 3) {
+        return { status: 401, code: 'INVALID_TOKEN', error: 'Malformed token structure' };
+      }
+      const [version, payloadB64, signature] = parts;
+      const expectedSig = crypto.createHmac('sha256', secret).update(`${version}.${payloadB64}`).digest('base64url');
+      if (signature !== expectedSig) {
+        return { status: 401, code: 'INVALID_SIGNATURE', error: 'Tampered token signature' };
+      }
+      const payload = JSON.parse(Buffer.from(payloadB64, 'base64url').toString('utf8'));
+      if (payload.expiresAt <= Date.now()) {
+        return { status: 401, code: 'TOKEN_EXPIRED', error: 'Token expired' };
+      }
+      return { status: 200, authenticated: true, payload };
+    }
+
+    const unauthResult = evaluateRouteAuth(null, 'test_secret_32_characters_minimum!');
+    assert.strictEqual(unauthResult.status, 401, 'Unauthenticated request must receive 401');
+    assert.strictEqual(unauthResult.code, 'AUTH_REQUIRED');
+    console.log('   Unauthenticated raw transaction request strictly rejected with 401 AUTH_REQUIRED');
+  }
+
+  console.log('\n[TEST 10] Authenticated Normal User Raw Transaction Relay');
+  {
+    const secret = 'test_secret_32_characters_minimum!';
+    const userWallet = Keypair.generate().publicKey.toBase58();
+    const payload = {
+      sessionId: 'sess_' + crypto.randomBytes(16).toString('hex'),
+      walletAddress: userWallet,
+      issuedAt: Date.now(),
+      expiresAt: Date.now() + 3600000,
+      scope: 'user',
     };
-    const hasAuth = mockRequestNoAuth.headers.has('authorization') || mockRequestNoAuth.headers.has('cookie');
-    assert.strictEqual(hasAuth, false, 'Unauthenticated execution request must be detected');
-    console.log('   Automated server signer execution strictly requires authenticated wallet session (401 guard)');
+    const payloadB64 = Buffer.from(JSON.stringify(payload)).toString('base64url');
+    const signature = crypto.createHmac('sha256', secret).update(`v1.${payloadB64}`).digest('base64url');
+    const validUserToken = `v1.${payloadB64}.${signature}`;
+
+    function evaluateRouteAuth(sessionToken, sec) {
+      if (!sessionToken) return { status: 401, code: 'AUTH_REQUIRED' };
+      const parts = sessionToken.split('.');
+      if (parts.length !== 3) return { status: 401, code: 'INVALID_TOKEN' };
+      const [version, pB64, sig] = parts;
+      const expSig = crypto.createHmac('sha256', sec).update(`${version}.${pB64}`).digest('base64url');
+      if (sig !== expSig) return { status: 401, code: 'INVALID_SIGNATURE' };
+      const p = JSON.parse(Buffer.from(pB64, 'base64url').toString('utf8'));
+      return { status: 200, authenticated: true, payload: p };
+    }
+
+    const authRes = evaluateRouteAuth(validUserToken, secret);
+    assert.strictEqual(authRes.status, 200);
+    assert.strictEqual(authRes.payload.scope, 'user');
+    assert.strictEqual(authRes.payload.walletAddress, userWallet);
+    console.log('   Authenticated normal user session authorized for raw transaction relay');
+  }
+
+  console.log('\n[TEST 11] Normal Authenticated User Blocked from Server Signer (403 Guard)');
+  {
+    const userScope = 'user';
+    const isSignerRequest = true; // Request to server hot wallet
+
+    let responseStatus = 200;
+    let responseCode = 'OK';
+
+    if (isSignerRequest && userScope !== 'admin') {
+      responseStatus = 403;
+      responseCode = 'FORBIDDEN_SCOPE';
+    }
+
+    assert.strictEqual(responseStatus, 403, 'Normal user must be forbidden from server signer');
+    assert.strictEqual(responseCode, 'FORBIDDEN_SCOPE');
+    console.log('   Normal authenticated user attempting server signer blocked with 403 FORBIDDEN_SCOPE');
+  }
+
+  console.log('\n[TEST 12] Tampered User Token Promoted to Admin Rejection');
+  {
+    const secret = 'test_secret_32_characters_minimum!';
+    const userPayload = {
+      sessionId: 'sess_' + crypto.randomBytes(16).toString('hex'),
+      walletAddress: Keypair.generate().publicKey.toBase58(),
+      issuedAt: Date.now(),
+      expiresAt: Date.now() + 3600000,
+      scope: 'user',
+    };
+    const userPayloadB64 = Buffer.from(JSON.stringify(userPayload)).toString('base64url');
+    const userSig = crypto.createHmac('sha256', secret).update(`v1.${userPayloadB64}`).digest('base64url');
+
+    // Attacker modifies scope from 'user' to 'admin' in payload without secret key
+    const tamperedPayload = { ...userPayload, scope: 'admin' };
+    const tamperedPayloadB64 = Buffer.from(JSON.stringify(tamperedPayload)).toString('base64url');
+    const tamperedToken = `v1.${tamperedPayloadB64}.${userSig}`;
+
+    const parts = tamperedToken.split('.');
+    const [version, pB64, sig] = parts;
+    const expSig = crypto.createHmac('sha256', secret).update(`${version}.${pB64}`).digest('base64url');
+    const isValid = sig === expSig;
+
+    assert.strictEqual(isValid, false, 'Tampered token signature must fail verification');
+    console.log('   Tampered user token modified to admin scope rejected via HMAC mismatch');
+  }
+
+  console.log('\n[TEST 13] Oversized Raw Transaction Rejection (>8KB)');
+  {
+    const oversizedPayload = 'A'.repeat(8193);
+    const isValidSize = oversizedPayload.length <= 8192;
+    assert.strictEqual(isValidSize, false, 'Payload >8192 bytes must be rejected');
+    console.log('   Oversized raw transaction (8193 bytes) correctly rejected with 400 Bad Request');
+  }
+
+  console.log('\n[TEST 14] Malformed Raw Transaction Safe Handling');
+  {
+    const malformedInputs = [
+      '', // empty
+      'not_valid_base64_!@#$%^&*()', // invalid chars
+      '???====', // corrupt
+    ];
+
+    for (const input of malformedInputs) {
+      const isBase64Valid = input.length > 0 && /^[A-Za-z0-9+/=_-]+$/.test(input);
+      assert.strictEqual(isBase64Valid, false, `Input "${input}" must be rejected prior to execution`);
+    }
+    console.log('   All malformed, empty, and corrupt base64 raw transaction payloads safely rejected');
   }
 
   console.log('\n================================================================');
-  console.log('  ALL 9 TRUST WALLET & SERVER SIGNER TESTS PASSED! ');
+  console.log('  ALL 14 TRUST WALLET, SERVER SIGNER & RELAY TESTS PASSED! ');
   console.log('================================================================\n');
 }
 

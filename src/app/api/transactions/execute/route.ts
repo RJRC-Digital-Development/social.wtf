@@ -38,7 +38,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const ip = getClientIp(req);
 
-  // 1. IP-level Rate Limiting
+  // 1. IP-level Rate Limiting: 30 requests per minute per IP
   const ipRateResult = await rateLimiter.checkAsync(`tx_exec_ip:${ip}`, 30, 60 * 1000);
   if (!ipRateResult.allowed) {
     return NextResponse.json(
@@ -50,6 +50,20 @@ export async function POST(req: Request) {
     );
   }
 
+  // 2. Global Authentication Guard: Both raw relay and server signer REQUIRE a valid SIWS wallet session
+  const authResult = await validateRequestSessionAsync(req);
+  if (!authResult.authenticated) {
+    return NextResponse.json(
+      {
+        error: 'Authentication required to relay or execute transactions. Please sign in with your wallet.',
+        code: 'AUTH_REQUIRED',
+      },
+      { status: 401 }
+    );
+  }
+
+  const { walletAddress, scope } = authResult.payload;
+
   try {
     const body = await req.json().catch(() => ({}));
     const {
@@ -60,18 +74,65 @@ export async function POST(req: Request) {
       memo = '',
     } = body;
 
-    // Case 1: Client broadcast of pre-signed transaction (e.g. from Nightly or Trust Wallet)
-    if (rawTransaction && typeof rawTransaction === 'string') {
+    // Case 1: Authenticated User relay of client-signed raw transaction (e.g. from Nightly or Trust Wallet)
+    if (rawTransaction !== undefined) {
+      if (typeof rawTransaction !== 'string') {
+        return NextResponse.json(
+          { error: 'Invalid raw transaction payload type. Expected base64 string.' },
+          { status: 400 }
+        );
+      }
+
+      if (rawTransaction.length === 0) {
+        return NextResponse.json(
+          { error: 'Raw transaction payload cannot be empty.' },
+          { status: 400 }
+        );
+      }
+
       if (rawTransaction.length > 8192) {
         return NextResponse.json(
-          { error: 'Raw transaction payload exceeds maximum allowed size.' },
+          { error: 'Raw transaction payload exceeds maximum allowed size (8KB).' },
           { status: 400 }
+        );
+      }
+
+      // Validate base64 characters
+      if (!/^[A-Za-z0-9+/=_-]+$/.test(rawTransaction)) {
+        return NextResponse.json(
+          { error: 'Raw transaction payload contains invalid base64 characters.' },
+          { status: 400 }
+        );
+      }
+
+      // Per-wallet relay rate limiting: 20 raw transactions per minute per wallet
+      const relayRateResult = await rateLimiter.checkAsync(
+        `tx_relay_wallet:${walletAddress}`,
+        20,
+        60 * 1000
+      );
+      if (!relayRateResult.allowed) {
+        return NextResponse.json(
+          {
+            error: 'Wallet transaction relay rate limit reached. Please wait a moment.',
+            retryAfterMs: relayRateResult.resetMs,
+          },
+          { status: 429 }
         );
       }
 
       try {
         const connection = getCookieConnection();
-        const txBuffer = Buffer.from(rawTransaction, 'base64');
+        const normalizedBase64 = rawTransaction.replace(/-/g, '+').replace(/_/g, '/');
+        const txBuffer = Buffer.from(normalizedBase64, 'base64');
+
+        if (txBuffer.length === 0) {
+          return NextResponse.json(
+            { error: 'Decoded transaction buffer is empty.' },
+            { status: 400 }
+          );
+        }
+
         const signature = await connection.sendRawTransaction(txBuffer, {
           skipPreflight: false,
           preflightCommitment: 'confirmed',
@@ -94,20 +155,9 @@ export async function POST(req: Request) {
       }
     }
 
-    // Case 2: Server-side signing using platform hot wallet
-    // Enforce strict security boundary: NEVER allow ordinary authenticated users to direct platform-owned funds
-    const authResult = await validateRequestSessionAsync(req);
-    if (!authResult.authenticated) {
-      return NextResponse.json(
-        {
-          error: 'Authentication required for server-signed operations. Please sign in with your wallet.',
-          code: 'AUTH_REQUIRED',
-        },
-        { status: 401 }
-      );
-    }
-
-    if (authResult.payload.scope !== 'admin') {
+    // Case 2: Privileged Server-side signing using platform hot wallet
+    // Strict boundary: Only verified administrative sessions (scope === 'admin') may authorize server signer expenditure
+    if (scope !== 'admin') {
       return NextResponse.json(
         {
           error: 'Ordinary user sessions cannot authorize platform hot wallet transfers. Client wallet signature required.',
@@ -127,16 +177,16 @@ export async function POST(req: Request) {
       );
     }
 
-    // Per-wallet rate limiting
+    // Per-wallet admin execution rate limiting
     const walletRateResult = await rateLimiter.checkAsync(
-      `tx_exec_wallet:${authResult.payload.walletAddress}`,
+      `tx_exec_wallet:${walletAddress}`,
       10,
       60 * 1000
     );
     if (!walletRateResult.allowed) {
       return NextResponse.json(
         {
-          error: 'Wallet transaction rate limit reached. Please wait before executing further transactions.',
+          error: 'Admin transaction rate limit reached. Please wait before executing further transactions.',
           retryAfterMs: walletRateResult.resetMs,
         },
         { status: 429 }
@@ -181,8 +231,7 @@ export async function POST(req: Request) {
       return NextResponse.json(
         {
           success: false,
-          error:
-            'Server signer is not configured in environment.',
+          error: 'Server signer is not configured in environment.',
           code: 'SERVER_KEY_NOT_CONFIGURED',
         },
         { status: 503 }

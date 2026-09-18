@@ -379,14 +379,25 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
         const raw = signed.serialize
           ? signed.serialize().toString('base64')
           : Buffer.from(signed).toString('base64');
+        const storedToken =
+          sessionToken ||
+          (typeof window !== 'undefined'
+            ? localStorage.getItem(SESSION_TOKEN_STORAGE_KEY)
+            : null);
         const res = await fetch('/api/transactions/execute', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            ...(storedToken ? { Authorization: `Bearer ${storedToken}` } : {}),
+          },
           body: JSON.stringify({ rawTransaction: raw }),
         });
         const data = await res.json();
         if (data.success && data.signature) {
           return data.signature;
+        }
+        if (!res.ok || data.error) {
+          throw new Error(data.error || 'Failed to broadcast raw transaction');
         }
       }
     }
