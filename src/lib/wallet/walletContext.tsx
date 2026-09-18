@@ -406,9 +406,13 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
     // 4. Server Signer execution (via PLATFORM_PRIVATE_KEY env var)
     if (isServerSignerConfiguredState && (tx.to || tx.recipient)) {
       try {
+        const storedToken = sessionToken || (typeof window !== 'undefined' ? localStorage.getItem(SESSION_TOKEN_STORAGE_KEY) : null);
         const res = await fetch('/api/transactions/execute', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            ...(storedToken ? { Authorization: `Bearer ${storedToken}` } : {}),
+          },
           body: JSON.stringify({
             recipientPublicKey: tx.to || tx.recipient,
             amountCook: typeof tx.amount === 'number' ? tx.amount : 0.5,

@@ -154,9 +154,63 @@ Visit `http://localhost:3000` in your browser.
 5. Click **View On-Chain on CookieScan** to inspect the confirmation hash.
 6. Open the **Treasury & Analytics** tab to see real-time volume, net creator revenue, and total platform fees collected.
 
-### Phase 5: Submission & Community Demo
-- Submit live deployment URL.
-- Demo video recorded demonstrating Nightly wallet, 5% fee split, and invisible shielding posted to [Cookie Chain Telegram](https://t.me/TheCookieNetChain).
+### Phase 5: Submission & Ecosystem Integrations
+- **Live Application URL**: [https://socialwtf.vercel.app/](https://socialwtf.vercel.app/)
+- **GitHub Repository**: [https://github.com/thepros2014/social.wtf](https://github.com/thepros2014/social.wtf)
+- **Program ID on Cookie Chain**: `9iapGcxDbDtZ2bWtwM2kLYNW67XH2qzPxLxXfSUbQQZq`
+- **Platform Treasury Address**: `CookTreasury11111111111111111111111111111111`
+- **Cookie Ecosystem Integrations**:
+  - [Hyperlane Bridge](https://hyperlane.cookiescan.io): Seamless warp transfers from Solana Mainnet to Cookie Chain.
+  - [Cookieswap](https://cookieswap.fun): On-chain DEX liquidity and token swaps.
+  - [Cookiebox](https://cookiebox.app): Ecosystem indexer and cApp discovery.
+  - [Cookie DAS API](https://api.cookiescan.io): Metaplex Digital Asset Standard indexing.
+  - [cookie-mcp](https://github.com/cookiechain/cookie-mcp): AI Agent Model Context Protocol integration.
+
+---
+
+## 📦 Hackathon & Grant Submission Checklist
+
+| Requirement | Implementation Details | Status |
+| :--- | :--- | :---: |
+| **Built on Cookie Chain (SVM)** | Targets `https://rpc.cookiescan.io` (SVM, Solana-core 4.1.2) with native `$COOK` transactions and Anchor program | ✅ **Complete** |
+| **Wallet Connectivity** | First-class support for **Nightly Wallet**, **Trust Wallet**, and standard Solana adapters with SIWS auth | ✅ **Complete** |
+| **Transaction Execution** | Atomic 5% platform fee split & 95% creator payout with sub-second finality and real-time confirmations | ✅ **Complete** |
+| **Data & Analytics** | Real-time creator revenue dashboard, platform treasury telemetry, and live volume metrics | ✅ **Complete** |
+| **Ecosystem Tools** | Integrated Cookiebox, Cookieswap, Cookie DAS API (`api.cookiescan.io`), and `cookie-mcp` AI tool schemas | ✅ **Complete** |
+| **Live Deployment** | Deployed and publicly accessible on Vercel: [https://socialwtf.vercel.app/](https://socialwtf.vercel.app/) | ✅ **Complete** |
+| **Open Source** | Full source code with tests and setup guide at [github.com/thepros2014/social.wtf](https://github.com/thepros2014/social.wtf) | ✅ **Complete** |
+
+---
+
+## 🎥 X (Twitter) Demo Thread Script
+
+Ready-to-post thread for submission to **X** and **Telegram** ([t.me/TheCookieNetChain](https://t.me/TheCookieNetChain)):
+
+```
+1/ 🍪 Proud to introduce Social.wtf — the unified Web3 social ecosystem and creator storefront hub built natively on @TheCookieChain SVM! ⚡
+
+Explore live: https://socialwtf.vercel.app
+Source: https://github.com/thepros2014/social.wtf
+
+#CookieChain #cApp #Solana #SVM #Web3
+
+2/ 🎯 What is Social.wtf?
+It consolidates 4 native social streams (Micro-blogging, Photography, Video, Audio) where every creator profile is a customizable mini-app. 
+
+Every tip and store purchase executes with sub-second finality on Cookie Chain with an automated 5% fee split to the treasury!
+
+3/ 🌉 How to get started on Cookie Chain:
+1. Connect your @Nightly_App or Trust Wallet
+2. Need $COOK? Bridge SOL or assets in <1 min via the Hyperlane Bridge at https://hyperlane.cookiescan.io
+3. Swap on Cookieswap (https://cookieswap.fun) & explore cApps on Cookiebox (https://cookiebox.app)
+
+4/ 🛡️ Zero-Trace Multimodal AI Privacy:
+Social.wtf uses autonomous real-time AI vision screening and ephemeral zero-data age verification. Mature content is completely invisible with zero hints until verified—protecting both creators and viewers.
+
+5/ 🚀 Built for the community, powered by Cookie Chain SVM infrastructure!
+Check out the live cApp: https://socialwtf.vercel.app
+Join the discussion and let us know what you want to see next! 🍪⚡
+```
 
 ---
 

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { PublicKey } from '@solana/web3.js';
 import {
   isServerSignerConfigured,
   getServerSignerPublicKey,
@@ -11,6 +12,9 @@ import {
 } from '@/lib/solana/cookieChain';
 import { rateLimiter } from '@/lib/security/rateLimiter';
 import { sanitizeString } from '@/lib/security/sanitize';
+import { validateRequestSessionAsync } from '@/lib/security/session';
+
+const MAX_COOK_PER_TRANSACTION = 10_000;
 
 export async function GET(req: Request) {
   const isConfigured = isServerSignerConfigured();
@@ -30,13 +34,14 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || '127.0.0.1';
-  const rateResult = await rateLimiter.checkAsync(`tx_exec:${ip}`, 30, 60 * 1000);
-
-  if (!rateResult.allowed) {
+  
+  // 1. IP-level Rate Limiting
+  const ipRateResult = await rateLimiter.checkAsync(`tx_exec_ip:${ip}`, 30, 60 * 1000);
+  if (!ipRateResult.allowed) {
     return NextResponse.json(
       {
-        error: 'Too many transaction requests. Please wait a moment.',
-        retryAfterMs: rateResult.resetMs,
+        error: 'Too many transaction requests from this IP. Please wait a moment.',
+        retryAfterMs: ipRateResult.resetMs,
       },
       { status: 429 }
     );
@@ -52,8 +57,15 @@ export async function POST(req: Request) {
       memo = '',
     } = body;
 
-    // Case 1: Client broadcast of pre-signed transaction (e.g. from Trust Wallet)
+    // Case 1: Client broadcast of pre-signed transaction (e.g. from Nightly or Trust Wallet)
     if (rawTransaction && typeof rawTransaction === 'string') {
+      if (rawTransaction.length > 8192) {
+        return NextResponse.json(
+          { error: 'Raw transaction payload exceeds maximum allowed size.' },
+          { status: 400 }
+        );
+      }
+
       try {
         const connection = getCookieConnection();
         const txBuffer = Buffer.from(rawTransaction, 'base64');
@@ -80,6 +92,34 @@ export async function POST(req: Request) {
     }
 
     // Case 2: Server-side signing and execution using configured PLATFORM_PRIVATE_KEY
+    // Require session authentication to prevent unauthorized server key draining
+    const authResult = await validateRequestSessionAsync(req);
+    if (!authResult.authenticated) {
+      return NextResponse.json(
+        {
+          error: 'Authentication required for automated server-signed transactions. Please sign in with your wallet.',
+          code: 'AUTH_REQUIRED',
+        },
+        { status: 401 }
+      );
+    }
+
+    // Per-wallet rate limiting
+    const walletRateResult = await rateLimiter.checkAsync(
+      `tx_exec_wallet:${authResult.payload.walletAddress}`,
+      10,
+      60 * 1000
+    );
+    if (!walletRateResult.allowed) {
+      return NextResponse.json(
+        {
+          error: 'Wallet transaction rate limit reached. Please wait before executing further transactions.',
+          retryAfterMs: walletRateResult.resetMs,
+        },
+        { status: 429 }
+      );
+    }
+
     if (!recipientPublicKey || typeof recipientPublicKey !== 'string') {
       return NextResponse.json(
         { error: 'Missing or invalid recipient public key address.' },
@@ -87,10 +127,29 @@ export async function POST(req: Request) {
       );
     }
 
-    const numericAmount = Number(amountCook);
-    if (isNaN(numericAmount) || numericAmount <= 0) {
+    // Validate valid Base58 Solana/SVM public key
+    try {
+      new PublicKey(recipientPublicKey);
+    } catch {
       return NextResponse.json(
-        { error: 'Amount must be a positive number greater than 0.' },
+        { error: 'Recipient address is not a valid Cookie Chain / SVM public key.' },
+        { status: 400 }
+      );
+    }
+
+    const numericAmount = Number(amountCook);
+    if (isNaN(numericAmount) || !isFinite(numericAmount) || numericAmount <= 0) {
+      return NextResponse.json(
+        { error: 'Amount must be a valid positive number greater than 0.' },
+        { status: 400 }
+      );
+    }
+
+    if (numericAmount > MAX_COOK_PER_TRANSACTION) {
+      return NextResponse.json(
+        {
+          error: `Transaction amount exceeds safety limit of ${MAX_COOK_PER_TRANSACTION.toLocaleString()} COOK.`,
+        },
         { status: 400 }
       );
     }
