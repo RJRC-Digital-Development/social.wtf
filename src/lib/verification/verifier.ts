@@ -61,33 +61,23 @@ export interface VideoVerificationProof {
   expiresAt: number;
 }
 
-/**
- * Ephemeral Government ID OCR Verification (Legacy / Single Doc)
- */
 export async function verifyEphemeralGovId(
   imageBlobOrBase64: string,
   onPurgeComplete?: (hash: string) => void
 ): Promise<EphemeralVerificationProof> {
-  await new Promise((resolve) => setTimeout(resolve, 1200));
-  let inMemoryBuffer: string | null = imageBlobOrBase64;
-  const encoder = new TextEncoder();
-  const data = encoder.encode(inMemoryBuffer.slice(0, 100) + Date.now());
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  const purgedHash = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
-  inMemoryBuffer = null;
+  const result = await verifyDualGovId(imageBlobOrBase64, imageBlobOrBase64, "Driver's License", (front) => {
+    if (onPurgeComplete) onPurgeComplete(front);
+  });
 
-  if (onPurgeComplete) onPurgeComplete(purgedHash);
   const now = Date.now();
-
   return {
-    verified: true,
-    age: 22,
+    verified: result.verified,
+    age: 25,
     method: 'ephemeral_id_ocr',
-    purgedHash: `purge_proof_${purgedHash.slice(0, 16)}`,
+    purgedHash: result.frontHash,
     verifiedAt: now,
     expiresAt: now + 24 * 60 * 60 * 1000,
-    sessionProof: `zk_id_proof_${Math.random().toString(36).substring(2, 15)}`,
+    sessionProof: `id_receipt_${result.frontHash.slice(0, 16)}`,
   };
 }
 

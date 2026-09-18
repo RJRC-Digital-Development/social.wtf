@@ -41,8 +41,9 @@ export function isTest(): boolean {
  * Validates critical production configuration on startup / request.
  * Throws or returns actionable validation status without exposing secrets.
  */
-export function validateProductionSecurityConfig(): { valid: boolean; errors: string[] } {
+export function validateProductionSecurityConfig(): { valid: boolean; errors: string[]; warnings: string[] } {
   const errors: string[] = [];
+  const warnings: string[] = [];
   const env = getSecurityEnvironment();
 
   if (env === 'production') {
@@ -50,13 +51,36 @@ export function validateProductionSecurityConfig(): { valid: boolean; errors: st
     if (!sessionSecret || sessionSecret.length < 32) {
       errors.push('SESSION_SECRET is missing or shorter than 32 characters in production.');
     }
-    if (sessionSecret.includes('your_secure_random_session_secret')) {
+    if (
+      sessionSecret.includes('your_secure_random_session_secret') ||
+      sessionSecret.includes('placeholder') ||
+      sessionSecret.includes('change_me')
+    ) {
       errors.push('SESSION_SECRET contains default insecure template placeholder.');
+    }
+
+    if (process.env.ALLOW_SANDBOX_VERIFICATION === 'true' || process.env.ALLOW_SANDBOX_PROOFS === 'true') {
+      errors.push('ALLOW_SANDBOX_VERIFICATION cannot be enabled in production.');
+    }
+
+    if (process.env.NEXT_PUBLIC_ALLOW_MOCK_VERIFICATION === 'true') {
+      errors.push('NEXT_PUBLIC_ALLOW_MOCK_VERIFICATION cannot be enabled in production.');
+    }
+
+    // Check distributed store in clustered production environments
+    const hasDistributedRedis = Boolean(
+      (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) ||
+      (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) ||
+      process.env.REDIS_URL
+    );
+    if (!hasDistributedRedis) {
+      warnings.push('Distributed store (Redis/Upstash/KV) not configured; operating on single-instance in-memory store.');
     }
   }
 
   return {
     valid: errors.length === 0,
     errors,
+    warnings,
   };
 }
