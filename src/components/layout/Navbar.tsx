@@ -3,7 +3,9 @@
 import React, { useState, useEffect } from 'react';
 import { NightlyWalletButton } from '../wallet/NightlyWalletButton';
 import { useShield } from '@/lib/shield/shieldContext';
+import { useWallet } from '@/lib/wallet/walletContext';
 import { COOKIE_CHAIN_CONFIG } from '@/lib/solana/cookieChain';
+import { User } from '@/types';
 import {
   Cookie,
   ShieldCheck,
@@ -16,6 +18,8 @@ import {
   ShoppingBag,
   TrendingUp,
   Bot,
+  User as UserIcon,
+  Sliders,
 } from 'lucide-react';
 
 interface NavbarProps {
@@ -24,6 +28,8 @@ interface NavbarProps {
   onOpenVerifyModal: (tab?: 'card_auth' | 'video_liveness' | 'id_upload') => void;
   onOpenEcosystemModal?: (tab?: 'bridge' | 'cookieswap' | 'cookiebox' | 'das' | 'mcp') => void;
   onOpenAiAgent?: () => void;
+  userProfile?: User;
+  onOpenMyPage?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -32,8 +38,11 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenVerifyModal,
   onOpenEcosystemModal,
   onOpenAiAgent,
+  userProfile,
+  onOpenMyPage,
 }) => {
   const { isAgeVerified, isVideoVerified, isIdVerified, isAdultContentUnlocked, unshieldedMode, toggleUnshieldedMode } = useShield();
+  const { connected, walletAddress } = useWallet();
   const [currentSlot, setCurrentSlot] = useState<number | null>(null);
 
   // Poll Cookie Chain slot for live status
@@ -132,7 +141,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 : 'text-slate-400 hover:text-slate-200'
             }`}
           >
-            Creator Mini-App
+            Creator Mini-Apps
           </button>
 
           <button
@@ -160,6 +169,26 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Right Header Action Items */}
         <div className="flex items-center gap-2.5">
+          {/* My Personal Page Shortcut */}
+          {onOpenMyPage && (
+            <button
+              onClick={onOpenMyPage}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-amber-500/40 text-amber-300 text-xs font-semibold transition-all shadow-sm"
+              title="Open and customize your personal creator page"
+            >
+              {userProfile?.avatar ? (
+                <img
+                  src={userProfile.avatar}
+                  alt={userProfile.name}
+                  className="w-4 h-4 rounded-full object-cover border border-amber-400"
+                />
+              ) : (
+                <UserIcon className="w-3.5 h-3.5 text-amber-400" />
+              )}
+              <span className="hidden sm:inline">My Page</span>
+            </button>
+          )}
+
           {/* Sentinel AI Agent Conversation Launcher */}
           {onOpenAiAgent && (
             <button
@@ -203,7 +232,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               onClick={() => onOpenEcosystemModal('bridge')}
               className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/10 to-blue-500/10 border border-amber-500/30 text-amber-300 hover:brightness-125 text-xs font-semibold transition-all shadow-sm"
             >
-              <span> Bridge & Swap</span>
+              <span>Bridge &amp; Swap</span>
             </button>
           )}
 

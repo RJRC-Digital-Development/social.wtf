@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Navbar } from '@/components/layout/Navbar';
 import { Feed } from '@/components/feed/Feed';
 import { Storefront } from '@/components/store/Storefront';
@@ -36,7 +36,27 @@ import {
   UserCheck,
   Camera,
   BookOpen,
+  User as UserIcon,
+  Edit3,
+  Link as LinkIcon,
+  Copy,
+  Check,
 } from 'lucide-react';
+
+const DEFAULT_USER_PROFILE: User = {
+  id: 'user-my-profile',
+  handle: 'you',
+  name: 'Cookie Creator',
+  avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&h=400&fit=crop',
+  bio: 'Socializing, creating, and trading natively on Cookie Chain SVM.',
+  verified: true,
+  ageVerified: true,
+  walletAddress: 'HMnySuX1CdBfqysiLtU4brPawufcHxFTFZu97jrKQwT9',
+  coverImage: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200&h=400&fit=crop',
+  followersCount: 1420,
+  followingCount: 380,
+  isCreator: true,
+};
 
 export default function Home() {
   const [activeView, setActiveView] = useState<'feed' | 'store' | 'creator' | 'community' | 'analytics'>(
@@ -44,10 +64,13 @@ export default function Home() {
   );
   const [posts, setPosts] = useState<Post[]>(INITIAL_POSTS);
   const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
-  const [creators] = useState<User[]>(INITIAL_CREATORS);
+  const [creators, setCreators] = useState<User[]>(INITIAL_CREATORS);
+  const [userProfile, setUserProfile] = useState<User>(DEFAULT_USER_PROFILE);
   const [selectedCreator, setSelectedCreator] = useState<User>(INITIAL_CREATORS[0]);
   const [transactions, setTransactions] = useState<TransactionRecord[]>(INITIAL_TRANSACTIONS);
+  const [followingHandles, setFollowingHandles] = useState<string[]>(['creator', 'you', 'cookie_monk']);
   const [metrics, setMetrics] = useState<TreasuryMetrics>(INITIAL_TREASURY_METRICS);
+  const [copiedPersonalUrl, setCopiedPersonalUrl] = useState(false);
 
   const [verifyModalOpen, setVerifyModalOpen] = useState(false);
   const [verifyTab, setVerifyTab] = useState<'card_auth' | 'video_liveness' | 'id_upload'>('card_auth');
@@ -55,7 +78,87 @@ export default function Home() {
   const [ecosystemModalOpen, setEcosystemModalOpen] = useState(false);
   const [ecosystemTab, setEcosystemTab] = useState<'bridge' | 'cookieswap' | 'cookiebox' | 'das' | 'mcp'>('bridge');
   const { isAgeVerified, isVideoVerified, isIdVerified, isCardVerified, isAdultContentUnlocked, canAccessAdultContent, unshieldedMode } = useShield();
-  const { walletAddress } = useWallet();
+  const { connected, walletAddress } = useWallet();
+
+  // Load saved profile & handle deep linking from URL
+  useEffect(() => {
+    let activeUser = DEFAULT_USER_PROFILE;
+    try {
+      const saved = localStorage.getItem('social_wtf_user_profile');
+      if (saved) {
+        activeUser = JSON.parse(saved);
+        setUserProfile(activeUser);
+      }
+      const savedFollowing = localStorage.getItem('social_wtf_following_handles');
+      if (savedFollowing) {
+        setFollowingHandles(JSON.parse(savedFollowing));
+      }
+    } catch (e) {
+      console.error('Failed to parse saved user profile', e);
+    }
+
+    // Handle deep-linking URL parameters (?u=..., ?user=..., ?creator=..., ?wallet=...)
+    if (typeof window !== 'undefined') {
+      const searchParams = new URLSearchParams(window.location.search);
+      const targetParam =
+        searchParams.get('u') ||
+        searchParams.get('user') ||
+        searchParams.get('creator') ||
+        searchParams.get('profile') ||
+        searchParams.get('wallet');
+
+      if (targetParam) {
+        const cleanParam = targetParam.trim().replace(/^@+/, '').toLowerCase();
+        
+        // Match in existing creators or userProfile
+        let found = INITIAL_CREATORS.find(
+          (c) => c.handle.toLowerCase() === cleanParam || c.walletAddress.toLowerCase() === cleanParam
+        );
+
+        if (!found && activeUser.handle.toLowerCase() === cleanParam) {
+          found = activeUser;
+        }
+
+        // If not found in default list, hydrate dynamically from the shared URL
+        if (!found) {
+          found = {
+            id: `creator-${cleanParam}`,
+            handle: cleanParam,
+            name: `@${cleanParam}`,
+            avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${cleanParam}`,
+            bio: `Cookie Chain Creator and Community Member (@${cleanParam}).`,
+            verified: true,
+            ageVerified: true,
+            walletAddress: 'HMnySuX1CdBfqysiLtU4brPawufcHxFTFZu97jrKQwT9',
+            coverImage: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200&h=400&fit=crop',
+            followersCount: 1,
+            followingCount: 10,
+            isCreator: true,
+          };
+          setCreators((prev) => [found!, ...prev.filter((c) => c.handle !== cleanParam)]);
+        }
+
+        setSelectedCreator(found);
+        setActiveView('creator');
+      }
+    }
+  }, []);
+
+  // Sync wallet address with user profile when connected
+  useEffect(() => {
+    if (connected && walletAddress) {
+      setUserProfile((prev) => {
+        const updated = {
+          ...prev,
+          walletAddress,
+        };
+        try {
+          localStorage.setItem('social_wtf_user_profile', JSON.stringify(updated));
+        } catch (e) {}
+        return updated;
+      });
+    }
+  }, [connected, walletAddress]);
 
   const handlePostCreated = (newPost: Post) => {
     setPosts([newPost, ...posts]);
@@ -131,10 +234,68 @@ export default function Home() {
   };
 
   const handleOpenStore = (creatorHandle: string) => {
-    const found = creators.find((c) => c.handle === creatorHandle);
+    const clean = creatorHandle.toLowerCase().replace(/^@+/, '');
+    const found = creators.find((c) => c.handle.toLowerCase() === clean);
     if (found) {
       setSelectedCreator(found);
       setActiveView('creator');
+      if (typeof window !== 'undefined' && window.history) {
+        window.history.replaceState(null, '', `/?u=${clean}`);
+      }
+    }
+  };
+
+  const handleOpenMyPage = () => {
+    setSelectedCreator(userProfile);
+    setActiveView('creator');
+    if (typeof window !== 'undefined' && window.history) {
+      window.history.replaceState(null, '', `/?u=${userProfile.handle}`);
+    }
+  };
+
+  const handleToggleFollow = (targetHandle: string) => {
+    const clean = targetHandle.toLowerCase().replace(/^@+/, '');
+    setFollowingHandles((prev) => {
+      const next = prev.includes(clean) ? prev.filter((h) => h !== clean) : [...prev, clean];
+      try {
+        localStorage.setItem('social_wtf_following_handles', JSON.stringify(next));
+      } catch (e) {}
+      return next;
+    });
+  };
+
+  const handleUpdateCreator = (updated: User) => {
+    setSelectedCreator(updated);
+    setCreators((prev) => {
+      const idx = prev.findIndex((c) => c.handle === updated.handle || c.id === updated.id);
+      if (idx >= 0) {
+        const next = [...prev];
+        next[idx] = updated;
+        return next;
+      }
+      return [updated, ...prev];
+    });
+
+    // If this updated user corresponds to the user's profile, save it
+    if (updated.handle === userProfile.handle || updated.id === userProfile.id) {
+      setUserProfile(updated);
+      try {
+        localStorage.setItem('social_wtf_user_profile', JSON.stringify(updated));
+      } catch (e) {}
+    }
+  };
+
+  const myPersonalLink = typeof window !== 'undefined'
+    ? `${window.location.origin}/?u=${userProfile.handle}`
+    : `https://socialwtf.vercel.app/?u=${userProfile.handle}`;
+
+  const handleCopyMyPersonalUrl = async () => {
+    try {
+      await navigator.clipboard.writeText(myPersonalLink);
+      setCopiedPersonalUrl(true);
+      setTimeout(() => setCopiedPersonalUrl(false), 2500);
+    } catch (err) {
+      console.error(err);
     }
   };
 
@@ -153,6 +314,8 @@ export default function Home() {
           setEcosystemModalOpen(true);
         }}
         onOpenAiAgent={() => setAiAgentOpen(true)}
+        userProfile={userProfile}
+        onOpenMyPage={handleOpenMyPage}
       />
 
       {/* Main Container */}
@@ -171,12 +334,20 @@ export default function Home() {
                 </span>
               </h2>
               <p className="text-xs text-slate-300 mt-0.5">
-                Automated 5% protocol fee splitting on Cookie Chain. AI Sentinel verification ensures parent/guardian devices are guarded with zero trace.
+                Login with Nightly wallet. Customize your personal profile, upload images, and share your personal URL with friends.
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={handleOpenMyPage}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 font-bold text-xs hover:brightness-110 active:scale-95 transition-all shadow-md shadow-amber-500/20"
+            >
+              <Edit3 className="w-3.5 h-3.5" />
+              <span>Customize My Page</span>
+            </button>
+
             <button
               onClick={() => setAiAgentOpen(true)}
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-amber-500/20 to-yellow-500/20 hover:from-amber-500/30 hover:to-yellow-500/30 border border-amber-500/40 text-amber-300 text-xs font-semibold transition-all shadow-sm"
@@ -194,12 +365,12 @@ export default function Home() {
                 className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-emerald-500/40 text-emerald-300 text-xs font-semibold transition-all shadow-sm"
               >
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Verify Age to Access (18+)</span>
+                <span>Verify Age (18+)</span>
               </button>
             ) : (
               <span className="px-3 py-1.5 rounded-xl bg-purple-500/10 border border-purple-500/30 text-purple-300 text-xs font-semibold flex items-center gap-1.5">
                 <ShieldCheck className="w-4 h-4 text-purple-400" />
-                <span>AI Sentinel Verified (Adult Entertainment 18+ Active)</span>
+                <span>AI Sentinel Verified (18+)</span>
               </span>
             )}
           </div>
@@ -209,6 +380,49 @@ export default function Home() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Left Sidebar: Navigation & Quick Shortcuts */}
           <aside className="lg:col-span-3 space-y-5">
+            {/* My Personal Profile Quick Card */}
+            <div className="p-4 rounded-3xl bg-[#0d1527] border border-amber-500/30 shadow-xl space-y-3">
+              <div className="flex items-center gap-3">
+                <img
+                  src={userProfile.avatar}
+                  alt={userProfile.name}
+                  className="w-12 h-12 rounded-2xl object-cover border-2 border-amber-400 shrink-0"
+                />
+                <div className="overflow-hidden">
+                  <div className="font-bold text-slate-100 text-xs truncate">{userProfile.name}</div>
+                  <div className="text-[11px] text-amber-400 font-mono">@{userProfile.handle}</div>
+                  <div className="text-[10px] text-slate-400 truncate mt-0.5">{userProfile.walletAddress.slice(0, 4)}...{userProfile.walletAddress.slice(-4)}</div>
+                </div>
+              </div>
+
+              <div className="pt-2 border-t border-slate-800 space-y-2">
+                <button
+                  onClick={handleOpenMyPage}
+                  className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 font-bold text-xs hover:brightness-110 active:scale-95 transition-all shadow-md"
+                >
+                  <Edit3 className="w-3.5 h-3.5" />
+                  <span>Customize My Personal Page</span>
+                </button>
+
+                <button
+                  onClick={handleCopyMyPersonalUrl}
+                  className="w-full flex items-center justify-center gap-2 py-1.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 text-xs font-semibold transition-all"
+                >
+                  {copiedPersonalUrl ? (
+                    <>
+                      <Check className="w-3.5 h-3.5 text-emerald-400" />
+                      <span className="text-emerald-300">Copied Personal Link!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3.5 h-3.5 text-amber-400" />
+                      <span>Copy Personal URL</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
             {/* Quick Navigation Box */}
             <div className="p-4 rounded-3xl bg-[#0d1527] border border-slate-700/70 shadow-xl space-y-1 text-xs font-medium">
               <button
@@ -236,10 +450,7 @@ export default function Home() {
               </button>
 
               <button
-                onClick={() => {
-                  setSelectedCreator(creators[0]);
-                  setActiveView('creator');
-                }}
+                onClick={handleOpenMyPage}
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl transition-all ${
                   activeView === 'creator'
                     ? 'bg-amber-500 text-slate-950 font-bold shadow-md'
@@ -247,7 +458,7 @@ export default function Home() {
                 }`}
               >
                 <Globe className="w-4 h-4" />
-                <span>Creator Mini-App Demo</span>
+                <span>Creator Mini-App Page</span>
               </button>
 
               <button
@@ -288,11 +499,16 @@ export default function Home() {
               </button>
             </div>
 
-            {/* Featured Creators */}
+            {/* Featured Creators & Social Gathering */}
             <div className="p-4 rounded-3xl bg-[#0d1527] border border-slate-700/70 shadow-xl space-y-3">
-              <h3 className="text-xs font-bold text-slate-200 uppercase tracking-wider px-1">
-                Featured Creators
-              </h3>
+              <div className="flex items-center justify-between px-1">
+                <h3 className="text-xs font-bold text-slate-200 uppercase tracking-wider">
+                  Social Gathering
+                </h3>
+                <span className="text-[10px] text-amber-400 font-mono font-bold">
+                  {creators.length} Creators
+                </span>
+              </div>
 
               <div className="space-y-2">
                 {creators.map((c) => (
@@ -301,6 +517,9 @@ export default function Home() {
                     onClick={() => {
                       setSelectedCreator(c);
                       setActiveView('creator');
+                      if (typeof window !== 'undefined' && window.history) {
+                        window.history.replaceState(null, '', `/?u=${c.handle}`);
+                      }
                     }}
                     className={`flex items-center justify-between p-2 rounded-2xl cursor-pointer transition-all ${
                       selectedCreator.id === c.id && activeView === 'creator'
@@ -331,7 +550,7 @@ export default function Home() {
             <div className="p-4 rounded-3xl bg-slate-900/60 border border-slate-800 text-xs space-y-2">
               <div className="flex items-center gap-2 text-emerald-400 font-semibold">
                 <ShieldCheck className="w-4 h-4" />
-                <span>Privacy & AI Shielding</span>
+                <span>Privacy &amp; AI Shielding</span>
               </div>
               <p className="text-slate-400 text-[11px] leading-relaxed">
                 {isAgeVerified && unshieldedMode
@@ -346,6 +565,9 @@ export default function Home() {
             {activeView === 'feed' && (
               <Feed
                 posts={posts}
+                currentUser={userProfile}
+                followingHandles={followingHandles}
+                onToggleFollow={handleToggleFollow}
                 onOpenStore={handleOpenStore}
                 onPostCreated={handlePostCreated}
                 onPostUpdated={handlePostUpdated}
@@ -376,6 +598,8 @@ export default function Home() {
                   setVerifyModalOpen(true);
                 }}
                 onTransactionRecorded={handleTransactionRecorded}
+                onUpdateCreator={handleUpdateCreator}
+                onSelectCreator={handleOpenStore}
               />
             )}
 
@@ -448,7 +672,10 @@ export default function Home() {
                 }}
                 className="w-full flex items-center justify-between p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 transition-colors text-left group"
               >
-                <span> Hyperlane Bridge Guide</span>
+                <div>
+                  <div className="font-semibold text-slate-200 group-hover:text-amber-300">Hyperlane Warp Bridge</div>
+                  <div className="text-[10px] text-slate-500">Bridge SOL / USDC to Cookie Chain</div>
+                </div>
                 <ExternalLink className="w-3.5 h-3.5 text-slate-500 group-hover:text-amber-400" />
               </button>
 
@@ -459,7 +686,10 @@ export default function Home() {
                 }}
                 className="w-full flex items-center justify-between p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 transition-colors text-left group"
               >
-                <span> Cookieswap.fun (DEX)</span>
+                <div>
+                  <div className="font-semibold text-slate-200 group-hover:text-amber-300">CookieSwap DEX</div>
+                  <div className="text-[10px] text-slate-500">Fast token swapping &amp; liquidity pools</div>
+                </div>
                 <ExternalLink className="w-3.5 h-3.5 text-slate-500 group-hover:text-amber-400" />
               </button>
 
@@ -470,7 +700,10 @@ export default function Home() {
                 }}
                 className="w-full flex items-center justify-between p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 transition-colors text-left group"
               >
-                <span> Cookiebox.app</span>
+                <div>
+                  <div className="font-semibold text-slate-200 group-hover:text-amber-300">Cookiebox Launchpad</div>
+                  <div className="text-[10px] text-slate-500">Bonding curve creator token launches</div>
+                </div>
                 <ExternalLink className="w-3.5 h-3.5 text-slate-500 group-hover:text-amber-400" />
               </button>
 
@@ -481,7 +714,10 @@ export default function Home() {
                 }}
                 className="w-full flex items-center justify-between p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 transition-colors text-left group"
               >
-                <span> Cookie DAS API (api.cookiescan.io)</span>
+                <div>
+                  <div className="font-semibold text-slate-200 group-hover:text-amber-300">CookieScan API (DAS)</div>
+                  <div className="text-[10px] text-slate-500">Digital Asset Standard indexer for NFTs</div>
+                </div>
                 <ExternalLink className="w-3.5 h-3.5 text-slate-500 group-hover:text-amber-400" />
               </button>
 
@@ -492,103 +728,42 @@ export default function Home() {
                 }}
                 className="w-full flex items-center justify-between p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 transition-colors text-left group"
               >
-                <span> cookie-mcp (AI Tools)</span>
+                <div>
+                  <div className="font-semibold text-slate-200 group-hover:text-amber-300">Cookie-MCP Integration</div>
+                  <div className="text-[10px] text-slate-500">Autonomous LLM agent tools &amp; execution</div>
+                </div>
                 <ExternalLink className="w-3.5 h-3.5 text-slate-500 group-hover:text-amber-400" />
               </button>
-
-              <a
-                href="https://t.me/TheCookieNetChain"
-                target="_blank"
-                rel="noreferrer"
-                className="flex items-center justify-between p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 transition-colors"
-              >
-                <span>Cookie Chain Telegram</span>
-                <ExternalLink className="w-3.5 h-3.5 text-slate-500" />
-              </a>
             </div>
           </aside>
         </div>
       </main>
 
-      {/* Sentinel AI Verification Modal (Live Video Safeguard & ID Front/Back) */}
+      {/* Verification Modal */}
       <AgeVerificationModal
         isOpen={verifyModalOpen}
-        onClose={() => setVerifyModalOpen(false)}
         initialTab={verifyTab}
+        onClose={() => setVerifyModalOpen(false)}
       />
 
-      {/* Sentinel AI Agent Conversation Modal / Drawer */}
+      {/* Ecosystem Hub Modal */}
+      <EcosystemHubModal
+        isOpen={ecosystemModalOpen}
+        defaultTab={ecosystemTab}
+        onClose={() => setEcosystemModalOpen(false)}
+      />
+
+      {/* Autonomous AI Agent Modal */}
       <AiAgentModal
         isOpen={aiAgentOpen}
         onClose={() => setAiAgentOpen(false)}
         onOpenVerifyModal={(tab) => {
-          setVerifyTab(tab || 'video_liveness');
+          setVerifyTab(tab || 'card_auth');
           setVerifyModalOpen(true);
         }}
         onOpenStore={handleOpenStore}
         onSelectView={setActiveView}
       />
-
-      {/* Floating Sentinel AI Agent Launcher */}
-      <div className="fixed bottom-6 right-6 z-40">
-        <button
-          onClick={() => setAiAgentOpen(true)}
-          className="flex items-center gap-2.5 px-4 py-3 rounded-2xl bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-500 text-slate-950 font-bold text-xs shadow-2xl shadow-amber-500/30 hover:scale-105 active:scale-95 transition-all border border-amber-300/40 group"
-        >
-          <div className="relative">
-            <Bot className="w-5 h-5 text-slate-950" />
-            <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-500 rounded-full border border-slate-950 animate-ping" />
-            <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-500 rounded-full border border-slate-950" />
-          </div>
-          <span className="hidden sm:inline font-sans">Sentinel AI Agent</span>
-        </button>
-      </div>
-
-      {/* Ecosystem Hub Modal (Bridge, Cookieswap, Cookiebox, DAS, MCP) */}
-      <EcosystemHubModal
-        isOpen={ecosystemModalOpen}
-        onClose={() => setEcosystemModalOpen(false)}
-        defaultTab={ecosystemTab}
-        onTransactionRecorded={handleTransactionRecorded}
-      />
-
-      {/* Footer */}
-      <footer className="w-full border-t border-slate-800/80 bg-[#070b14] py-8 text-center text-xs text-slate-500 mt-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <span className="font-extrabold text-slate-300">Social.wtf</span>
-            <span>•</span>
-            <span>Built on Cookie Chain SVM</span>
-          </div>
-
-          <div className="flex items-center gap-4 text-slate-400">
-            <a
-              href="https://cookiescan.io"
-              target="_blank"
-              rel="noreferrer"
-              className="hover:text-amber-400 transition-colors"
-            >
-              Explorer
-            </a>
-            <a
-              href="https://docs.cookiechain.wtf"
-              target="_blank"
-              rel="noreferrer"
-              className="hover:text-amber-400 transition-colors"
-            >
-              Docs
-            </a>
-            <a
-              href="https://t.me/TheCookieNetChain"
-              target="_blank"
-              rel="noreferrer"
-              className="hover:text-amber-400 transition-colors"
-            >
-              Telegram Community
-            </a>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }

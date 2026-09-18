@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Post, MediaType } from '@/types';
+import { Post, MediaType, User } from '@/types';
 import { useShield } from '@/lib/shield/shieldContext';
 import { useWallet } from '@/lib/wallet/walletContext';
 import { scanMediaContent } from '@/lib/ai/scanner';
@@ -18,10 +18,17 @@ import {
   CheckCircle2,
   TrendingUp,
   Flame,
+  Users,
+  Tv,
+  UserCheck,
+  Globe,
 } from 'lucide-react';
 
 interface FeedProps {
   posts: Post[];
+  currentUser?: User;
+  followingHandles?: string[];
+  onToggleFollow?: (handle: string) => void;
   onOpenStore?: (creatorHandle: string) => void;
   onPostCreated?: (newPost: Post) => void;
   onPostUpdated?: (updatedPost: Post, meta?: { tipAmount?: number; signature?: string }) => void;
@@ -30,17 +37,20 @@ interface FeedProps {
 
 export const Feed: React.FC<FeedProps> = ({
   posts,
+  currentUser,
+  followingHandles = ['creator', 'you'],
+  onToggleFollow,
   onOpenStore,
   onPostCreated,
   onPostUpdated,
   onOpenVerifyModal,
 }) => {
   const { filterFeedPosts, canAccessAdultContent, isVideoVerified, isAgeVerified, isIdVerified } = useShield();
-  const { connected, connect } = useWallet();
+  const { connected, connect, walletAddress } = useWallet();
 
-  const [activeFilter, setActiveFilter] = useState<'all' | 'trending' | 'audio' | 'video' | 'shielded'>(
-    'all'
-  );
+  // News feed defaults strictly to Following feed
+  const [feedMode, setFeedMode] = useState<'following' | 'explore'>('following');
+  const [activeFilter, setActiveFilter] = useState<'all' | 'video' | 'audio' | 'trending' | 'shielded'>('all');
 
   // New Post Form State
   const [content, setContent] = useState('');
@@ -55,11 +65,25 @@ export const Feed: React.FC<FeedProps> = ({
   // Apply invisible shielding filter
   const visiblePosts = filterFeedPosts(posts);
 
-  // Apply tab filtering
-  const filteredPosts = visiblePosts.filter((post) => {
-    if (activeFilter === 'trending') return post.likes > 150;
-    if (activeFilter === 'audio') return post.type === 'audio';
+  // Normalize followed handles (lowercased) + always include current user and primary creator
+  const lowerFollowed = followingHandles.map((h) => h.toLowerCase());
+  const myHandle = (currentUser?.handle || 'you').toLowerCase();
+
+  // Filter feed: Following mode strictly shows posts from authors you follow or your own page
+  const streamPosts = visiblePosts.filter((post) => {
+    const authorHandle = post.author.handle.toLowerCase();
+    if (feedMode === 'following') {
+      const isFollowed =
+        lowerFollowed.includes(authorHandle) ||
+        authorHandle === myHandle ||
+        authorHandle === 'creator' ||
+        authorHandle === 'you';
+      if (!isFollowed) return false;
+    }
+
+    if (activeFilter === 'trending') return post.likes > 100 || post.tipsCount > 5;
     if (activeFilter === 'video') return post.type === 'video';
+    if (activeFilter === 'audio') return post.type === 'audio';
     if (activeFilter === 'shielded') return post.isShielded;
     return true;
   });
@@ -91,24 +115,25 @@ export const Feed: React.FC<FeedProps> = ({
 
     const isShielded = aiResult ? aiResult.isShielded : false;
 
+    const userAuthor: User = currentUser || {
+      id: 'creator-you',
+      handle: 'you',
+      name: 'Cookie Creator',
+      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&h=400&fit=crop',
+      bio: 'Building and socializing on Cookie Chain SVM.',
+      verified: true,
+      ageVerified: isAgeVerified,
+      isIdVerified: isIdVerified,
+      isVideoVerified: isVideoVerified,
+      walletAddress: walletAddress || 'HMnySuX1CdBfqysiLtU4brPawufcHxFTFZu97jrKQwT9',
+      followersCount: 1420,
+      followingCount: 42,
+      isCreator: true,
+    };
+
     const newPost: Post = {
       id: `post-${Date.now()}`,
-      author: {
-        id: 'creator-you',
-        handle: 'you',
-        name: 'You (Cookie Chain Creator)',
-        avatar:
-          'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
-        bio: 'Building on Cookie Chain SVM.',
-        verified: true,
-        ageVerified: isAgeVerified,
-        isIdVerified: isIdVerified,
-        isVideoVerified: isVideoVerified,
-        walletAddress: 'CookYou1111111111111111111111111111111111',
-        followersCount: 1,
-        followingCount: 42,
-        isCreator: true,
-      },
+      author: userAuthor,
       type: postType,
       content: content.trim(),
       mediaUrl: mediaUrl.trim() || undefined,
@@ -116,7 +141,7 @@ export const Feed: React.FC<FeedProps> = ({
         postType === 'audio'
           ? {
               title: 'Original Audio Stream',
-              artist: 'You',
+              artist: userAuthor.name,
               duration: '3:20',
             }
           : undefined,
@@ -126,7 +151,7 @@ export const Feed: React.FC<FeedProps> = ({
       totalTipsCook: 0,
       reposts: 0,
       commentsCount: 0,
-      tags: ['SocialWTF', 'CookieChain'],
+      tags: ['SocialWTF', 'CookieChain', 'cApp'],
       isShielded,
       shieldCategory: isShielded ? 'age_restricted' : 'safe',
       shieldConfidence: 0.98,
@@ -150,14 +175,16 @@ export const Feed: React.FC<FeedProps> = ({
       <div className="rounded-3xl bg-[#0d1527] border border-slate-700/80 p-5 shadow-xl">
         <div className="flex items-center gap-3 mb-3">
           <img
-            src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80"
+            src={currentUser?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80'}
             alt="Avatar"
             className="w-10 h-10 rounded-2xl object-cover border border-amber-500/30"
           />
           <div>
-            <h3 className="font-bold text-slate-200 text-sm">Create on Cookie Chain</h3>
+            <h3 className="font-bold text-slate-200 text-sm">
+              {currentUser ? `Post as ${currentUser.name}` : 'Create on Cookie Chain'}
+            </h3>
             <p className="text-[11px] text-slate-400">
-              Multimodal AI auto-screens uploads in real-time
+              Your posts appear immediately in the following news feeds of all your followers and friends.
             </p>
           </div>
         </div>
@@ -167,7 +194,7 @@ export const Feed: React.FC<FeedProps> = ({
             rows={3}
             value={content}
             onChange={(e) => setContent(e.target.value)}
-            placeholder="What's happening on the chain? Drop alpha, track stems, or art..."
+            placeholder="What's happening on the chain? Drop alpha, track stems, videos, or store drops..."
             className="w-full bg-slate-900/90 border border-slate-700/80 rounded-2xl p-3.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-amber-400 leading-relaxed resize-none"
           />
 
@@ -180,7 +207,7 @@ export const Feed: React.FC<FeedProps> = ({
                   postType === 'audio'
                     ? 'Paste audio MP3 stream URL...'
                     : postType === 'video'
-                    ? 'Paste MP4 video URL...'
+                    ? 'Paste YouTube / MP4 video URL...'
                     : 'Paste high-res image URL...'
                 }
                 value={mediaUrl}
@@ -201,35 +228,8 @@ export const Feed: React.FC<FeedProps> = ({
                     }
                     className="text-amber-400 hover:underline"
                   >
-                    Load Sample Audio
+                    Sample Audio
                   </button>
-                )}
-                {postType === 'photo' && (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        handleMediaUrlChange(
-                          'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1000'
-                        )
-                      }
-                      className="text-amber-400 hover:underline"
-                    >
-                      Safe Photo
-                    </button>
-                    <span>•</span>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        handleMediaUrlChange(
-                          'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=1000&tag=18+adult'
-                        )
-                      }
-                      className="text-red-400 hover:underline"
-                    >
-                      Test 18+ Restricted (Auto-Shielded)
-                    </button>
-                  </>
                 )}
                 {postType === 'video' && (
                   <button
@@ -241,168 +241,250 @@ export const Feed: React.FC<FeedProps> = ({
                     }
                     className="text-amber-400 hover:underline"
                   >
-                    Load Sample Video
+                    Sample Video
+                  </button>
+                )}
+                {postType === 'photo' && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleMediaUrlChange(
+                        'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800'
+                      )
+                    }
+                    className="text-amber-400 hover:underline"
+                  >
+                    Sample Image
                   </button>
                 )}
               </div>
             </div>
           )}
 
-          {/* AI Vision Screening Result Feedback */}
+          {/* Scanner AI Feedback */}
           {isScanningAI && (
-            <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-[11px] text-amber-300 flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
-              <span>Scanning media upload with Multimodal AI Vision API...</span>
+            <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-300 flex items-center gap-2">
+              <Sparkles className="w-3.5 h-3.5 animate-spin" />
+              <span>Multimodal AI scanning media content...</span>
             </div>
           )}
 
           {aiResult && !isScanningAI && (
             <div
-              className={`p-2.5 rounded-xl text-[11px] flex items-center justify-between ${
+              className={`p-2.5 rounded-xl border text-xs flex items-center gap-2 ${
                 aiResult.isShielded
-                  ? 'bg-red-500/10 border border-red-500/30 text-red-300'
-                  : 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-300'
+                  ? 'bg-amber-500/10 border-amber-500/30 text-amber-300'
+                  : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
               }`}
             >
-              <div className="flex items-center gap-2">
-                {aiResult.isShielded ? (
-                  <ShieldAlert className="w-4 h-4 text-red-400 shrink-0" />
-                ) : (
-                  <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
-                )}
-                <span>
-                  {aiResult.isShielded
-                    ? 'AI Shielding Applied: Content classified as 18+ and will be invisible to unverified users.'
-                    : 'AI Vision Clean: Safe for public feed.'}
-                </span>
-              </div>
+              {aiResult.isShielded ? (
+                <>
+                  <ShieldAlert className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                  <span>AI Shield Active: {aiResult.reason}</span>
+                </>
+              ) : (
+                <>
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                  <span>AI Shield Passed: Safe stream verified.</span>
+                </>
+              )}
             </div>
           )}
 
-          {/* Bottom Bar: Post Type Toggles + Submit */}
-          <div className="flex items-center justify-between pt-2 border-t border-slate-800/80">
-            <div className="flex items-center gap-1">
+          {/* Actions & Format Selector */}
+          <div className="flex items-center justify-between pt-2">
+            <div className="flex items-center gap-1.5 bg-slate-900/80 p-1 rounded-xl border border-slate-800">
               <button
                 type="button"
                 onClick={() => setPostType('text')}
-                className={`p-2 rounded-xl text-xs flex items-center gap-1.5 transition-all ${
+                className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
                   postType === 'text'
-                    ? 'bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30'
+                    ? 'bg-amber-500 text-slate-950 font-bold'
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
-                <span>Text</span>
+                Text
               </button>
-
               <button
                 type="button"
                 onClick={() => setPostType('photo')}
-                className={`p-2 rounded-xl text-xs flex items-center gap-1.5 transition-all ${
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
                   postType === 'photo'
-                    ? 'bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30'
+                    ? 'bg-amber-500 text-slate-950 font-bold'
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
-                <ImageIcon className="w-3.5 h-3.5" />
+                <ImageIcon className="w-3 h-3" />
                 <span>Photo</span>
               </button>
-
               <button
                 type="button"
                 onClick={() => setPostType('video')}
-                className={`p-2 rounded-xl text-xs flex items-center gap-1.5 transition-all ${
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
                   postType === 'video'
-                    ? 'bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30'
+                    ? 'bg-amber-500 text-slate-950 font-bold'
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
-                <Video className="w-3.5 h-3.5" />
+                <Video className="w-3 h-3" />
                 <span>Video</span>
               </button>
-
               <button
                 type="button"
                 onClick={() => setPostType('audio')}
-                className={`p-2 rounded-xl text-xs flex items-center gap-1.5 transition-all ${
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
                   postType === 'audio'
-                    ? 'bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30'
+                    ? 'bg-amber-500 text-slate-950 font-bold'
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
-                <Music className="w-3.5 h-3.5" />
-                <span>Audio Track</span>
+                <Music className="w-3 h-3" />
+                <span>Audio</span>
               </button>
             </div>
 
             <button
               type="submit"
-              disabled={!content.trim()}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 font-bold text-xs hover:brightness-110 active:scale-95 disabled:opacity-40 disabled:pointer-events-none transition-all shadow-md shadow-amber-500/20"
+              disabled={!content.trim() || isScanningAI}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 font-bold text-xs hover:brightness-110 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md shadow-amber-500/20"
             >
               <Send className="w-3.5 h-3.5" />
-              <span>Publish Post</span>
+              <span>Broadcast Post</span>
             </button>
           </div>
         </form>
       </div>
 
-      {/* Feed Filters */}
-      <div className="flex flex-wrap items-center justify-between gap-3 pb-2 border-b border-slate-800">
-        <div className="flex flex-wrap gap-2">
-          {[
-            { id: 'all', label: ' All Stream' },
-            { id: 'trending', label: ' Trending' },
-            { id: 'audio', label: ' Music Hub' },
-            { id: 'video', label: ' Video Drops' },
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveFilter(tab.id as any)}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all ${
-                activeFilter === tab.id
-                  ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20 font-bold'
-                  : 'bg-slate-900 border border-slate-700/80 text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-
-          {/* Adult Entertainment Filter Tab - Rendered ONLY when 18+ Access is Verified! Zero trace when unverified */}
-          {canAccessAdultContent && (
-            <button
-              onClick={() => setActiveFilter('shielded')}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all ${
-                activeFilter === 'shielded'
-                  ? 'bg-rose-500 text-white shadow-md shadow-rose-500/20 font-bold'
-                  : 'bg-rose-500/10 border border-rose-500/30 text-rose-300 hover:bg-rose-500/20'
-              }`}
-            >
-               Adult Entertainment (18+)
-            </button>
-          )}
+      {/* Mode Switcher: Following Feed (Default) vs Explore Network */}
+      <div className="p-3.5 rounded-2xl bg-[#0d1527] border border-amber-500/30 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-lg">
+        <div className="flex items-center gap-2.5">
+          <div className="p-2 rounded-xl bg-amber-500/20 text-amber-400">
+            <UserCheck className="w-4 h-4" />
+          </div>
+          <div>
+            <div className="text-xs font-bold text-slate-100 flex items-center gap-2">
+              <span>{feedMode === 'following' ? 'Following News Feed Active' : 'Explore All Network Stream'}</span>
+              <span className="px-2 py-0.5 rounded-full text-[9px] font-mono bg-emerald-500/20 text-emerald-300 font-bold">
+                {feedMode === 'following' ? 'FOLLOWERS ONLY' : 'ALL NETWORK'}
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-400">
+              {feedMode === 'following'
+                ? 'Only reflecting posts from creators and friends you follow (and your personal page).'
+                : 'Showing all public broadcasts across Cookie Chain SVM.'}
+            </p>
+          </div>
         </div>
 
-        <div className="text-[11px] font-mono text-slate-500">
-          Showing {filteredPosts.length} posts
+        <div className="flex items-center gap-1.5 bg-slate-900/90 p-1 rounded-xl border border-slate-700 text-xs shrink-0">
+          <button
+            onClick={() => setFeedMode('following')}
+            className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1.5 ${
+              feedMode === 'following'
+                ? 'bg-amber-500 text-slate-950 shadow-md'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Users className="w-3.5 h-3.5" />
+            <span>Following</span>
+          </button>
+          <button
+            onClick={() => setFeedMode('explore')}
+            className={`px-3 py-1.5 rounded-lg font-semibold transition-all flex items-center gap-1.5 ${
+              feedMode === 'explore'
+                ? 'bg-amber-500 text-slate-950 font-bold shadow-md'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Globe className="w-3.5 h-3.5" />
+            <span>Explore All</span>
+          </button>
         </div>
       </div>
 
-      {/* Posts List */}
-      <div className="space-y-4">
-        {filteredPosts.map((post) => (
-          <PostCard
-            key={post.id}
-            post={post}
-            onOpenStore={onOpenStore}
-            onPostUpdated={onPostUpdated}
-          />
-        ))}
+      {/* Multi-Channel Format Filter */}
+      <div className="flex items-center justify-between pb-1 border-b border-slate-800">
+        <div className="flex items-center gap-2">
+          <Filter className="w-4 h-4 text-amber-400" />
+          <span className="text-xs font-bold text-slate-200">Stream Channels</span>
+        </div>
 
-        {filteredPosts.length === 0 && (
-          <div className="p-10 rounded-3xl bg-[#0d1527] border border-slate-700/60 text-center space-y-2">
-            <p className="text-slate-400 text-xs">No posts matching filter.</p>
+        <div className="flex items-center gap-1 bg-slate-900/80 p-1 rounded-xl border border-slate-800 text-xs overflow-x-auto">
+          <button
+            onClick={() => setActiveFilter('all')}
+            className={`px-2.5 py-1 rounded-lg transition-all shrink-0 ${
+              activeFilter === 'all'
+                ? 'bg-amber-500 text-slate-950 font-bold'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            All Types
+          </button>
+          <button
+            onClick={() => setActiveFilter('trending')}
+            className={`flex items-center gap-1 px-2.5 py-1 rounded-lg transition-all shrink-0 ${
+              activeFilter === 'trending'
+                ? 'bg-amber-500 text-slate-950 font-bold'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Flame className="w-3 h-3 text-amber-400" />
+            <span>Trending</span>
+          </button>
+          <button
+            onClick={() => setActiveFilter('video')}
+            className={`flex items-center gap-1 px-2.5 py-1 rounded-lg transition-all shrink-0 ${
+              activeFilter === 'video'
+                ? 'bg-amber-500 text-slate-950 font-bold'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Tv className="w-3 h-3" />
+            <span>Videos</span>
+          </button>
+          <button
+            onClick={() => setActiveFilter('audio')}
+            className={`flex items-center gap-1 px-2.5 py-1 rounded-lg transition-all shrink-0 ${
+              activeFilter === 'audio'
+                ? 'bg-amber-500 text-slate-950 font-bold'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Music className="w-3 h-3" />
+            <span>Audio</span>
+          </button>
+          <button
+            onClick={() => setActiveFilter('shielded')}
+            className={`flex items-center gap-1 px-2.5 py-1 rounded-lg transition-all shrink-0 ${
+              activeFilter === 'shielded'
+                ? 'bg-amber-500 text-slate-950 font-bold'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <ShieldAlert className="w-3 h-3 text-amber-400" />
+            <span>18+ Adult</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Feed Stream List */}
+      <div className="space-y-4">
+        {streamPosts.length === 0 ? (
+          <div className="p-8 text-center rounded-3xl bg-[#0d1527] border border-slate-800 text-slate-400 text-xs space-y-2">
+            <p>No posts found in your Following feed.</p>
+            <p className="text-[11px] text-slate-500">
+              Publish a new post above, or switch to &quot;Explore All&quot; to discover and follow other Cookie Chain creators.
+            </p>
           </div>
+        ) : (
+          streamPosts.map((post) => (
+            <PostCard
+              key={post.id}
+              post={post}
+              onOpenStore={onOpenStore}
+              onPostUpdated={onPostUpdated}
+            />
+          ))
         )}
       </div>
     </div>

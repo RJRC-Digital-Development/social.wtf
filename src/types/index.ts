@@ -22,9 +22,21 @@ export interface User {
   coverImage?: string;
   followersCount: number;
   followingCount: number;
+  friendsCount?: number;
   isCreator: boolean;
   storeSettings?: CreatorStoreSettings;
+  monetization?: CreatorMonetization;
   widgets?: CreatorWidget[];
+}
+
+export interface CreatorMonetization {
+  totalEarnedCook: number;
+  tipsEarnedCook: number;
+  storeSalesEarnedCook: number;
+  crowdfundEarnedCook: number;
+  subscribersCount: number;
+  subscriptionPriceCook?: number;
+  isMonetized: boolean;
 }
 
 export interface CreatorStoreSettings {
