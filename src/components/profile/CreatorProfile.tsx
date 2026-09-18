@@ -49,8 +49,8 @@ export const CreatorProfile: React.FC<CreatorProfileProps> = ({
 }) => {
   const { isIdVerified, isVideoVerified, isCardVerified, isAdultContentUnlocked, canAccessAdultContent } = useShield();
   const { connected, connect, signAndSendTransaction, walletAddress } = useWallet();
-  const [activeTab, setActiveTab] = useState<'store' | 'feed' | 'widgets'>('widgets');
-  const [crowdfundRaised, setCrowdfundRaised] = useState(76.5);
+  const [activeTab, setActiveTab] = useState<'store' | 'feed' | 'widgets'>('store');
+  const [crowdfundRaised, setCrowdfundRaised] = useState(0);
   const [studioOpen, setStudioOpen] = useState(false);
 
   // Crowdfund Tip Transaction State

@@ -174,93 +174,114 @@ export const Storefront: React.FC<StorefrontProps> = ({
       </div>
 
       {/* Product Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        {filteredProducts.map((product) => {
-          const isPurchased = purchasedProductIds.includes(product.id);
+      {filteredProducts.length === 0 ? (
+        <div className="p-12 rounded-3xl bg-[#0d1527] border border-slate-700/60 text-center space-y-4">
+          <div className="w-12 h-12 mx-auto rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
+            <ShoppingBag className="w-6 h-6" />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-slate-200">No Products Listed Yet</h3>
+            <p className="text-xs text-slate-400 max-w-sm mx-auto mt-1">
+              List your digital goods, music stems, VIP passes, or presets to see on-chain Cookie Chain purchases in action.
+            </p>
+          </div>
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500 text-slate-950 font-bold text-xs hover:brightness-110 transition-all shadow-md shadow-amber-500/20"
+          >
+            <PlusCircle className="w-4 h-4" />
+            <span>List New Product</span>
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          {filteredProducts.map((product) => {
+            const isPurchased = purchasedProductIds.includes(product.id);
 
-          return (
-            <div
-              key={product.id}
-              className="rounded-3xl bg-[#0d1527] border border-slate-700/70 overflow-hidden shadow-xl hover:border-slate-600 transition-all flex flex-col justify-between group"
-            >
-              <div>
-                {/* Preview Image */}
-                <div className="relative aspect-video overflow-hidden bg-black">
-                  <img
-                    src={product.previewUrl}
-                    alt={product.title}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  />
-                  <div className="absolute top-3 left-3 px-2.5 py-1 rounded-lg bg-black/70 backdrop-blur-sm border border-slate-700 text-[10px] font-bold text-amber-300 uppercase tracking-wider">
-                    {product.category.replace('_', ' ')}
-                  </div>
-                  {isPurchased && (
-                    <div className="absolute top-3 right-3 px-2.5 py-1 rounded-lg bg-emerald-500/90 text-slate-950 text-[10px] font-bold flex items-center gap-1 shadow-lg">
-                      <CheckCircle2 className="w-3.5 h-3.5" /> OWNED
+            return (
+              <div
+                key={product.id}
+                className="rounded-3xl bg-[#0d1527] border border-slate-700/70 overflow-hidden shadow-xl hover:border-slate-600 transition-all flex flex-col justify-between group"
+              >
+                <div>
+                  {/* Preview Image */}
+                  <div className="relative aspect-video overflow-hidden bg-black">
+                    <img
+                      src={product.previewUrl}
+                      alt={product.title}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
+                    <div className="absolute top-3 left-3 px-2.5 py-1 rounded-lg bg-black/70 backdrop-blur-sm border border-slate-700 text-[10px] font-bold text-amber-300 uppercase tracking-wider">
+                      {product.category.replace('_', ' ')}
                     </div>
-                  )}
+                    {isPurchased && (
+                      <div className="absolute top-3 right-3 px-2.5 py-1 rounded-lg bg-emerald-500/90 text-slate-950 text-[10px] font-bold flex items-center gap-1 shadow-lg">
+                        <CheckCircle2 className="w-3.5 h-3.5" /> OWNED
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Details */}
+                  <div className="p-5">
+                    <div className="flex justify-between items-start gap-2 mb-1.5">
+                      <h3 className="font-bold text-slate-100 text-base line-clamp-1 group-hover:text-amber-300 transition-colors">
+                        {product.title}
+                      </h3>
+                    </div>
+                    <p className="text-xs text-slate-400 line-clamp-2 mb-3 leading-relaxed">
+                      {product.description}
+                    </p>
+
+                    <div className="flex items-center gap-3 text-[11px] text-slate-400 font-mono py-2 border-t border-slate-800/80">
+                      <span> {product.fileSize || 'Instant DL'}</span>
+                      <span>•</span>
+                      <span> {product.fileFormat || 'Digital'}</span>
+                      <span>•</span>
+                      <span> {product.salesCount} sold</span>
+                    </div>
+                  </div>
                 </div>
 
-                {/* Details */}
-                <div className="p-5">
-                  <div className="flex justify-between items-start gap-2 mb-1.5">
-                    <h3 className="font-bold text-slate-100 text-base line-clamp-1 group-hover:text-amber-300 transition-colors">
-                      {product.title}
-                    </h3>
-                  </div>
-                  <p className="text-xs text-slate-400 line-clamp-2 mb-3 leading-relaxed">
-                    {product.description}
-                  </p>
+                {/* Purchase Footer */}
+                <div className="p-5 pt-0">
+                  <div className="flex items-center justify-between pt-3 border-t border-slate-800">
+                    <div>
+                      <span className="text-[10px] text-slate-500 uppercase font-semibold block">
+                        Cookie Chain Price
+                      </span>
+                      <span className="text-base font-bold font-mono text-amber-300">
+                        {product.priceCook} COOK
+                      </span>
+                    </div>
 
-                  <div className="flex items-center gap-3 text-[11px] text-slate-400 font-mono py-2 border-t border-slate-800/80">
-                    <span> {product.fileSize || 'Instant DL'}</span>
-                    <span>•</span>
-                    <span> {product.fileFormat || 'Digital'}</span>
-                    <span>•</span>
-                    <span> {product.salesCount} sold</span>
+                    {isPurchased ? (
+                      <button
+                        onClick={() => {
+                          setDeliveredProduct(product);
+                          setDeliveredSig(txSig || 'cook_tx_delivery_verified');
+                          setDeliveryModalOpen(true);
+                        }}
+                        className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold transition-all shadow-md shadow-emerald-500/20"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        <span>Download Asset</span>
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleBuyProduct(product)}
+                        className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 via-amber-600 to-yellow-500 text-slate-950 text-xs font-bold hover:brightness-110 active:scale-95 transition-all shadow-md shadow-amber-500/20"
+                      >
+                        <ShoppingBag className="w-3.5 h-3.5" />
+                        <span>Buy with COOK</span>
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
-
-              {/* Purchase Footer */}
-              <div className="p-5 pt-0">
-                <div className="flex items-center justify-between pt-3 border-t border-slate-800">
-                  <div>
-                    <span className="text-[10px] text-slate-500 uppercase font-semibold block">
-                      Cookie Chain Price
-                    </span>
-                    <span className="text-base font-bold font-mono text-amber-300">
-                      {product.priceCook} COOK
-                    </span>
-                  </div>
-
-                  {isPurchased ? (
-                    <button
-                      onClick={() => {
-                        setDeliveredProduct(product);
-                        setDeliveredSig(txSig || 'cook_tx_delivery_verified');
-                        setDeliveryModalOpen(true);
-                      }}
-                      className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold transition-all shadow-md shadow-emerald-500/20"
-                    >
-                      <Download className="w-3.5 h-3.5" />
-                      <span>Download Asset</span>
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => handleBuyProduct(product)}
-                      className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 via-amber-600 to-yellow-500 text-slate-950 text-xs font-bold hover:brightness-110 active:scale-95 transition-all shadow-md shadow-amber-500/20"
-                    >
-                      <ShoppingBag className="w-3.5 h-3.5" />
-                      <span>Buy with COOK</span>
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* Checkout Confirmation Modal */}
       {selectedProduct && split && (
