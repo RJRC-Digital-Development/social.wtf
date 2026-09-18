@@ -150,190 +150,48 @@ export const INITIAL_DISCUSSIONS: DiscussionTopic[] = [
     title: 'Platform & Creator Sponsorship Program: Direct Grants, Bounties, and Patron Tiers',
     category: 'sponsorship',
     author: {
-      name: 'Social.wtf Core Protocol',
+      name: 'Social.wtf Protocol',
       handle: 'social_wtf',
       avatar: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=150&auto=format&fit=crop&q=80',
       verified: true,
     },
     content: `Welcome to the official Social.wtf Creator Sponsorship & Grants Hub!
 
-Creators can now add a verified Sponsor Link (GitHub Sponsors, Patreon, or custom patron URL) directly on their profile to receive ongoing grants and community sponsorship.
+Creators can configure a verified Sponsor Link (GitHub Sponsors, Patreon, or custom patron URL) directly on their profile to receive ongoing grants and community sponsorship.
 
 ### Key Sponsorship Features:
 1. **Direct Profile Sponsor Banner:** Highlight your open-source tools, artworks, or creative roadmap with an embedded Sponsor Link.
 2. **On-Chain Grants & Bounties:** Apply for community ecosystem grants funded by the 5% platform treasury reserve.
 3. **Transparent 95/5 Split:** On-chain tips and patronage contributions route 95% straight to creator wallets in sub-second blocks.
 
-Share your sponsorship links and propose grant initiatives below!`,
-    createdAt: 'Just now',
-    upvotes: 118,
+Share your sponsorship links, ask technical questions, or propose grant initiatives in this thread!`,
+    createdAt: 'Pinned Topic',
+    upvotes: 0,
     tags: ['Sponsorship', 'Grants', 'Patron', 'Funding', 'CookieChain'],
-    repliesCount: 4,
+    repliesCount: 0,
     isPinned: true,
-    replies: [
-      {
-        id: 'rep-s1',
-        author: {
-          name: 'The Cookie Baker',
-          handle: 'cryptobaker',
-          avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
-          badge: 'Founding Creator',
-        },
-        content: 'This enables independent creators to sustain long-term mini-app development with direct community patronage. Fantastic addition!',
-        createdAt: '10 mins ago',
-        likes: 24,
-      },
-      {
-        id: 'rep-s2',
-        author: {
-          name: 'ChainSynth',
-          handle: 'chainsynth',
-          avatar: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=150&auto=format&fit=crop&q=80',
-          badge: 'Verified Creator',
-        },
-        content: 'I have linked my developer sponsorship URL on my profile. Thank you for making decentralized creator funding first-class!',
-        createdAt: '5 mins ago',
-        likes: 18,
-      },
-    ],
+    replies: [],
   },
   {
-    id: 'disc-1',
-    title: 'Wishlist: On-Chain Tip Jar Leaderboard and Dynamic Tiered NFT Badges',
-    category: 'wishlist',
-    author: {
-      name: 'The Cookie Baker',
-      handle: 'cryptobaker',
-      avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
-      verified: true,
-    },
-    content: `It would be incredible if creator storefronts could display a live top 10 tippers leaderboard! 
-
-Whenever a fan tips above 20 $COOK, the protocol could automatically mint an on-chain Cookie Chain SVM Supporter Badge that renders directly on their avatar in comments.
-
-The 5% platform fee split would still apply to all tier upgrades! What does everyone think?`,
-    createdAt: '2 hours ago',
-    upvotes: 48,
-    tags: ['Wishlist', 'Leaderboard', 'Tipping', 'Badges'],
-    repliesCount: 3,
-    isPinned: false,
-    replies: [
-      {
-        id: 'rep-1',
-        author: {
-          name: 'ChainSynth',
-          handle: 'chainsynth',
-          avatar: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=150&auto=format&fit=crop&q=80',
-          badge: 'Verified Creator',
-        },
-        content: '100% support this. Fans love gamified flex badges, and because Cookie Chain transaction fees are fractions of a cent, minting badges on-the-fly is practically free!',
-        createdAt: '1 hour ago',
-        likes: 14,
-      },
-      {
-        id: 'rep-2',
-        author: {
-          name: 'CookieDegen',
-          handle: 'cookiedegen',
-          avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-        },
-        content: 'Would love to see this connected to the Sentinel AI agent so we can ask the agent "Who is my top supporter this week?"',
-        createdAt: '35 mins ago',
-        likes: 9,
-      },
-    ],
-  },
-  {
-    id: 'disc-2',
-    title: 'Platform Update: Social.wtf with Sentinel AI Zero-Trace Shielding',
+    id: 'disc-welcome',
+    title: 'Welcome to Social.wtf Community Discussions on Cookie Chain SVM',
     category: 'update',
     author: {
-      name: 'Social.wtf Core Team',
+      name: 'Social.wtf Protocol',
       handle: 'social_wtf',
       avatar: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=150&auto=format&fit=crop&q=80',
       verified: true,
     },
-    content: `We have officially deployed Social.wtf with massive privacy & safety enhancements:
+    content: `Welcome to the Social.wtf community forum!
 
-1. Zero-Trace Content Gating: No blurred placeholders, no teaser banners in public feeds.
-2. Parent & Guardian Safeguards: 18+ Adult Entertainment access strictly requires debit/credit card authorization and AI live video verification.
-3. Under-25 ID Safeguard & Zero Human Review: Anyone determined to be under 25 must provide a valid Driver's License or ID card. Verification is conducted 100% autonomously by AI agents with zero human review for viewer privacy unless flagged for review.
-4. Autonomous Sentinel AI Agent: Real-time multimodal evaluation and conversational task fulfillment.`,
-    createdAt: '4 hours ago',
-    upvotes: 92,
-    tags: ['Changelog', 'Security', 'ZeroTrace', 'SentinelAI'],
-    repliesCount: 5,
-    isPinned: false,
-    replies: [
-      {
-        id: 'rep-3',
-        author: {
-          name: 'Aria Vixen',
-          handle: 'sol_vixen',
-          avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
-          badge: 'Verified Creator',
-        },
-        content: 'This is the exact privacy standard the adult creator industry has been dreaming of. Zero PII leaks, zero government ID required to view, and bulletproof parental device protection!',
-        createdAt: '3 hours ago',
-        likes: 31,
-      },
-    ],
-  },
-  {
-    id: 'disc-3',
-    title: 'Ecosystem News: Cookie Chain Mainnet Sub-Second Latency Benchmarks',
-    category: 'news',
-    author: {
-      name: 'CookieScan Explorer',
-      handle: 'cookiescan',
-      avatar: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=150&auto=format&fit=crop&q=80',
-      verified: true,
-    },
-    content: `Recent benchmark results on https://rpc.cookiescan.io indicate consistent sub-400ms block confirmation times across global validator clusters!
+This board is open for discussion of Cookie Chain SVM smart contracts, creator storefronts, feature requests, and developer mini-apps.
 
-With sub-cent transaction costs and instant finality, Social.wtf transactions feel indistinguishable from Web2 micro-blogging while retaining full Web3 custody and automated treasury splitting.`,
-    createdAt: '1 day ago',
-    upvotes: 64,
-    tags: ['News', 'CookieChain', 'Latency', 'Benchmarks'],
-    repliesCount: 2,
-    replies: [],
-  },
-  {
-    id: 'disc-4',
-    title: 'Idea: 3D WebGL Virtual Showrooms for Creator Storefronts',
-    category: 'wishlist',
-    author: {
-      name: 'CyberArtist_99',
-      handle: 'cyberartist',
-      avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
-      verified: false,
-    },
-    content: `Since the Creator Code Studio already supports interactive HTML/JS canvas sandboxes, what if we created an open-source Three.js 3D room template where creators can display their 3D models on virtual pedestals? 
-
-Visitors could walk around in 3D, inspect digital goods, and click an item to buy in $COOK!`,
-    createdAt: '2 days ago',
-    upvotes: 37,
-    tags: ['WebGL', 'ThreeJS', '3DStore', 'VR'],
-    repliesCount: 4,
-    replies: [],
-  },
-  {
-    id: 'disc-5',
-    title: 'Dev Help: How to handle 5% Fee Splitting in Custom Code Studio Mini-Apps',
-    category: 'dev_support',
-    author: {
-      name: 'SolanaDev_Alex',
-      handle: 'solalex',
-      avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
-      verified: false,
-    },
-    content: `Hey builders! If you are coding a custom mini-game in the Creator Code Studio, how do you trigger the 5% platform fee split when a player purchases an in-game item or power-up?
-
-Check the Wiki article on Automated Treasury Splits—you can emit a window.parent.postMessage({ type: 'EXECUTE_TIP_OR_BUY', amount: 5.0 }) which triggers the host Nightly wallet transaction!`,
-    createdAt: '3 days ago',
-    upvotes: 29,
-    tags: ['DevSupport', 'Tutorial', 'CodeStudio', 'FeeSplit'],
-    repliesCount: 1,
+Start a new topic using the composer above or reply to any ongoing discussion.`,
+    createdAt: 'Pinned Topic',
+    upvotes: 0,
+    tags: ['Community', 'CookieChain', 'Developers', 'Web3Social'],
+    repliesCount: 0,
+    isPinned: true,
     replies: [],
   },
 ];

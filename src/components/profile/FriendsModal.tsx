@@ -34,63 +34,7 @@ interface SocialConnection {
   followersCount: number;
 }
 
-const INITIAL_CONNECTIONS: SocialConnection[] = [
-  {
-    id: 'conn-1',
-    handle: 'cookie_monk',
-    name: 'Cookie Monk',
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
-    bio: 'SVM smart contract auditor & Cookie Chain pioneer.',
-    isFollowing: true,
-    isFriend: true,
-    verified: true,
-    followersCount: 3840,
-  },
-  {
-    id: 'conn-2',
-    handle: 'sol_vixen',
-    name: 'Sol Vixen',
-    avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150',
-    bio: 'Adult entertainment creator on Cookie Chain. 18+ Sentinel verified.',
-    isFollowing: true,
-    isFriend: false,
-    verified: true,
-    followersCount: 12900,
-  },
-  {
-    id: 'conn-3',
-    handle: 'cyber_chef',
-    name: 'Cyber Chef',
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
-    bio: 'Generating AI beats, music stems, and interactive audio apps.',
-    isFollowing: false,
-    isFriend: false,
-    verified: true,
-    followersCount: 2100,
-  },
-  {
-    id: 'conn-4',
-    handle: 'svm_builder',
-    name: 'SVM Builder',
-    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150',
-    bio: 'Deploying high-speed SVM smart contracts with sub-second finality.',
-    isFollowing: true,
-    isFriend: true,
-    verified: false,
-    followersCount: 940,
-  },
-  {
-    id: 'conn-5',
-    handle: 'pixel_witch',
-    name: 'Pixel Witch',
-    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150',
-    bio: '3D digital art and generative animations on Cookie Chain.',
-    isFollowing: false,
-    isFriend: false,
-    verified: true,
-    followersCount: 4500,
-  },
-];
+const INITIAL_CONNECTIONS: SocialConnection[] = [];
 
 export const FriendsModal: React.FC<FriendsModalProps> = ({
   isOpen,
@@ -208,8 +152,12 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
         {/* Connections List */}
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
           {filteredList.length === 0 ? (
-            <div className="py-12 text-center text-slate-400 text-xs">
-              No users found matching your search.
+            <div className="py-12 text-center text-slate-400 text-xs space-y-2">
+              <Users className="w-8 h-8 mx-auto text-slate-600 mb-1" />
+              <p className="font-semibold text-slate-300">No {activeTab} to display yet</p>
+              <p className="text-[11px] text-slate-500 max-w-xs mx-auto">
+                When creators follow @{creator.handle} or connect on Cookie Chain, they will appear here in real time.
+              </p>
             </div>
           ) : (
             filteredList.map((c) => (

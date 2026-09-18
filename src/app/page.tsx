@@ -55,8 +55,8 @@ const DEFAULT_USER_PROFILE: User = {
   coverImage: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200&h=400&fit=crop',
   sponsorUrl: 'https://github.com/sponsors/RJRC-Digital-Development',
   sponsorGoal: 'Funding decentralized creator tooling, SVM smart contracts, and open grants.',
-  followersCount: 1420,
-  followingCount: 380,
+  followersCount: 0,
+  followingCount: 0,
   isCreator: true,
 };
 
@@ -70,7 +70,7 @@ export default function Home() {
   const [userProfile, setUserProfile] = useState<User>(DEFAULT_USER_PROFILE);
   const [selectedCreator, setSelectedCreator] = useState<User>(INITIAL_CREATORS[0]);
   const [transactions, setTransactions] = useState<TransactionRecord[]>(INITIAL_TRANSACTIONS);
-  const [followingHandles, setFollowingHandles] = useState<string[]>(['creator', 'you', 'cookie_monk']);
+  const [followingHandles, setFollowingHandles] = useState<string[]>(['creator']);
   const [metrics, setMetrics] = useState<TreasuryMetrics>(INITIAL_TREASURY_METRICS);
   const [copiedPersonalUrl, setCopiedPersonalUrl] = useState(false);
 
