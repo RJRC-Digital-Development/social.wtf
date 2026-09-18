@@ -74,7 +74,7 @@ export default function MyCreatorPage() {
 
 Every transaction executed through the Creator SDK automatically routes:
 - **95%** directly to the creator's connected SVM wallet address.
-- **5%** atomically to the Social.wtf Treasury (`CookTreasury11111111111111111111111111111111`) to fund validator grants, sub-second latency infrastructure, and developer grants on Cookie Chain.
+- **5%** atomically to the Social.wtf Treasury (`HMnySuX1CdBfqysiLtU4brPawufcHxFTFZu97jrKQwT9`) to fund validator grants, sub-second latency infrastructure, and developer grants on Cookie Chain.
 
 ---
 

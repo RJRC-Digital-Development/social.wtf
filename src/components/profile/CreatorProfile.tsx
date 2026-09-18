@@ -149,7 +149,7 @@ setInterval(() => {
           signature: sig,
           fromAddress: walletAddress || 'CookYourWallet11111111111111111111111111',
           toAddress: creator.walletAddress,
-          treasuryAddress: 'CookTreasury11111111111111111111111111111111',
+          treasuryAddress: 'HMnySuX1CdBfqysiLtU4brPawufcHxFTFZu97jrKQwT9',
           totalAmountCook: 5.0,
           creatorAmountCook: 4.75,
           treasuryAmountCook: 0.25,

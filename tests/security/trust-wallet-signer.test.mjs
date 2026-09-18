@@ -175,7 +175,7 @@ async function runTests() {
   {
     const signer = Keypair.generate();
     const creator = Keypair.generate().publicKey;
-    const treasury = new PublicKey('CookTreasury11111111111111111111111111111111');
+    const treasury = new PublicKey('HMnySuX1CdBfqysiLtU4brPawufcHxFTFZu97jrKQwT9');
     const amountCook = 10.0;
 
     const split = calculateFeeSplit(amountCook, 500); // 5% fee

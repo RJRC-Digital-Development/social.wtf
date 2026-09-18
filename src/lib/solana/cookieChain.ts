@@ -20,13 +20,13 @@ export const COOKIE_CHAIN_CONFIG = {
     decimals: 9,
   },
   // Social.wtf Dedicated Protocol Treasury Wallet on Cookie Chain
-  treasuryPublicKey: 'CookTreasury11111111111111111111111111111111',
+  treasuryPublicKey: 'HMnySuX1CdBfqysiLtU4brPawufcHxFTFZu97jrKQwT9',
   protocolFeePercent: 5, // 5% automated protocol fee
 };
 
 // Fallback valid Base58 public key for Cookie Chain Treasury
 export const PLATFORM_TREASURY_PUBKEY = new PublicKey(
-  'CookTreasury11111111111111111111111111111111'
+  'HMnySuX1CdBfqysiLtU4brPawufcHxFTFZu97jrKQwT9'
 );
 
 // Fallback demo creator pubkey

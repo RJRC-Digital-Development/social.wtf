@@ -70,7 +70,7 @@ export const EcosystemHubModal: React.FC<EcosystemHubModalProps> = ({
             signature: signature,
             fromAddress: walletAddress || 'CookYourWallet11111111111111111111111111',
             toAddress: 'CookSwapPool1111111111111111111111111111111111',
-            treasuryAddress: 'CookTreasury11111111111111111111111111111111',
+            treasuryAddress: 'HMnySuX1CdBfqysiLtU4brPawufcHxFTFZu97jrKQwT9',
             totalAmountCook: targetCook,
             creatorAmountCook: targetCook * 0.95,
             treasuryAmountCook: targetCook * 0.05,

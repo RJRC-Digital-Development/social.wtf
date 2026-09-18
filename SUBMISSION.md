@@ -56,7 +56,7 @@ Every economic transaction—from digital good purchases to tips and subscriptio
 ##  Relevant Addresses & Technical Specs
 
 - **Anchor Program ID:** `9iapGcxDbDtZ2bWtwM2kLYNW67XH2qzPxLxXfSUbQQZq`
-- **Platform Treasury Address:** `CookTreasury11111111111111111111111111111111`
+- **Platform Treasury Address:** `HMnySuX1CdBfqysiLtU4brPawufcHxFTFZu97jrKQwT9`
 - **RPC Endpoint:** `https://rpc.cookiescan.io`
 - **WebSocket Endpoint:** `https://wss.cookiescan.io`
 - **Genesis Hash:** `9wDaBRDgArEUpvhHxGguNkwozsZh4UpGZB9o2EoEcBB2`

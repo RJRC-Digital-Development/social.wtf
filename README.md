@@ -23,7 +23,7 @@ Every economic transaction—from store purchases to tips and subscriptions—au
 - Built directly into atomic Solana Virtual Machine transactions and Rust Anchor contracts.
 - Every transaction splits proceeds seamlessly:
   - **95%** routed directly to the creator's wallet.
-  - **5%** automatically cut to the Social.wtf Platform Treasury (`CookTreasury11111111111111111111111111111111`).
+  - **5%** automatically cut to the Social.wtf Platform Treasury (`HMnySuX1CdBfqysiLtU4brPawufcHxFTFZu97jrKQwT9`).
   - Immutable on-chain memo logging with sub-second block finality.
 
 ### 3. Real-Time Multimodal AI Vision Screening & Zero-Trace Invisible Shielding
@@ -158,7 +158,7 @@ Visit `http://localhost:3000` in your browser.
 - **Live Application URL**: [https://socialwtf.vercel.app/](https://socialwtf.vercel.app/)
 - **GitHub Repository**: [https://github.com/thepros2014/social.wtf](https://github.com/thepros2014/social.wtf)
 - **Program ID on Cookie Chain**: `9iapGcxDbDtZ2bWtwM2kLYNW67XH2qzPxLxXfSUbQQZq`
-- **Platform Treasury Address**: `CookTreasury11111111111111111111111111111111`
+- **Platform Treasury Address**: `HMnySuX1CdBfqysiLtU4brPawufcHxFTFZu97jrKQwT9`
 - **Cookie Ecosystem Integrations**:
   - [Hyperlane Bridge](https://hyperlane.cookiescan.io): Seamless warp transfers from Solana Mainnet to Cookie Chain.
   - [Cookieswap](https://cookieswap.fun): On-chain DEX liquidity and token swaps.
