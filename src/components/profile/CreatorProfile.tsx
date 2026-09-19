@@ -52,7 +52,7 @@ interface CreatorProfileProps {
   onPostUpdated: (post: Post, meta?: { tipAmount?: number; signature?: string }) => void;
   onOpenVerifyModal?: (tab?: 'card_auth' | 'video_liveness' | 'id_upload') => void;
   onTransactionRecorded?: (tx: TransactionRecord) => void;
-  onUpdateCreator?: (updatedCreator: User) => void;
+  onUpdateCreator?: (updatedCreator: User) => Promise<{ success: boolean; error?: string } | void> | void;
   onSelectCreator?: (handle: string) => void;
 }
 
@@ -948,9 +948,9 @@ setInterval(() => {
         isOpen={editModalOpen}
         onClose={() => setEditModalOpen(false)}
         creator={creator}
-        onSave={(updated) => {
+        onSave={async (updated) => {
           if (onUpdateCreator) {
-            onUpdateCreator(updated);
+            return await onUpdateCreator(updated);
           }
         }}
       />

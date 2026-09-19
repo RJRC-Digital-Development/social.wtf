@@ -104,7 +104,7 @@ export default function Home() {
   const [ecosystemModalOpen, setEcosystemModalOpen] = useState(false);
   const [ecosystemTab, setEcosystemTab] = useState<'bridge' | 'cookieswap' | 'cookiebox' | 'das' | 'mcp'>('bridge');
   const { isAgeVerified, isVideoVerified, isIdVerified, isCardVerified, isAdultContentUnlocked, canAccessAdultContent, unshieldedMode } = useShield();
-  const { connected, walletAddress } = useWallet();
+  const { connected, walletAddress, sessionToken } = useWallet();
 
   // Load saved profile & handle deep linking from URL
   useEffect(() => {
@@ -136,59 +136,114 @@ export default function Home() {
       if (targetParam) {
         const cleanParam = targetParam.trim().replace(/^@+/, '').toLowerCase();
         
-        // Match in existing creators or userProfile
-        let found = INITIAL_CREATORS.find(
+        // Match in existing loaded creators
+        const found = creators.find(
           (c) => c.handle.toLowerCase() === cleanParam || c.walletAddress.toLowerCase() === cleanParam
         );
 
-        if (!found && activeUser.handle.toLowerCase() === cleanParam) {
-          found = activeUser;
+        if (found) {
+          setSelectedCreator(found);
+          setActiveView('creator');
+          return;
         }
 
-        // If not found in default list, hydrate dynamically from the shared URL
-        if (!found) {
-          found = {
-            id: `creator-${cleanParam}`,
-            handle: cleanParam,
-            name: `@${cleanParam}`,
-            avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${cleanParam}`,
-            bio: `Cookie Chain Creator and Community Member (@${cleanParam}).`,
-            verified: false,
-            ageVerified: false,
-            walletAddress: '',
-            coverImage: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200&h=400&fit=crop',
-            followersCount: 0,
-            followingCount: 0,
-            isCreator: true,
-          };
-          setCreators((prev) => [found!, ...prev.filter((c) => c.handle !== cleanParam)]);
-        }
-
-        setSelectedCreator(found);
-        setActiveView('creator');
+        // Authoritative server lookup for profile by handle or wallet
+        const queryParam = cleanParam.length > 30 ? `wallet=${cleanParam}` : `handle=${cleanParam}`;
+        fetch(`/api/profile?${queryParam}`)
+          .then((res) => (res.ok ? res.json() : null))
+          .then((data) => {
+            if (data?.success && data.profile) {
+              setSelectedCreator(data.profile);
+              setCreators((prev) => [data.profile, ...prev.filter((c) => c.handle !== data.profile.handle)]);
+              setActiveView('creator');
+            } else {
+              // Honest not-found state without fabricating fake identity
+              const notFoundProfile: User = {
+                id: `not-found-${cleanParam}`,
+                handle: cleanParam,
+                name: `@${cleanParam}`,
+                avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${cleanParam}`,
+                bio: `No registered profile found on Cookie Chain for @${cleanParam}.`,
+                verified: false,
+                ageVerified: false,
+                walletAddress: '',
+                coverImage: '',
+                followersCount: 0,
+                followingCount: 0,
+                isCreator: false,
+                isAdmin: false,
+              };
+              setSelectedCreator(notFoundProfile);
+              setActiveView('creator');
+            }
+          })
+          .catch(() => {});
       }
     }
   }, []);
 
-  // Sync wallet address with dedicated user profile space when connected
+  // Sync wallet address with authoritative server profile space when connected & authenticated
   useEffect(() => {
-    if (connected && walletAddress) {
-      let profileToSet: User;
-      try {
-        const saved = localStorage.getItem(`social_wtf_profile_${walletAddress}`);
-        if (saved) {
-          profileToSet = JSON.parse(saved);
-          profileToSet.walletAddress = walletAddress;
-        } else {
-          profileToSet = buildDefaultProfileForWallet(walletAddress);
-          localStorage.setItem(`social_wtf_profile_${walletAddress}`, JSON.stringify(profileToSet));
-        }
-      } catch (e) {
-        profileToSet = buildDefaultProfileForWallet(walletAddress);
-      }
-      setUserProfile(profileToSet);
+    if (connected && walletAddress && isAuthenticated && sessionToken) {
+      let isMounted = true;
+      const targetWallet = walletAddress;
+
+      // 1. Fetch Authoritative Server Profile with wallet race protection
+      fetch(`/api/profile?wallet=${encodeURIComponent(targetWallet)}`)
+        .then(async (res) => {
+          if (!isMounted || walletAddress !== targetWallet) return;
+
+          if (res.status === 200) {
+            const data = await res.json();
+            if (data?.success && data.profile) {
+              const canonicalProfile: User = data.profile;
+              setUserProfile(canonicalProfile);
+              try {
+                localStorage.setItem(`social_wtf_profile_${targetWallet}`, JSON.stringify(canonicalProfile));
+                localStorage.setItem('social_wtf_user_profile', JSON.stringify(canonicalProfile));
+              } catch (e) {}
+            }
+          } else if (res.status === 404) {
+            // Genuine 404: Fresh wallet with no profile yet
+            // Provide editable fresh-wallet defaults in React state (not saved until user submits)
+            const freshDefaults = buildDefaultProfileForWallet(targetWallet);
+            setUserProfile(freshDefaults);
+          } else {
+            // 500 / 503 / Authority outage: display cached profile if available as unconfirmed cache
+            try {
+              const cached = localStorage.getItem(`social_wtf_profile_${targetWallet}`);
+              if (cached) {
+                const parsed = JSON.parse(cached);
+                parsed.walletAddress = targetWallet;
+                setUserProfile(parsed);
+                return;
+              }
+            } catch (e) {}
+            setUserProfile(buildDefaultProfileForWallet(targetWallet));
+          }
+        })
+        .catch(() => {
+          if (!isMounted || walletAddress !== targetWallet) return;
+          // Authority outage / network error
+          try {
+            const cached = localStorage.getItem(`social_wtf_profile_${targetWallet}`);
+            if (cached) {
+              const parsed = JSON.parse(cached);
+              parsed.walletAddress = targetWallet;
+              setUserProfile(parsed);
+              return;
+            }
+          } catch (e) {}
+          setUserProfile(buildDefaultProfileForWallet(targetWallet));
+        });
+
+      return () => {
+        isMounted = false;
+      };
+    } else if (!connected) {
+      setUserProfile(DEFAULT_USER_PROFILE);
     }
-  }, [connected, walletAddress]);
+  }, [connected, walletAddress, sessionToken, isAuthenticated]);
 
   const handlePostCreated = (newPost: Post) => {
     setPosts([newPost, ...posts]);
@@ -294,31 +349,71 @@ export default function Home() {
     });
   };
 
-  const handleUpdateCreator = (updated: User) => {
-    setSelectedCreator(updated);
-    setCreators((prev) => {
-      const idx = prev.findIndex((c) => c.handle === updated.handle || c.id === updated.id);
-      if (idx >= 0) {
-        const next = [...prev];
-        next[idx] = updated;
-        return next;
-      }
-      return [updated, ...prev];
-    });
+  const handleUpdateCreator = async (updated: User): Promise<{ success: boolean; error?: string }> => {
+    if (!connected || !walletAddress) {
+      return { success: false, error: 'Please connect your wallet to update profile.' };
+    }
 
-    // If this updated user corresponds to the user's profile, save it
-    if (
-      updated.handle === userProfile.handle ||
-      updated.id === userProfile.id ||
-      (updated.walletAddress && updated.walletAddress === userProfile.walletAddress)
-    ) {
-      setUserProfile(updated);
-      try {
-        localStorage.setItem('social_wtf_user_profile', JSON.stringify(updated));
-        if (updated.walletAddress) {
-          localStorage.setItem(`social_wtf_profile_${updated.walletAddress}`, JSON.stringify(updated));
+    try {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (sessionToken) {
+        headers['Authorization'] = `Bearer ${sessionToken}`;
+      }
+
+      const payload = {
+        handle: updated.handle,
+        name: updated.name,
+        bio: updated.bio,
+        avatar: updated.avatar,
+        coverImage: updated.coverImage,
+        isCreator: updated.isCreator,
+        isAdultContentCreator: updated.isAdultContentCreator,
+        sponsorUrl: updated.sponsorUrl,
+        sponsorGoal: updated.sponsorGoal,
+        storeSettings: updated.storeSettings,
+      };
+
+      const res = await fetch('/api/profile', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success || !data.profile) {
+        return {
+          success: false,
+          error: data?.error || 'Failed to save profile on authoritative server. Please retry.',
+        };
+      }
+
+      const canonicalProfile: User = data.profile;
+
+      setSelectedCreator(canonicalProfile);
+      setUserProfile(canonicalProfile);
+      setCreators((prev) => {
+        const idx = prev.findIndex((c) => c.handle === canonicalProfile.handle || c.walletAddress === canonicalProfile.walletAddress);
+        if (idx >= 0) {
+          const next = [...prev];
+          next[idx] = canonicalProfile;
+          return next;
         }
+        return [canonicalProfile, ...prev];
+      });
+
+      try {
+        localStorage.setItem('social_wtf_user_profile', JSON.stringify(canonicalProfile));
+        localStorage.setItem(`social_wtf_profile_${canonicalProfile.walletAddress}`, JSON.stringify(canonicalProfile));
       } catch (e) {}
+
+      return { success: true };
+    } catch (err: any) {
+      return {
+        success: false,
+        error: err?.message || 'Network error communicating with profile authority. Please retry.',
+      };
     }
   };
 

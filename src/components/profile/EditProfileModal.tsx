@@ -21,7 +21,7 @@ interface EditProfileModalProps {
   isOpen: boolean;
   onClose: () => void;
   creator: User;
-  onSave: (updatedCreator: User) => void;
+  onSave: (updatedCreator: User) => Promise<{ success: boolean; error?: string } | void> | void;
 }
 
 export const EditProfileModal: React.FC<EditProfileModalProps> = ({
@@ -41,6 +41,8 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
   const [avatarPreview, setAvatarPreview] = useState(creator.avatar);
   const [coverPreview, setCoverPreview] = useState(creator.coverImage || '');
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
@@ -83,8 +85,9 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
     }
   };
 
-  const handleFormSubmit = (e: React.FormEvent) => {
+  const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMessage('');
     const cleanHandle = handle.trim().replace(/^@+/, '').toLowerCase() || 'creator';
 
     const updatedUser: User = {
@@ -99,12 +102,24 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
       coverImage: coverImage || undefined,
     };
 
-    onSave(updatedUser);
-    setSavedSuccess(true);
-    setTimeout(() => {
-      setSavedSuccess(false);
-      onClose();
-    }, 600);
+    setIsSaving(true);
+    try {
+      const result = await onSave(updatedUser);
+      if (result && !result.success) {
+        setErrorMessage(result.error || 'Failed to save profile. Please retry.');
+        setIsSaving(false);
+        return;
+      }
+      setSavedSuccess(true);
+      setTimeout(() => {
+        setSavedSuccess(false);
+        setIsSaving(false);
+        onClose();
+      }, 600);
+    } catch (err: any) {
+      setErrorMessage(err.message || 'An unexpected error occurred while saving profile.');
+      setIsSaving(false);
+    }
   };
 
   const cleanHandlePreview = handle.trim().replace(/^@+/, '').toLowerCase() || 'creator';
@@ -339,23 +354,37 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
             </div>
           </div>
 
+          {/* Error Message Display */}
+          {errorMessage && (
+            <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center justify-between">
+              <span>{errorMessage}</span>
+            </div>
+          )}
+
           {/* Action Buttons */}
           <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-800">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition-colors"
+              disabled={isSaving}
+              className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition-colors disabled:opacity-50"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 font-bold text-xs hover:brightness-110 active:scale-95 transition-all shadow-lg shadow-amber-500/20"
+              disabled={isSaving}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 font-bold text-xs hover:brightness-110 active:scale-95 transition-all shadow-lg shadow-amber-500/20 disabled:opacity-50"
             >
               {savedSuccess ? (
                 <>
                   <Check className="w-4 h-4" />
                   <span>Profile Saved!</span>
+                </>
+              ) : isSaving ? (
+                <>
+                  <Save className="w-4 h-4 animate-spin" />
+                  <span>Saving to Network...</span>
                 </>
               ) : (
                 <>

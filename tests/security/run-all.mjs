@@ -21,6 +21,7 @@ const testFiles = [
   'admin-capability-authorization.test.mjs',
   'identity-separation.test.mjs',
   'fresh-wallet-access.test.mjs',
+  'profile-persistence.test.mjs',
 ];
 
 let totalPassed = 0;
