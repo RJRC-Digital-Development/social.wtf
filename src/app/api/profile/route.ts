@@ -71,9 +71,10 @@ export async function POST(req: Request) {
     const result = await saveOnboardedProfileAsync(authenticatedWallet, body, isAdmin);
 
     if (!result.success) {
+      const isServiceUnavailable = result.error?.toLowerCase().includes('unavailable');
       return NextResponse.json(
         { error: result.error || 'Failed to save profile' },
-        { status: 400 }
+        { status: isServiceUnavailable ? 503 : 400 }
       );
     }
 

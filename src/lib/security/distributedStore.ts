@@ -3,7 +3,7 @@
  * Supports Upstash Redis, Vercel KV, and standard Redis REST endpoints.
  * 
  * Provides atomic single-use nonce consumption, global session revocation blocklists,
- * and distributed rate limiting across horizontal serverless worker instances.
+ * atomic handle claiming (SETNX), and distributed rate limiting across horizontal serverless worker instances.
  * 
  * Seamlessly falls back to local in-memory storage for offline development and testing.
  */
@@ -46,7 +46,7 @@ export class DistributedStore {
   /**
    * Executes a Redis command against the REST endpoint
    */
-  private async executeCommand<T = any>(command: (string | number)[]): Promise<T | null> {
+  public async executeCommand<T = any>(command: (string | number)[]): Promise<T | null> {
     if (!this.isEnabled || !this.url || !this.token) {
       return null;
     }
@@ -117,6 +117,29 @@ export class DistributedStore {
   }
 
   /**
+   * Atomically sets a key if it does not already exist (SET ... NX)
+   * Returns true if the key was set, false if the key already exists or operation failed.
+   */
+  public async setnx(key: string, value: string, ttlSeconds?: number): Promise<boolean> {
+    if (this.isEnabled) {
+      const cmd: (string | number)[] = ['SET', key, value, 'NX'];
+      if (ttlSeconds && ttlSeconds > 0) {
+        cmd.push('EX', ttlSeconds);
+      }
+      const res = await this.executeCommand<string>(cmd);
+      return res === 'OK';
+    }
+
+    const item = this.fallbackMemory.get(key);
+    if (item && Date.now() <= item.expiresAt) {
+      return false;
+    }
+    const expiresAt = ttlSeconds && ttlSeconds > 0 ? Date.now() + ttlSeconds * 1000 : Infinity;
+    this.fallbackMemory.set(key, { value, expiresAt });
+    return true;
+  }
+
+  /**
    * Atomically reads and deletes a key (ideal for single-use nonce consumption)
    */
   public async getdel(key: string): Promise<string | null> {
@@ -146,11 +169,71 @@ export class DistributedStore {
   }
 
   /**
+   * Adds a member to a set (SADD)
+   */
+  public async sadd(key: string, member: string): Promise<boolean> {
+    if (this.isEnabled) {
+      const res = await this.executeCommand<number>(['SADD', key, member]);
+      return typeof res === 'number' && res > 0;
+    }
+
+    const raw = this.fallbackMemory.get(key);
+    let set = new Set<string>();
+    if (raw && Date.now() <= raw.expiresAt) {
+      try {
+        set = new Set(JSON.parse(raw.value));
+      } catch {}
+    }
+    const wasAdded = !set.has(member);
+    set.add(member);
+    this.fallbackMemory.set(key, { value: JSON.stringify(Array.from(set)), expiresAt: Infinity });
+    return wasAdded;
+  }
+
+  /**
+   * Retrieves all members of a set (SMEMBERS)
+   */
+  public async smembers(key: string): Promise<string[]> {
+    if (this.isEnabled) {
+      const res = await this.executeCommand<string[]>(['SMEMBERS', key]);
+      return Array.isArray(res) ? res : [];
+    }
+
+    const raw = this.fallbackMemory.get(key);
+    if (!raw || Date.now() > raw.expiresAt) return [];
+    try {
+      return JSON.parse(raw.value) as string[];
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * Removes a member from a set (SREM)
+   */
+  public async srem(key: string, member: string): Promise<boolean> {
+    if (this.isEnabled) {
+      const res = await this.executeCommand<number>(['SREM', key, member]);
+      return typeof res === 'number' && res > 0;
+    }
+
+    const raw = this.fallbackMemory.get(key);
+    if (!raw || Date.now() > raw.expiresAt) return false;
+    try {
+      const set = new Set<string>(JSON.parse(raw.value));
+      const removed = set.delete(member);
+      this.fallbackMemory.set(key, { value: JSON.stringify(Array.from(set)), expiresAt: Infinity });
+      return removed;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
    * Atomically increments a key with TTL (for distributed rate limiting)
    */
   public async incrWithExpiry(key: string, ttlSeconds: number): Promise<number | null> {
     if (this.isEnabled) {
-      // Execute pipeline: INCR then EXPIRE (if new key)
       const count = await this.executeCommand<number>(['INCR', key]);
       if (count === 1 && ttlSeconds > 0) {
         await this.executeCommand(['EXPIRE', key, ttlSeconds]);

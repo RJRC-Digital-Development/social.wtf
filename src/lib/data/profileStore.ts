@@ -5,15 +5,35 @@ import { sanitizePlainText } from '@/lib/security/sanitize';
 import { COOKIE_CHAIN_CONFIG } from '@/lib/solana/cookieChain';
 import { distributedStore } from '@/lib/security/distributedStore';
 
-const DISTRIBUTED_PROFILES_KEY = 'platform:profiles';
+const DISTRIBUTED_WALLETS_SET_KEY = 'platform:profiles:wallets';
+const HANDLE_PREFIX = 'profile:handle:';
+const WALLET_PREFIX = 'profile:wallet:';
 
-// Authoritative in-memory profile cache
-const profilesByWallet = new Map<string, User>();
-const walletByHandle = new Map<string, string>();
-let isInitialized = false;
+// Ephemeral in-memory read cache
+const profilesCache = new Map<string, User>();
+const handleCache = new Map<string, string>();
+let isLocalInitialized = false;
+
+// Concurrency lock for local development fallback
+let localLockPromise: Promise<void> = Promise.resolve();
+
+async function acquireLocalLock<T>(fn: () => Promise<T>): Promise<T> {
+  let release: () => void;
+  const nextLock = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const currentLock = localLockPromise;
+  localLockPromise = nextLock;
+  await currentLock;
+  try {
+    return await fn();
+  } finally {
+    release!();
+  }
+}
 
 /**
- * Resolve local durable storage file path
+ * Resolve local development storage file path (Dev / Offline fallback ONLY)
  */
 function getStorageFilePath(): string {
   if (process.env.PROFILES_STORAGE_FILE) {
@@ -23,9 +43,9 @@ function getStorageFilePath(): string {
 }
 
 /**
- * Load persisted profiles from local disk into memory cache
+ * Load persisted profiles from local disk into memory cache (Dev fallback only)
  */
-function loadFromDisk(): void {
+function loadFromLocalDisk(): void {
   try {
     const filePath = getStorageFilePath();
     if (fs.existsSync(filePath)) {
@@ -33,55 +53,51 @@ function loadFromDisk(): void {
       if (data && data.trim()) {
         const parsed = JSON.parse(data) as User[];
         if (Array.isArray(parsed)) {
-          profilesByWallet.clear();
-          walletByHandle.clear();
+          profilesCache.clear();
+          handleCache.clear();
           for (const profile of parsed) {
             if (profile && profile.walletAddress && profile.handle) {
-              profilesByWallet.set(profile.walletAddress, profile);
-              walletByHandle.set(profile.handle.toLowerCase(), profile.walletAddress);
+              profilesCache.set(profile.walletAddress, profile);
+              handleCache.set(profile.handle.toLowerCase(), profile.walletAddress);
             }
           }
         }
       }
     }
   } catch {
-    // Fail-safe: maintain memory state if disk read is unavailable
+    // Fail-safe
   }
 }
 
 /**
- * Persist memory profiles to local disk
+ * Persist memory profiles to local disk (Dev fallback only)
  */
-function saveToDisk(): void {
+function saveToLocalDisk(): void {
   try {
     const filePath = getStorageFilePath();
     const dir = path.dirname(filePath);
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });
     }
-    const profiles = Array.from(profilesByWallet.values());
+    const profiles = Array.from(profilesCache.values());
     const tempPath = `${filePath}.tmp.${Date.now()}.${Math.random().toString(36).substring(2, 7)}`;
     fs.writeFileSync(tempPath, JSON.stringify(profiles, null, 2), 'utf8');
     fs.renameSync(tempPath, filePath);
   } catch {
-    // Fallback: direct write if atomic rename fails
     try {
       const filePath = getStorageFilePath();
-      const profiles = Array.from(profilesByWallet.values());
+      const profiles = Array.from(profilesCache.values());
       fs.writeFileSync(filePath, JSON.stringify(profiles, null, 2), 'utf8');
-    } catch {
-      // Environments with read-only root filesystems gracefully rely on DistributedStore / memory
-    }
+    } catch {}
   }
 }
 
-/**
- * Ensure storage baseline is initialized on cold start
- */
-export function ensureStoreInitialized(): void {
-  if (!isInitialized) {
-    loadFromDisk();
-    isInitialized = true;
+function ensureLocalInitialized(): void {
+  if (!isLocalInitialized) {
+    if (!distributedStore.isConfigured()) {
+      loadFromLocalDisk();
+    }
+    isLocalInitialized = true;
   }
 }
 
@@ -89,9 +105,9 @@ export function ensureStoreInitialized(): void {
  * Reset profile store (used in test fixtures)
  */
 export function resetProfileStore(cleanDisk: boolean = false): void {
-  profilesByWallet.clear();
-  walletByHandle.clear();
-  isInitialized = true;
+  profilesCache.clear();
+  handleCache.clear();
+  isLocalInitialized = true;
   if (cleanDisk) {
     try {
       const filePath = getStorageFilePath();
@@ -103,54 +119,38 @@ export function resetProfileStore(cleanDisk: boolean = false): void {
 }
 
 /**
- * Sync from distributed KV store if available
- */
-async function syncFromDistributedStore(): Promise<void> {
-  if (!distributedStore.isConfigured()) return;
-  try {
-    const raw = await distributedStore.get(DISTRIBUTED_PROFILES_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw) as User[];
-      if (Array.isArray(parsed)) {
-        for (const profile of parsed) {
-          if (profile && profile.walletAddress && profile.handle) {
-            profilesByWallet.set(profile.walletAddress, profile);
-            walletByHandle.set(profile.handle.toLowerCase(), profile.walletAddress);
-          }
-        }
-        saveToDisk();
-      }
-    }
-  } catch {
-    // Graceful fallback to disk/memory
-  }
-}
-
-/**
- * Sync to distributed KV store
- */
-async function syncToDistributedStore(): Promise<void> {
-  if (!distributedStore.isConfigured()) return;
-  try {
-    const profiles = Array.from(profilesByWallet.values());
-    await distributedStore.set(DISTRIBUTED_PROFILES_KEY, JSON.stringify(profiles));
-  } catch {
-    // Graceful fallback to disk/memory
-  }
-}
-
-/**
  * Get all legitimate onboarded profiles
  */
 export function getAllOnboardedProfiles(): User[] {
-  ensureStoreInitialized();
-  return Array.from(profilesByWallet.values());
+  ensureLocalInitialized();
+  return Array.from(profilesCache.values());
 }
 
 export async function getAllOnboardedProfilesAsync(): Promise<User[]> {
-  ensureStoreInitialized();
-  await syncFromDistributedStore();
-  return Array.from(profilesByWallet.values());
+  if (distributedStore.isConfigured()) {
+    try {
+      const wallets = await distributedStore.smembers(DISTRIBUTED_WALLETS_SET_KEY);
+      const profiles: User[] = [];
+      for (const wallet of wallets) {
+        const raw = await distributedStore.get(`${WALLET_PREFIX}${wallet}`);
+        if (raw) {
+          try {
+            const parsed = JSON.parse(raw) as User;
+            profiles.push(parsed);
+            profilesCache.set(parsed.walletAddress, parsed);
+            handleCache.set(parsed.handle.toLowerCase(), parsed.walletAddress);
+          } catch {}
+        }
+      }
+      return profiles;
+    } catch {
+      // In production, if distributed store fails during fetch, fallback to memory cache
+      return Array.from(profilesCache.values());
+    }
+  }
+
+  ensureLocalInitialized();
+  return Array.from(profilesCache.values());
 }
 
 /**
@@ -158,17 +158,30 @@ export async function getAllOnboardedProfilesAsync(): Promise<User[]> {
  */
 export function getProfileByWallet(walletAddress: string): User | null {
   if (!walletAddress) return null;
-  ensureStoreInitialized();
-  return profilesByWallet.get(walletAddress) || null;
+  ensureLocalInitialized();
+  return profilesCache.get(walletAddress) || null;
 }
 
 export async function getProfileByWalletAsync(walletAddress: string): Promise<User | null> {
   if (!walletAddress) return null;
-  ensureStoreInitialized();
-  const existing = profilesByWallet.get(walletAddress);
-  if (existing) return existing;
-  await syncFromDistributedStore();
-  return profilesByWallet.get(walletAddress) || null;
+
+  if (distributedStore.isConfigured()) {
+    try {
+      const raw = await distributedStore.get(`${WALLET_PREFIX}${walletAddress}`);
+      if (raw) {
+        const parsed = JSON.parse(raw) as User;
+        profilesCache.set(parsed.walletAddress, parsed);
+        handleCache.set(parsed.handle.toLowerCase(), parsed.walletAddress);
+        return parsed;
+      }
+      return null;
+    } catch {
+      return profilesCache.get(walletAddress) || null;
+    }
+  }
+
+  ensureLocalInitialized();
+  return profilesCache.get(walletAddress) || null;
 }
 
 /**
@@ -176,24 +189,35 @@ export async function getProfileByWalletAsync(walletAddress: string): Promise<Us
  */
 export function getProfileByHandle(handle: string): User | null {
   if (!handle) return null;
-  ensureStoreInitialized();
+  ensureLocalInitialized();
   const cleanHandle = handle.toLowerCase().replace(/^@+/, '').trim();
-  const wallet = walletByHandle.get(cleanHandle);
+  const wallet = handleCache.get(cleanHandle);
   if (!wallet) return null;
-  return profilesByWallet.get(wallet) || null;
+  return profilesCache.get(wallet) || null;
 }
 
 export async function getProfileByHandleAsync(handle: string): Promise<User | null> {
   if (!handle) return null;
-  ensureStoreInitialized();
   const cleanHandle = handle.toLowerCase().replace(/^@+/, '').trim();
-  let wallet = walletByHandle.get(cleanHandle);
-  if (!wallet) {
-    await syncFromDistributedStore();
-    wallet = walletByHandle.get(cleanHandle);
+
+  if (distributedStore.isConfigured()) {
+    try {
+      const wallet = await distributedStore.get(`${HANDLE_PREFIX}${cleanHandle}`);
+      if (wallet) {
+        return getProfileByWalletAsync(wallet);
+      }
+      return null;
+    } catch {
+      const localWallet = handleCache.get(cleanHandle);
+      if (!localWallet) return null;
+      return profilesCache.get(localWallet) || null;
+    }
   }
+
+  ensureLocalInitialized();
+  const wallet = handleCache.get(cleanHandle);
   if (!wallet) return null;
-  return profilesByWallet.get(wallet) || null;
+  return profilesCache.get(wallet) || null;
 }
 
 export interface OnboardProfileInput {
@@ -214,16 +238,19 @@ export interface OnboardProfileInput {
 }
 
 /**
- * Authoritative Profile Creation / Update
- * Binds strictly to authenticated walletAddress from SIWS session.
+ * Save / Onboard Profile (Asynchronous & Authoritative)
+ * 
+ * Enforces:
+ * 1. Strict SIWS authenticated wallet binding.
+ * 2. Atomic handle claim via SETNX.
+ * 3. Fail-closed production persistence.
+ * 4. Zero fake profiles.
  */
-export function saveOnboardedProfile(
+export async function saveOnboardedProfileAsync(
   authenticatedWallet: string,
   input: OnboardProfileInput,
   isAdminSession: boolean = false
-): { success: boolean; profile?: User; error?: string } {
-  ensureStoreInitialized();
-
+): Promise<{ success: boolean; profile?: User; error?: string }> {
   if (!authenticatedWallet || typeof authenticatedWallet !== 'string') {
     return { success: false, error: 'Valid authenticated wallet identity required' };
   }
@@ -233,13 +260,188 @@ export function saveOnboardedProfile(
     return { success: false, error: 'Handle must be between 3 and 30 characters' };
   }
 
-  // Handle format validation (alphanumeric and underscores only)
   if (!/^[a-z0-9_]+$/.test(rawHandle)) {
     return { success: false, error: 'Handle must contain only letters, numbers, and underscores' };
   }
 
-  // Handle uniqueness check: Cannot claim handle claimed by another wallet
-  const existingOwner = walletByHandle.get(rawHandle);
+  const sanitizedName = sanitizePlainText(input.name?.trim() || `@${rawHandle}`, 50);
+  const sanitizedBio = sanitizePlainText(input.bio?.trim() || '', 280);
+  const sanitizedAvatar = input.avatar?.trim() || `https://api.dicebear.com/7.x/bottts/svg?seed=${authenticatedWallet}`;
+  const sanitizedCover = input.coverImage?.trim() || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200&h=400&fit=crop';
+  const isOwner = authenticatedWallet === COOKIE_CHAIN_CONFIG.treasuryPublicKey || isAdminSession;
+
+  // -------------------------------------------------------------
+  // Path A: Production Authoritative Distributed Store (Upstash / KV)
+  // -------------------------------------------------------------
+  if (distributedStore.isConfigured()) {
+    try {
+      const handleKey = `${HANDLE_PREFIX}${rawHandle}`;
+      const walletKey = `${WALLET_PREFIX}${authenticatedWallet}`;
+
+      // 1. Check existing profile for this wallet
+      const rawExisting = await distributedStore.get(walletKey);
+      let existingProfile: User | null = null;
+      if (rawExisting) {
+        try { existingProfile = JSON.parse(rawExisting); } catch {}
+      }
+
+      const isSameHandle = existingProfile && existingProfile.handle.toLowerCase() === rawHandle;
+      let newlyClaimedHandle = false;
+
+      // 2. Atomic Handle Claim (SETNX) if handle is new or being changed
+      if (!isSameHandle) {
+        const claimed = await distributedStore.setnx(handleKey, authenticatedWallet);
+        if (!claimed) {
+          // Double-check if the key currently belongs to this wallet
+          const currentOwner = await distributedStore.get(handleKey);
+          if (currentOwner === null) {
+            return {
+              success: false,
+              error: 'Authoritative persistence service unavailable. Please retry.',
+            };
+          }
+          if (currentOwner !== authenticatedWallet) {
+            return { success: false, error: 'Handle is already registered by another identity' };
+          }
+        } else {
+          newlyClaimedHandle = true;
+        }
+      }
+
+      // 3. Construct updated profile
+      const updatedProfile: User = {
+        id: existingProfile?.id || `user-${authenticatedWallet}`,
+        handle: rawHandle,
+        name: sanitizedName,
+        avatar: sanitizedAvatar,
+        coverImage: sanitizedCover,
+        bio: sanitizedBio,
+        verified: existingProfile?.verified ?? isOwner,
+        ageVerified: existingProfile?.ageVerified ?? false,
+        isAdmin: isOwner,
+        isAdultContentCreator: input.isAdultContentCreator ?? existingProfile?.isAdultContentCreator ?? false,
+        walletAddress: authenticatedWallet,
+        sponsorUrl: input.sponsorUrl?.trim() || existingProfile?.sponsorUrl,
+        sponsorGoal: input.sponsorGoal?.trim() || existingProfile?.sponsorGoal,
+        followersCount: existingProfile?.followersCount || 0,
+        followingCount: existingProfile?.followingCount || 0,
+        friendsCount: existingProfile?.friendsCount || 0,
+        isCreator: input.isCreator ?? existingProfile?.isCreator ?? true,
+        storeSettings: {
+          storeName: input.storeSettings?.storeName?.trim() || existingProfile?.storeSettings?.storeName || `${sanitizedName}'s Storefront`,
+          storeDescription: input.storeSettings?.storeDescription?.trim() || existingProfile?.storeSettings?.storeDescription || 'Digital goods and community assets on Cookie Chain SVM.',
+          supportCookTreasuryPct: 5,
+        },
+        widgets: existingProfile?.widgets || [],
+      };
+
+      // 4. Persist profile data to authoritative store
+      const profilePersisted = await distributedStore.set(walletKey, JSON.stringify(updatedProfile));
+      if (!profilePersisted) {
+        // Rollback newly claimed handle to prevent orphan state
+        if (newlyClaimedHandle) {
+          await distributedStore.del(handleKey);
+        }
+        return {
+          success: false,
+          error: 'Authoritative persistence service unavailable. Please retry.',
+        };
+      }
+
+      // 5. Add to registered wallets directory set
+      await distributedStore.sadd(DISTRIBUTED_WALLETS_SET_KEY, authenticatedWallet);
+
+      // 6. If user changed handle, release old handle atomically
+      if (existingProfile && existingProfile.handle.toLowerCase() !== rawHandle) {
+        const oldHandleKey = `${HANDLE_PREFIX}${existingProfile.handle.toLowerCase()}`;
+        await distributedStore.del(oldHandleKey);
+        handleCache.delete(existingProfile.handle.toLowerCase());
+      }
+
+      // 7. Update memory cache
+      profilesCache.set(authenticatedWallet, updatedProfile);
+      handleCache.set(rawHandle, authenticatedWallet);
+
+      return { success: true, profile: updatedProfile };
+    } catch (err) {
+      console.error('[ProfileStore] Production persistence failure:', err);
+      return {
+        success: false,
+        error: 'Authoritative persistence service unavailable. Please retry.',
+      };
+    }
+  }
+
+  // -------------------------------------------------------------
+  // Path B: Local Development / Testing Fallback
+  // -------------------------------------------------------------
+  return acquireLocalLock(async () => {
+    ensureLocalInitialized();
+
+    const existingOwner = handleCache.get(rawHandle);
+    if (existingOwner && existingOwner !== authenticatedWallet) {
+      return { success: false, error: 'Handle is already registered by another identity' };
+    }
+
+    const existingProfile = profilesCache.get(authenticatedWallet);
+    if (existingProfile && existingProfile.handle !== rawHandle) {
+      handleCache.delete(existingProfile.handle.toLowerCase());
+    }
+
+    const updatedProfile: User = {
+      id: existingProfile?.id || `user-${authenticatedWallet}`,
+      handle: rawHandle,
+      name: sanitizedName,
+      avatar: sanitizedAvatar,
+      coverImage: sanitizedCover,
+      bio: sanitizedBio,
+      verified: existingProfile?.verified ?? isOwner,
+      ageVerified: existingProfile?.ageVerified ?? false,
+      isAdmin: isOwner,
+      isAdultContentCreator: input.isAdultContentCreator ?? existingProfile?.isAdultContentCreator ?? false,
+      walletAddress: authenticatedWallet,
+      sponsorUrl: input.sponsorUrl?.trim() || existingProfile?.sponsorUrl,
+      sponsorGoal: input.sponsorGoal?.trim() || existingProfile?.sponsorGoal,
+      followersCount: existingProfile?.followersCount || 0,
+      followingCount: existingProfile?.followingCount || 0,
+      friendsCount: existingProfile?.friendsCount || 0,
+      isCreator: input.isCreator ?? existingProfile?.isCreator ?? true,
+      storeSettings: {
+        storeName: input.storeSettings?.storeName?.trim() || existingProfile?.storeSettings?.storeName || `${sanitizedName}'s Storefront`,
+        storeDescription: input.storeSettings?.storeDescription?.trim() || existingProfile?.storeSettings?.storeDescription || 'Digital goods and community assets on Cookie Chain SVM.',
+        supportCookTreasuryPct: 5,
+      },
+      widgets: existingProfile?.widgets || [],
+    };
+
+    profilesCache.set(authenticatedWallet, updatedProfile);
+    handleCache.set(rawHandle, authenticatedWallet);
+    saveToLocalDisk();
+
+    return { success: true, profile: updatedProfile };
+  });
+}
+
+/**
+ * Synchronous wrapper for backward compatibility in test fixtures
+ */
+export function saveOnboardedProfile(
+  authenticatedWallet: string,
+  input: OnboardProfileInput,
+  isAdminSession: boolean = false
+): { success: boolean; profile?: User; error?: string } {
+  ensureLocalInitialized();
+
+  const rawHandle = input.handle?.trim().toLowerCase().replace(/^@+/, '') || '';
+  if (!rawHandle || rawHandle.length < 3 || rawHandle.length > 30) {
+    return { success: false, error: 'Handle must be between 3 and 30 characters' };
+  }
+
+  if (!/^[a-z0-9_]+$/.test(rawHandle)) {
+    return { success: false, error: 'Handle must contain only letters, numbers, and underscores' };
+  }
+
+  const existingOwner = handleCache.get(rawHandle);
   if (existingOwner && existingOwner !== authenticatedWallet) {
     return { success: false, error: 'Handle is already registered by another identity' };
   }
@@ -248,15 +450,11 @@ export function saveOnboardedProfile(
   const sanitizedBio = sanitizePlainText(input.bio?.trim() || '', 280);
   const sanitizedAvatar = input.avatar?.trim() || `https://api.dicebear.com/7.x/bottts/svg?seed=${authenticatedWallet}`;
   const sanitizedCover = input.coverImage?.trim() || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200&h=400&fit=crop';
-
   const isOwner = authenticatedWallet === COOKIE_CHAIN_CONFIG.treasuryPublicKey || isAdminSession;
 
-  // Retrieve existing profile if updating (preserves followers, verified state, etc.)
-  const existingProfile = profilesByWallet.get(authenticatedWallet);
-
-  // If user is changing their handle, release the old handle mapping
+  const existingProfile = profilesCache.get(authenticatedWallet);
   if (existingProfile && existingProfile.handle !== rawHandle) {
-    walletByHandle.delete(existingProfile.handle.toLowerCase());
+    handleCache.delete(existingProfile.handle.toLowerCase());
   }
 
   const updatedProfile: User = {
@@ -270,7 +468,7 @@ export function saveOnboardedProfile(
     ageVerified: existingProfile?.ageVerified ?? false,
     isAdmin: isOwner,
     isAdultContentCreator: input.isAdultContentCreator ?? existingProfile?.isAdultContentCreator ?? false,
-    walletAddress: authenticatedWallet, // Strictly bound to authenticated session identity
+    walletAddress: authenticatedWallet,
     sponsorUrl: input.sponsorUrl?.trim() || existingProfile?.sponsorUrl,
     sponsorGoal: input.sponsorGoal?.trim() || existingProfile?.sponsorGoal,
     followersCount: existingProfile?.followersCount || 0,
@@ -285,26 +483,9 @@ export function saveOnboardedProfile(
     widgets: existingProfile?.widgets || [],
   };
 
-  profilesByWallet.set(authenticatedWallet, updatedProfile);
-  walletByHandle.set(rawHandle, authenticatedWallet);
-
-  // Persist to disk
-  saveToDisk();
-
-  // Async sync to distributed store
-  syncToDistributedStore().catch(() => {});
+  profilesCache.set(authenticatedWallet, updatedProfile);
+  handleCache.set(rawHandle, authenticatedWallet);
+  saveToLocalDisk();
 
   return { success: true, profile: updatedProfile };
-}
-
-export async function saveOnboardedProfileAsync(
-  authenticatedWallet: string,
-  input: OnboardProfileInput,
-  isAdminSession: boolean = false
-): Promise<{ success: boolean; profile?: User; error?: string }> {
-  const result = saveOnboardedProfile(authenticatedWallet, input, isAdminSession);
-  if (result.success) {
-    await syncToDistributedStore();
-  }
-  return result;
 }
