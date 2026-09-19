@@ -126,8 +126,8 @@ export const Feed: React.FC<FeedProps> = ({
       isIdVerified: isIdVerified,
       isVideoVerified: isVideoVerified,
       walletAddress: walletAddress || 'HMnySuX1CdBfqysiLtU4brPawufcHxFTFZu97jrKQwT9',
-      followersCount: 1420,
-      followingCount: 42,
+      followersCount: 0,
+      followingCount: 0,
       isCreator: true,
     };
 

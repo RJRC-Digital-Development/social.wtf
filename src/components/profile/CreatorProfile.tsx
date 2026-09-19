@@ -296,6 +296,10 @@ setInterval(() => {
 
   const creatorPosts = posts.filter((p) => p.author.handle === creator.handle);
   const creatorProducts = products.filter((p) => p.creatorHandle === creator.handle);
+  const creatorStoreRevenue = creatorProducts.reduce((acc, p) => acc + (p.salesCount || 0) * p.priceCook, 0);
+  const creatorTipsRevenue = creatorPosts.reduce((acc, p) => acc + (p.totalTipsCook || 0), 0) + crowdfundRaised;
+  const creatorTotalRevenue = creatorStoreRevenue + creatorTipsRevenue;
+  const creatorTipsCount = creatorPosts.reduce((acc, p) => acc + (p.tipsCount || 0), 0);
 
   return (
     <div className="space-y-6">
@@ -495,7 +499,7 @@ setInterval(() => {
               className="px-3 py-1.5 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-slate-800 text-center transition-colors cursor-pointer group"
             >
               <span className="font-bold text-amber-400 block text-sm font-mono">
-                {creator.friendsCount || 12}
+                {creator.friendsCount || 0}
               </span>
               <span className="text-[10px] text-slate-400">Friends</span>
             </button>
@@ -701,20 +705,20 @@ setInterval(() => {
                 <Coins className="w-4 h-4 text-amber-400" />
               </div>
               <div className="text-xl font-bold text-amber-300 font-mono">
-                {((creatorProducts.length * 15) + (crowdfundRaised) + 42.5).toFixed(1)} COOK
+                {creatorTotalRevenue.toFixed(1)} COOK
               </div>
               <div className="text-[10px] text-emerald-400 font-semibold">95% Creator Split</div>
             </div>
 
             <div className="p-5 rounded-3xl bg-[#0d1527] border border-slate-700/80 shadow-xl space-y-1">
               <div className="flex items-center justify-between">
-                <span className="text-xs text-slate-400">Direct Tips &amp; Super-Chats</span>
+                <span className="text-xs text-slate-400">Direct Tips &amp; Support</span>
                 <Gift className="w-4 h-4 text-purple-400" />
               </div>
               <div className="text-xl font-bold text-slate-100 font-mono">
-                42.5 COOK
+                {creatorTipsRevenue.toFixed(1)} COOK
               </div>
-              <div className="text-[10px] text-slate-400">From 18 Fans</div>
+              <div className="text-[10px] text-slate-400">From {creatorTipsCount} {creatorTipsCount === 1 ? 'Tip' : 'Tips'}</div>
             </div>
 
             <div className="p-5 rounded-3xl bg-[#0d1527] border border-slate-700/80 shadow-xl space-y-1">
@@ -723,20 +727,20 @@ setInterval(() => {
                 <ShoppingBag className="w-4 h-4 text-blue-400" />
               </div>
               <div className="text-xl font-bold text-slate-100 font-mono">
-                {(creatorProducts.length * 15).toFixed(1)} COOK
+                {creatorStoreRevenue.toFixed(1)} COOK
               </div>
-              <div className="text-[10px] text-slate-400">{creatorProducts.length} Active Products</div>
+              <div className="text-[10px] text-slate-400">{creatorProducts.length} Active {creatorProducts.length === 1 ? 'Product' : 'Products'}</div>
             </div>
 
             <div className="p-5 rounded-3xl bg-[#0d1527] border border-slate-700/80 shadow-xl space-y-1">
               <div className="flex items-center justify-between">
-                <span className="text-xs text-slate-400">Active Friends &amp; VIPs</span>
+                <span className="text-xs text-slate-400">Followers &amp; Supporters</span>
                 <Users className="w-4 h-4 text-emerald-400" />
               </div>
               <div className="text-xl font-bold text-slate-100 font-mono">
                 {followersCount.toLocaleString()}
               </div>
-              <div className="text-[10px] text-emerald-400">Across Social Network</div>
+              <div className="text-[10px] text-emerald-400">On-Chain Community</div>
             </div>
           </div>
 
@@ -844,7 +848,7 @@ setInterval(() => {
               </div>
               <AudioPlayer
                 audioUrl="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"
-                title="Midnight In Gorbagana (SVM Mix)"
+                title="Original Audio Track"
                 artist={creator.name}
               />
             </div>

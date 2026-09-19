@@ -489,16 +489,19 @@ export async function executeDirectPlatformTransfer(
         preflightCommitment: 'confirmed',
       });
     } catch (broadcastErr: any) {
-      if (broadcastErr.message && broadcastErr.message.includes('Blockhash not found')) {
-        await updatePrivilegedIntent(params.intentId, { status: 'FAILED' }, deps);
-        return {
-          success: false,
-          error: 'Blockhash expired before broadcast.',
-          code: 'BROADCAST_FAILED',
-        };
-      }
-      // Ambiguous broadcast: RPC dropped or timed out after submission. Must retain signature in SUBMISSION_UNKNOWN!
-      await updatePrivilegedIntent(params.intentId, { status: 'SUBMISSION_UNKNOWN' }, deps);
+      // Any broadcast exception (including RPC timeouts, network drops, or RPC-side blockhash errors)
+      // must NOT assume the transaction did not reach validators. The signed transaction identity was already
+      // persisted, so we classify as SUBMISSION_UNKNOWN to preserve signature and block bounds for mandatory reconciliation.
+      await updatePrivilegedIntent(
+        params.intentId,
+        {
+          status: 'SUBMISSION_UNKNOWN',
+          signature,
+          recentBlockhash: blockhash,
+          lastValidBlockHeight,
+        },
+        deps
+      );
       return {
         success: false,
         error: broadcastErr.message || 'Transaction broadcast was ambiguous. Signature preserved for reconciliation.',

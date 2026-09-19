@@ -184,12 +184,12 @@ async function runTests() {
     console.log('   Pre-broadcast persistence failure aborted broadcast immediately without network leakage');
   }
 
-  console.log(' [TEST 3] Ambiguous Broadcast Recovery: Network timeout preserves SUBMISSION_UNKNOWN with derived signature');
+  console.log(' [TEST 3] Ambiguous Broadcast Recovery: sendRawTransaction "Blockhash not found" preserves SUBMISSION_UNKNOWN with derived signature and 0 duplicate broadcasts');
   {
     const store = new MockDistributedStore(true);
     const connection = new MockRpcConnection({
       sendRawTxShouldFail: true,
-      sendRawTxError: new Error('Socket hangup during RPC broadcast'),
+      sendRawTxError: new Error('Simulation failed: Blockhash not found'),
     });
     const signer = Keypair.generate();
     const recipient = Keypair.generate().publicKey;
@@ -200,11 +200,12 @@ async function runTests() {
       recipientAddress: recipient.toBase58(),
     });
 
-    await reservePrivilegedIntent({
+    const reservation = await reservePrivilegedIntent({
       intentId,
       operation: 'emergency_migration',
       recipientAddress: recipient.toBase58(),
     }, { store, connection });
+    assert.strictEqual(reservation.allowed, true);
 
     const result = await executeDirectPlatformTransfer(
       {
@@ -218,11 +219,22 @@ async function runTests() {
     assert.strictEqual(result.success, false);
     assert.strictEqual(result.code, 'TRANSACTION_BROADCAST_AMBIGUOUS');
     assert(result.signature, 'Signature must be returned for reconciliation');
+    assert.strictEqual(connection.broadcastCalls, 1, 'Initial broadcast attempted');
 
     const stored = JSON.parse(await store.get(`tx_intent:${intentId}`));
     assert.strictEqual(stored.status, 'SUBMISSION_UNKNOWN');
     assert.strictEqual(stored.signature, result.signature);
-    console.log('   Ambiguous broadcast preserved SUBMISSION_UNKNOWN and signature in distributed store');
+
+    // Second request: retry must be rejected by reservation gate, causing ZERO additional broadcasts!
+    const retryReservation = await reservePrivilegedIntent({
+      intentId,
+      operation: 'emergency_migration',
+      recipientAddress: recipient.toBase58(),
+    }, { store, connection });
+
+    assert.strictEqual(retryReservation.allowed, false);
+    assert.strictEqual(connection.broadcastCalls, 1, 'Second request must cause ZERO additional broadcasts');
+    console.log('   "Blockhash not found" broadcast error preserved SUBMISSION_UNKNOWN; second request blocked with zero duplicate broadcasts');
   }
 
   console.log(' [TEST 4] On-Chain Reconciliation: Retry of SUBMITTED/SUBMISSION_UNKNOWN finds on-chain confirmation');
