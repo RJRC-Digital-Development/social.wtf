@@ -3,6 +3,7 @@ import { Keypair } from '@solana/web3.js';
 import { ed25519 } from '@noble/curves/ed25519';
 import bs58 from 'bs58';
 import crypto from 'crypto';
+import { isPlatformOwner } from '../../src/lib/security/ownerAuth.ts';
 
 console.log('--- RUNNING CRYPTOGRAPHIC WALLET AUTH ADVERSARIAL TESTS ---');
 
@@ -154,18 +155,22 @@ function verifyWalletChallenge({ walletAddress, nonce, signatureBase58 }) {
 
 // Test 5: Protocol Owner vs General User Scope Assignment
 {
-  const OWNER_TREASURY_PUBKEY = 'HMnySuX1CdBfqysiLtU4brPawufcHxFTFZu97jrKQwT9';
+  const ownerKeypair = Keypair.generate();
+  const ownerAddress = ownerKeypair.publicKey.toBase58();
   const normalKeypair = Keypair.generate();
   const normalAddress = normalKeypair.publicKey.toBase58();
+  const treasuryAddress = 'HMnySuX1CdBfqysiLtU4brPawufcHxFTFZu97jrKQwT9';
+
+  process.env.PLATFORM_OWNER_WALLET = ownerAddress;
 
   function determineSessionScope(walletAddress) {
-    const platformOwnerWallet = process.env.PLATFORM_OWNER_WALLET || OWNER_TREASURY_PUBKEY;
-    return walletAddress === platformOwnerWallet ? 'admin' : 'user';
+    return isPlatformOwner(walletAddress) ? 'admin' : 'user';
   }
 
-  assert.strictEqual(determineSessionScope(OWNER_TREASURY_PUBKEY), 'admin');
+  assert.strictEqual(determineSessionScope(ownerAddress), 'admin');
   assert.strictEqual(determineSessionScope(normalAddress), 'user');
-  console.log(' Test 5: Protocol Owner admin scope provenance & user isolation verified');
+  assert.strictEqual(determineSessionScope(treasuryAddress), 'user');
+  console.log(' Test 5: Protocol Owner admin scope provenance & treasury/user isolation verified');
 }
 
 console.log('ALL CRYPTOGRAPHIC WALLET AUTH TESTS PASSED!\n');

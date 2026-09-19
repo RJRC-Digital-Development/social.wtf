@@ -22,6 +22,7 @@ import {
   Tv,
   UserCheck,
   Globe,
+  LogIn,
 } from 'lucide-react';
 
 interface FeedProps {
@@ -113,19 +114,24 @@ export const Feed: React.FC<FeedProps> = ({
     e.preventDefault();
     if (!content.trim()) return;
 
+    if (!connected || !walletAddress) {
+      connect();
+      return;
+    }
+
     const isShielded = aiResult ? aiResult.isShielded : false;
 
     const userAuthor: User = currentUser || {
-      id: 'creator-you',
-      handle: 'you',
-      name: 'Cookie Creator',
-      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&h=400&fit=crop',
+      id: `user-${walletAddress}`,
+      handle: `user_${walletAddress.slice(0, 4).toLowerCase()}${walletAddress.slice(-4).toLowerCase()}`,
+      name: `@${walletAddress.slice(0, 4)}...${walletAddress.slice(-4)}`,
+      avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${walletAddress}`,
       bio: 'Building and socializing on Cookie Chain SVM.',
-      verified: true,
+      verified: false,
       ageVerified: isAgeVerified,
       isIdVerified: isIdVerified,
       isVideoVerified: isVideoVerified,
-      walletAddress: walletAddress || 'HMnySuX1CdBfqysiLtU4brPawufcHxFTFZu97jrKQwT9',
+      walletAddress: walletAddress,
       followersCount: 0,
       followingCount: 0,
       isCreator: true,
@@ -343,14 +349,25 @@ export const Feed: React.FC<FeedProps> = ({
               </button>
             </div>
 
-            <button
-              type="submit"
-              disabled={!content.trim() || isScanningAI}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 font-bold text-xs hover:brightness-110 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md shadow-amber-500/20"
-            >
-              <Send className="w-3.5 h-3.5" />
-              <span>Broadcast Post</span>
-            </button>
+            {!connected || !walletAddress ? (
+              <button
+                type="button"
+                onClick={() => connect()}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-500 text-slate-950 font-bold text-xs hover:brightness-110 active:scale-95 transition-all shadow-md shadow-amber-500/20"
+              >
+                <LogIn className="w-3.5 h-3.5" />
+                <span>Connect Wallet to Post</span>
+              </button>
+            ) : (
+              <button
+                type="submit"
+                disabled={!content.trim() || isScanningAI}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 font-bold text-xs hover:brightness-110 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md shadow-amber-500/20"
+              >
+                <Send className="w-3.5 h-3.5" />
+                <span>Broadcast Post</span>
+              </button>
+            )}
           </div>
         </form>
       </div>

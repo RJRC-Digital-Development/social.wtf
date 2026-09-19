@@ -1,4 +1,4 @@
-import { distributedStore } from './distributedStore';
+import { distributedStore } from './distributedStore.ts';
 import crypto from 'crypto';
 
 export type SessionScope = 'user' | 'creator' | 'admin';

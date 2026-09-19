@@ -10,7 +10,7 @@ export const INITIAL_CREATORS: User[] = [
     bio: 'Official Social.wtf Protocol Treasury & Platform Owner on Cookie Chain SVM.',
     verified: true,
     ageVerified: true,
-    isAdmin: true,
+    isAdmin: false,
     walletAddress: 'HMnySuX1CdBfqysiLtU4brPawufcHxFTFZu97jrKQwT9',
     sponsorUrl: 'https://github.com/sponsors/RJRC-Digital-Development',
     sponsorGoal: 'Funding decentralized creator tooling, SVM smart contracts, and open grants.',

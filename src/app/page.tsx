@@ -18,7 +18,7 @@ import {
   INITIAL_TREASURY_METRICS,
 } from '@/lib/data/mockData';
 import { Post, Product, User, TransactionRecord, TreasuryMetrics } from '@/types';
-import { calculateFeeSplit, COOKIE_CHAIN_CONFIG } from '@/lib/solana/cookieChain';
+import { calculateFeeSplit } from '@/lib/solana/cookieChain';
 import { useShield } from '@/lib/shield/shieldContext';
 import { useWallet } from '@/lib/wallet/walletContext';
 import {
@@ -60,14 +60,6 @@ const DEFAULT_USER_PROFILE: User = {
 };
 
 function buildDefaultProfileForWallet(address: string): User {
-  const isOwner = address === COOKIE_CHAIN_CONFIG.treasuryPublicKey;
-  if (isOwner) {
-    return {
-      ...INITIAL_CREATORS[0],
-      walletAddress: address,
-      isAdmin: true,
-    };
-  }
   const shortAddr = `${address.slice(0, 4)}...${address.slice(-4)}`;
   const cleanHandle = `user_${address.slice(0, 4).toLowerCase()}${address.slice(-4).toLowerCase()}`;
   return {
@@ -181,14 +173,12 @@ export default function Home() {
   // Sync wallet address with dedicated user profile space when connected
   useEffect(() => {
     if (connected && walletAddress) {
-      const isOwner = walletAddress === COOKIE_CHAIN_CONFIG.treasuryPublicKey;
       let profileToSet: User;
       try {
         const saved = localStorage.getItem(`social_wtf_profile_${walletAddress}`);
         if (saved) {
           profileToSet = JSON.parse(saved);
           profileToSet.walletAddress = walletAddress;
-          profileToSet.isAdmin = isOwner;
         } else {
           profileToSet = buildDefaultProfileForWallet(walletAddress);
           localStorage.setItem(`social_wtf_profile_${walletAddress}`, JSON.stringify(profileToSet));

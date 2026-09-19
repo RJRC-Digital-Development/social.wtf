@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { Product } from '@/types';
 import { useWallet } from '@/lib/wallet/walletContext';
-import { calculateFeeSplit, COOKIE_CHAIN_CONFIG } from '@/lib/solana/cookieChain';
+import { calculateFeeSplit } from '@/lib/solana/cookieChain';
 import { TxStatusModal, TxStep } from '../transactions/TxStatusModal';
 import { AssetDeliveryModal } from './AssetDeliveryModal';
 import {
@@ -109,9 +109,14 @@ export const Storefront: React.FC<StorefrontProps> = ({
     e.preventDefault();
     if (!newTitle.trim()) return;
 
-    const activeWallet = walletAddress || COOKIE_CHAIN_CONFIG.treasuryPublicKey;
-    const activeHandle = creatorHandle || (walletAddress ? `user_${walletAddress.slice(0, 4).toLowerCase()}${walletAddress.slice(-4).toLowerCase()}` : 'owner');
-    const activeName = walletAddress ? `@${walletAddress.slice(0, 4)}...${walletAddress.slice(-4)}` : 'Social.wtf Protocol';
+    if (!connected || !walletAddress) {
+      alert('Please connect your wallet to create and sell digital products.');
+      return;
+    }
+
+    const activeWallet = walletAddress;
+    const activeHandle = creatorHandle || `user_${walletAddress.slice(0, 4).toLowerCase()}${walletAddress.slice(-4).toLowerCase()}`;
+    const activeName = `@${walletAddress.slice(0, 4)}...${walletAddress.slice(-4)}`;
 
     const newProd: Product = {
       id: `prod-${Date.now()}`,

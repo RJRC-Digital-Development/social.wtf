@@ -4,7 +4,6 @@ import React, { useState } from 'react';
 import { User, Product, Post, CreatorWidget, TransactionRecord } from '@/types';
 import { useShield } from '@/lib/shield/shieldContext';
 import { useWallet } from '@/lib/wallet/walletContext';
-import { COOKIE_CHAIN_CONFIG } from '@/lib/solana/cookieChain';
 import { TxStatusModal, TxStep } from '../transactions/TxStatusModal';
 import { Storefront } from '../store/Storefront';
 import { PostCard } from '../feed/PostCard';
@@ -356,7 +355,7 @@ setInterval(() => {
                     <CheckCircle className="w-4 h-4 text-blue-400" />
                   </span>
                 )}
-                {creator.isAdmin || creator.walletAddress === COOKIE_CHAIN_CONFIG.treasuryPublicKey ? (
+                {creator.isAdmin ? (
                   <span className="px-2 py-0.5 rounded-lg bg-blue-500/20 border border-blue-500/40 text-[10px] font-bold text-blue-300 flex items-center gap-1">
                     <ShieldCheck className="w-3 h-3 text-blue-400" />
                     <span>PROTOCOL OWNER</span>

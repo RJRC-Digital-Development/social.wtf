@@ -78,7 +78,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authenticating, setAuthenticating] = useState(false);
 
-  const isOwner = walletAddress === COOKIE_CHAIN_CONFIG.treasuryPublicKey;
+  const isOwner = sessionScope === 'admin';
 
   // Check if Web3 providers (Nightly, Trust Wallet) and Server Signer are available
   useEffect(() => {
@@ -125,12 +125,16 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
           const data = await res.json();
           if (data.authenticated) {
             setIsAuthenticated(true);
+            if (data.scope) {
+              setSessionScope(data.scope);
+            }
             if (storedToken) setSessionToken(storedToken);
           }
         } else {
           localStorage.removeItem(SESSION_TOKEN_STORAGE_KEY);
           setIsAuthenticated(false);
           setSessionToken(null);
+          setSessionScope(null);
         }
       } catch {
         // Silently ignore network errors during background introspection
@@ -326,7 +330,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
       const verifyData = await verifyRes.json();
       if (verifyData.verified && verifyData.sessionToken) {
         setSessionToken(verifyData.sessionToken);
-        setSessionScope(verifyData.scope || (walletAddress === COOKIE_CHAIN_CONFIG.treasuryPublicKey ? 'admin' : 'user'));
+        setSessionScope(verifyData.scope === 'admin' ? 'admin' : 'user');
         setIsAuthenticated(true);
         localStorage.setItem(SESSION_TOKEN_STORAGE_KEY, verifyData.sessionToken);
         return true;

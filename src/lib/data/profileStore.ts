@@ -1,9 +1,8 @@
 import fs from 'fs';
 import path from 'path';
-import { User } from '@/types';
-import { sanitizePlainText } from '@/lib/security/sanitize';
-import { COOKIE_CHAIN_CONFIG } from '@/lib/solana/cookieChain';
-import { distributedStore } from '@/lib/security/distributedStore';
+import type { User } from '../../types/index.ts';
+import { sanitizePlainText } from '../security/sanitize.ts';
+import { distributedStore } from '../security/distributedStore.ts';
 
 const DISTRIBUTED_WALLETS_SET_KEY = 'platform:profiles:wallets';
 const HANDLE_PREFIX = 'profile:handle:';
@@ -268,7 +267,7 @@ export async function saveOnboardedProfileAsync(
   const sanitizedBio = sanitizePlainText(input.bio?.trim() || '', 280);
   const sanitizedAvatar = input.avatar?.trim() || `https://api.dicebear.com/7.x/bottts/svg?seed=${authenticatedWallet}`;
   const sanitizedCover = input.coverImage?.trim() || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200&h=400&fit=crop';
-  const isOwner = authenticatedWallet === COOKIE_CHAIN_CONFIG.treasuryPublicKey || isAdminSession;
+  const isOwner = Boolean(isAdminSession);
 
   // -------------------------------------------------------------
   // Path A: Production Authoritative Distributed Store (Upstash / KV)
@@ -450,7 +449,7 @@ export function saveOnboardedProfile(
   const sanitizedBio = sanitizePlainText(input.bio?.trim() || '', 280);
   const sanitizedAvatar = input.avatar?.trim() || `https://api.dicebear.com/7.x/bottts/svg?seed=${authenticatedWallet}`;
   const sanitizedCover = input.coverImage?.trim() || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200&h=400&fit=crop';
-  const isOwner = authenticatedWallet === COOKIE_CHAIN_CONFIG.treasuryPublicKey || isAdminSession;
+  const isOwner = Boolean(isAdminSession);
 
   const existingProfile = profilesCache.get(authenticatedWallet);
   if (existingProfile && existingProfile.handle !== rawHandle) {

@@ -19,6 +19,7 @@ const testFiles = [
   'durable-persistence.test.mjs',
   'persistence-concurrency-gate.test.mjs',
   'admin-capability-authorization.test.mjs',
+  'identity-separation.test.mjs',
 ];
 
 let totalPassed = 0;

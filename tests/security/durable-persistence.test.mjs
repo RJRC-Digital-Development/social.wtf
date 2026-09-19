@@ -130,7 +130,7 @@ class DurableProfileStoreTest {
     const sanitizedAvatar = input.avatar?.trim() || `https://api.dicebear.com/7.x/bottts/svg?seed=${authenticatedWallet}`;
     const sanitizedCover = input.coverImage?.trim() || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200&h=400&fit=crop';
 
-    const isOwner = authenticatedWallet === COOKIE_CHAIN_CONFIG.treasuryPublicKey || isAdminSession;
+    const isOwner = Boolean(isAdminSession);
     const existingProfile = this.profilesByWallet.get(authenticatedWallet);
 
     if (existingProfile && existingProfile.handle !== rawHandle) {
