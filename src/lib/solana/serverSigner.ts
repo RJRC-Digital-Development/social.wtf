@@ -4,6 +4,7 @@ import {
   Transaction,
   SystemProgram,
   sendAndConfirmTransaction,
+  LAMPORTS_PER_SOL,
 } from '@solana/web3.js';
 import bs58 from 'bs58';
 import {
@@ -12,6 +13,7 @@ import {
   PLATFORM_TREASURY_PUBKEY,
   COOKIE_CHAIN_CONFIG,
 } from './cookieChain';
+import { distributedStore } from '../security/distributedStore';
 
 /**
  * Parses raw private key strings from environment variables supporting:
@@ -72,7 +74,6 @@ export function parsePrivateKey(rawKey: string): Keypair | null {
 
 /**
  * Returns the server signer Keypair configured in environment variables.
- * Checks PLATFORM_PRIVATE_KEY, SERVER_SIGNER_PRIVATE_KEY, COOKIE_CHAIN_PRIVATE_KEY, and TREASURY_PRIVATE_KEY.
  */
 export function getServerSignerKeypair(): Keypair | null {
   const envKey =
@@ -109,12 +110,123 @@ export const ALLOWED_PLATFORM_OPERATIONS = [
 
 export type AllowedPlatformOperation = (typeof ALLOWED_PLATFORM_OPERATIONS)[number];
 
-export interface ExecuteTransactionParams {
-  recipientPublicKey: string;
+export interface IntentRecord {
+  intentId: string;
+  operation: AllowedPlatformOperation;
+  recipientAddress: string;
   amountCook: number;
-  operation?: AllowedPlatformOperation;
+  status: 'RESERVED' | 'SUBMITTED' | 'CONFIRMED' | 'FAILED';
+  signature?: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+// In-memory fallback intent registry
+const localIntents = new Map<string, IntentRecord>();
+
+/**
+ * Atomically reserves a privileged operation intent to prevent concurrent execution and replay.
+ */
+export async function reservePrivilegedIntent(params: {
+  intentId: string;
+  operation: AllowedPlatformOperation;
+  recipientAddress: string;
+  amountCook: number;
+}): Promise<{
+  allowed: boolean;
+  status?: 'RESERVED' | 'SUBMITTED' | 'CONFIRMED' | 'FAILED';
+  existingSignature?: string;
+  error?: string;
+}> {
+  const key = `tx_intent:${params.intentId}`;
+  const record: IntentRecord = {
+    intentId: params.intentId,
+    operation: params.operation,
+    recipientAddress: params.recipientAddress,
+    amountCook: params.amountCook,
+    status: 'RESERVED',
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  };
+
+  if (distributedStore.isConfigured()) {
+    const setOk = await distributedStore.setnx(key, JSON.stringify(record), 3600);
+    if (!setOk) {
+      const existingRaw = await distributedStore.get(key);
+      if (existingRaw) {
+        try {
+          const existing: IntentRecord = JSON.parse(existingRaw);
+          return {
+            allowed: false,
+            status: existing.status,
+            existingSignature: existing.signature,
+            error:
+              existing.status === 'CONFIRMED'
+                ? 'Intent already executed.'
+                : 'Intent is already currently in progress or awaiting confirmation.',
+          };
+        } catch {}
+      }
+      return { allowed: false, error: 'Intent conflict detected.' };
+    }
+    return { allowed: true, status: 'RESERVED' };
+  }
+
+  // Local fallback
+  const existing = localIntents.get(params.intentId);
+  if (existing) {
+    return {
+      allowed: false,
+      status: existing.status,
+      existingSignature: existing.signature,
+      error:
+        existing.status === 'CONFIRMED'
+          ? 'Intent already executed.'
+          : 'Intent is already currently in progress or awaiting confirmation.',
+    };
+  }
+
+  localIntents.set(params.intentId, record);
+  return { allowed: true, status: 'RESERVED' };
+}
+
+/**
+ * Updates intent status to SUBMITTED or CONFIRMED
+ */
+export async function updatePrivilegedIntent(
+  intentId: string,
+  status: 'SUBMITTED' | 'CONFIRMED' | 'FAILED',
+  signature?: string
+): Promise<void> {
+  const key = `tx_intent:${intentId}`;
+  if (distributedStore.isConfigured()) {
+    const raw = await distributedStore.get(key);
+    if (raw) {
+      try {
+        const record: IntentRecord = JSON.parse(raw);
+        record.status = status;
+        if (signature) record.signature = signature;
+        record.updatedAt = Date.now();
+        await distributedStore.set(key, JSON.stringify(record), 86400);
+      } catch {}
+    }
+    return;
+  }
+
+  const record = localIntents.get(intentId);
+  if (record) {
+    record.status = status;
+    if (signature) record.signature = signature;
+    record.updatedAt = Date.now();
+  }
+}
+
+export interface DirectPlatformTransferParams {
+  recipientPublicKey: PublicKey;
+  amountCook: number;
+  operation: AllowedPlatformOperation;
   memo?: string;
-  treasuryFeeBps?: number;
+  intentId?: string;
 }
 
 export interface ExecuteTransactionResult {
@@ -127,23 +239,95 @@ export interface ExecuteTransactionResult {
   treasuryAmount?: number;
   explorerUrl?: string;
   error?: string;
+  code?: string;
+  idempotent?: boolean;
 }
 
 /**
- * Executes and signs an allowlisted platform administration transaction directly on Cookie Chain
- * using the server signer. Ordinary user transactions (tips, product purchases) must NOT
- * invoke this function and MUST be signed by the user's client wallet.
+ * Executes a direct 100% administrative platform transfer (e.g. Treasury Rebalance, Sweep, Migration)
+ * without applying a creator commerce 95/5 split.
  */
-export async function executeOnChainSplitTransaction(
-  params: ExecuteTransactionParams
+export async function executeDirectPlatformTransfer(
+  params: DirectPlatformTransferParams
 ): Promise<ExecuteTransactionResult> {
-  if (params.operation && !ALLOWED_PLATFORM_OPERATIONS.includes(params.operation)) {
+  const signer = getServerSignerKeypair();
+  if (!signer) {
     return {
       success: false,
-      error: `Unauthorized platform operation: ${params.operation}. User transactions must be signed by client wallet.`,
+      error: 'No server signer private key configured in environment (PLATFORM_PRIVATE_KEY).',
+      code: 'SERVER_KEY_NOT_CONFIGURED',
     };
   }
 
+  const connection = getCookieConnection();
+
+  try {
+    const lamports = BigInt(Math.floor(params.amountCook * LAMPORTS_PER_SOL));
+    if (lamports <= 0n) {
+      return { success: false, error: 'Transfer amount in lamports must be greater than zero.' };
+    }
+
+    const tx = new Transaction();
+    tx.add(
+      SystemProgram.transfer({
+        fromPubkey: signer.publicKey,
+        toPubkey: params.recipientPublicKey,
+        lamports,
+      })
+    );
+
+    const { blockhash } = await connection.getLatestBlockhash('confirmed');
+    tx.recentBlockhash = blockhash;
+    tx.feePayer = signer.publicKey;
+
+    // Mark intent as SUBMITTED right before network broadcast
+    if (params.intentId) {
+      await updatePrivilegedIntent(params.intentId, 'SUBMITTED');
+    }
+
+    const signature = await sendAndConfirmTransaction(connection, tx, [signer], {
+      commitment: 'confirmed',
+    });
+
+    // Mark intent as CONFIRMED
+    if (params.intentId) {
+      await updatePrivilegedIntent(params.intentId, 'CONFIRMED', signature);
+    }
+
+    return {
+      success: true,
+      signature,
+      senderAddress: signer.publicKey.toBase58(),
+      recipientAddress: params.recipientPublicKey.toBase58(),
+      amountCook: params.amountCook,
+      treasuryAmount: params.amountCook,
+      explorerUrl: `${COOKIE_CHAIN_CONFIG.explorerUrl}/tx/${signature}`,
+    };
+  } catch (err: any) {
+    if (params.intentId) {
+      // If error occurred before broadcast, release intent; if timeout, keep SUBMITTED
+      if (err.message && err.message.includes('Blockhash not found')) {
+        await updatePrivilegedIntent(params.intentId, 'FAILED');
+      }
+    }
+    return {
+      success: false,
+      error: err.message || 'Transaction broadcast failed on Cookie Chain RPC.',
+    };
+  }
+}
+
+/**
+ * Legacy Commerce Split Constructor (95% creator / 5% treasury)
+ * Kept strictly for commerce and user payment splitting.
+ */
+export async function executeOnChainSplitTransaction(params: {
+  recipientPublicKey: string;
+  amountCook: number;
+  operation?: AllowedPlatformOperation;
+  memo?: string;
+  treasuryFeeBps?: number;
+}): Promise<ExecuteTransactionResult> {
   const signer = getServerSignerKeypair();
   if (!signer) {
     return {
@@ -158,16 +342,12 @@ export async function executeOnChainSplitTransaction(
     try {
       recipientPubkey = new PublicKey(params.recipientPublicKey);
     } catch {
-      return {
-        success: false,
-        error: 'Invalid recipient public key address.',
-      };
+      return { success: false, error: 'Invalid recipient public key address.' };
     }
 
     const split = calculateFeeSplit(params.amountCook, params.treasuryFeeBps || 500);
     const tx = new Transaction();
 
-    // 1. Creator / recipient proceeds
     tx.add(
       SystemProgram.transfer({
         fromPubkey: signer.publicKey,
@@ -176,7 +356,6 @@ export async function executeOnChainSplitTransaction(
       })
     );
 
-    // 2. Protocol treasury fee
     if (split.treasuryLamports > 0n) {
       tx.add(
         SystemProgram.transfer({
@@ -191,7 +370,6 @@ export async function executeOnChainSplitTransaction(
     tx.recentBlockhash = blockhash;
     tx.feePayer = signer.publicKey;
 
-    // Sign and broadcast to Cookie Chain
     const signature = await sendAndConfirmTransaction(connection, tx, [signer], {
       commitment: 'confirmed',
     });
@@ -207,11 +385,9 @@ export async function executeOnChainSplitTransaction(
       explorerUrl: `${COOKIE_CHAIN_CONFIG.explorerUrl}/tx/${signature}`,
     };
   } catch (err: any) {
-    console.error('Error broadcasting on-chain transaction:', err);
     return {
       success: false,
       error: err.message || 'Transaction broadcast failed on Cookie Chain RPC.',
     };
   }
 }
-

@@ -18,6 +18,7 @@ const testFiles = [
   'profile-onboarding.test.mjs',
   'durable-persistence.test.mjs',
   'persistence-concurrency-gate.test.mjs',
+  'admin-capability-authorization.test.mjs',
 ];
 
 let totalPassed = 0;

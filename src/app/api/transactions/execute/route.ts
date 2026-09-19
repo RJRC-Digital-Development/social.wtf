@@ -3,7 +3,8 @@ import { PublicKey } from '@solana/web3.js';
 import {
   isServerSignerConfigured,
   getServerSignerPublicKey,
-  executeOnChainSplitTransaction,
+  executeDirectPlatformTransfer,
+  reservePrivilegedIntent,
   ALLOWED_PLATFORM_OPERATIONS,
   AllowedPlatformOperation,
 } from '@/lib/solana/serverSigner';
@@ -72,6 +73,7 @@ export async function POST(req: Request) {
       amountCook,
       action = 'platform_sweep',
       memo = '',
+      intentId,
     } = body;
 
     // Case 1: Authenticated User relay of client-signed raw transaction (e.g. from Nightly or Trust Wallet)
@@ -167,11 +169,69 @@ export async function POST(req: Request) {
       );
     }
 
+    // Explicit Fail-Closed Check for disabled operations
+    if (action === 'system_settlement') {
+      return NextResponse.json(
+        {
+          error: 'System settlement is disabled: requires server-side authoritative settlement ledger record.',
+          code: 'SETTLEMENT_DISABLED',
+        },
+        { status: 501 }
+      );
+    }
+
     if (!ALLOWED_PLATFORM_OPERATIONS.includes(action as AllowedPlatformOperation)) {
       return NextResponse.json(
         {
           error: `Disallowed platform operation '${action}'. Allowed operations: ${ALLOWED_PLATFORM_OPERATIONS.join(', ')}`,
           code: 'INVALID_OPERATION',
+        },
+        { status: 400 }
+      );
+    }
+
+    // Active rejection of client-supplied recipient override for server-derived operations
+    if (recipientPublicKey !== undefined && recipientPublicKey !== null && recipientPublicKey !== '') {
+      return NextResponse.json(
+        {
+          error: `Client-specified 'recipientPublicKey' is prohibited for operation '${action}'. Destination is strictly server-derived.`,
+          code: 'RECIPIENT_OVERRIDE_PROHIBITED',
+        },
+        { status: 400 }
+      );
+    }
+
+    // Derive server-controlled destination based on validated operation intent
+    let serverDerivedDestination: PublicKey;
+    if (action === 'treasury_rebalance' || action === 'platform_sweep') {
+      serverDerivedDestination = PLATFORM_TREASURY_PUBKEY;
+    } else if (action === 'emergency_migration') {
+      const migrationTarget = process.env.EMERGENCY_MIGRATION_PUBKEY?.trim();
+      if (!migrationTarget) {
+        return NextResponse.json(
+          {
+            error: 'Emergency migration is disabled: EMERGENCY_MIGRATION_PUBKEY is not configured in server environment.',
+            code: 'MIGRATION_DESTINATION_NOT_CONFIGURED',
+          },
+          { status: 503 }
+        );
+      }
+      try {
+        serverDerivedDestination = new PublicKey(migrationTarget);
+      } catch {
+        return NextResponse.json(
+          {
+            error: 'Emergency migration failed: configured EMERGENCY_MIGRATION_PUBKEY is not a valid SVM public key.',
+            code: 'INVALID_MIGRATION_DESTINATION_CONFIG',
+          },
+          { status: 503 }
+        );
+      }
+    } else {
+      return NextResponse.json(
+        {
+          error: `Unsupported platform operation '${action}'.`,
+          code: 'UNSUPPORTED_OPERATION',
         },
         { status: 400 }
       );
@@ -193,23 +253,6 @@ export async function POST(req: Request) {
       );
     }
 
-    if (!recipientPublicKey || typeof recipientPublicKey !== 'string') {
-      return NextResponse.json(
-        { error: 'Missing or invalid recipient public key address.' },
-        { status: 400 }
-      );
-    }
-
-    // Validate valid Base58 Solana/SVM public key
-    try {
-      new PublicKey(recipientPublicKey);
-    } catch {
-      return NextResponse.json(
-        { error: 'Recipient address is not a valid Cookie Chain / SVM public key.' },
-        { status: 400 }
-      );
-    }
-
     const numericAmount = Number(amountCook);
     if (isNaN(numericAmount) || !isFinite(numericAmount) || numericAmount <= 0) {
       return NextResponse.json(
@@ -227,6 +270,38 @@ export async function POST(req: Request) {
       );
     }
 
+    // Atomic Replay & Idempotency Check
+    const effectiveIntentId =
+      (typeof intentId === 'string' && intentId.trim()) ||
+      `intent:${action}:${walletAddress}:${Date.now()}:${Math.random().toString(36).substring(2, 7)}`;
+
+    const intentReservation = await reservePrivilegedIntent({
+      intentId: effectiveIntentId,
+      operation: action as AllowedPlatformOperation,
+      recipientAddress: serverDerivedDestination.toBase58(),
+      amountCook: numericAmount,
+    });
+
+    if (!intentReservation.allowed) {
+      if (intentReservation.status === 'CONFIRMED' && intentReservation.existingSignature) {
+        return NextResponse.json({
+          success: true,
+          idempotent: true,
+          method: 'server_signer',
+          action,
+          signature: intentReservation.existingSignature,
+          explorerUrl: `${COOKIE_CHAIN_CONFIG.explorerUrl}/tx/${intentReservation.existingSignature}`,
+        });
+      }
+      return NextResponse.json(
+        {
+          error: intentReservation.error || 'Operation intent conflict or duplicate submission.',
+          code: 'INTENT_CONFLICT',
+        },
+        { status: 409 }
+      );
+    }
+
     if (!isServerSignerConfigured()) {
       return NextResponse.json(
         {
@@ -238,11 +313,12 @@ export async function POST(req: Request) {
       );
     }
 
-    const execResult = await executeOnChainSplitTransaction({
-      recipientPublicKey: sanitizeString(recipientPublicKey, 64),
+    const execResult = await executeDirectPlatformTransfer({
+      recipientPublicKey: serverDerivedDestination,
       amountCook: numericAmount,
       operation: action as AllowedPlatformOperation,
       memo: sanitizeString(memo, 120),
+      intentId: effectiveIntentId,
     });
 
     if (!execResult.success) {
@@ -258,6 +334,7 @@ export async function POST(req: Request) {
     return NextResponse.json({
       method: 'server_signer',
       action,
+      intentId: effectiveIntentId,
       ...execResult,
     });
   } catch (err: any) {
@@ -267,4 +344,3 @@ export async function POST(req: Request) {
     );
   }
 }
-
