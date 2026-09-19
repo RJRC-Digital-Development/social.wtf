@@ -29,11 +29,6 @@ export const PLATFORM_TREASURY_PUBKEY = new PublicKey(
   'HMnySuX1CdBfqysiLtU4brPawufcHxFTFZu97jrKQwT9'
 );
 
-// Fallback demo creator pubkey
-export const DEMO_CREATOR_PUBKEY = new PublicKey(
-  'CookCr8tor1111111111111111111111111111111111'
-);
-
 let globalConnection: Connection | null = null;
 
 export function getCookieConnection(): Connection {

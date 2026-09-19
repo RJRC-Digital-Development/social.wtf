@@ -1,4 +1,4 @@
-# Social.wtf Creator SDK 
+# Social.wtf Creator SDK
 
 A clean, concise, security-conscious development kit for creators and developers to build, customize, and deploy their own sovereign profile pages, storefronts, and interactive code mini-apps on **Cookie Chain (SVM)**.
 
@@ -23,11 +23,11 @@ import { CreatorPage, Storefront, AudioSpotlightWidget } from '@social-wtf/creat
 export default function MyCreatorPage() {
   return (
     <CreatorPage
-      handle="cryptobaker"
-      name="The Cookie Baker "
+      handle="your_handle"
+      name="Your Creator Name"
       avatar="https://.../avatar.jpg"
       bio="Pioneering SVM culture on Cookie Chain."
-      walletAddress="CookBaker77777777777777777777777777777777"
+      walletAddress="CookYourWalletAddress111111111111111111111"
       treasuryCutPct={5} // Automated 5% protocol fee split
       socialLinks={{
         telegram: "https://t.me/TheCookieNetChain",
@@ -37,8 +37,8 @@ export default function MyCreatorPage() {
     >
       {/* 1. Audio Spotlight Widget */}
       <AudioSpotlightWidget
-        title="Midnight In Gorbagana (SVM Mix)"
-        artist="The Cookie Baker"
+        title="Creator Audio Spotlight"
+        artist="Your Creator Name"
         audioUrl="https://.../track.mp3"
       />
 

@@ -96,13 +96,13 @@ export const CreatorProfile: React.FC<CreatorProfileProps> = ({
     {
       id: 'default-custom-code',
       type: 'custom_code',
-      title: 'Cookie Clicker On-Chain Mini-App',
+      title: 'Interactive On-Chain Mini-App',
       enabled: true,
       data: {
         description: 'Interactive creator-authored game running in client-side sandbox.',
         html: `<div style="text-align: center;">
-  <h3 style="color: #fbbf24; font-size: 15px; margin-bottom: 4px;">Cookie Baker Mini-Game</h3>
-  <p style="color: #94a3b8; font-size: 11px; margin-bottom: 10px;">Click the cookie to bake $COOK on Cookie Chain!</p>
+  <h3 style="color: #fbbf24; font-size: 15px; margin-bottom: 4px;">On-Chain Mini-App Sandbox</h3>
+  <p style="color: #94a3b8; font-size: 11px; margin-bottom: 10px;">Click to generate $COOK points on Cookie Chain!</p>
   <button id="cookieBtn" style="font-size: 48px; background: none; border: none; cursor: pointer; transition: transform 0.1s; user-select: none;">[COOKIE]</button>
   <div style="margin: 10px 0; font-family: monospace; font-size: 13px; color: #38bdf8; display: flex; justify-content: space-around; background: #070b14; padding: 8px; border-radius: 12px; border: 1px solid #1e293b;">
     <div>Baked: <strong id="score" style="color: #fbbf24;">0</strong> COOK</div>

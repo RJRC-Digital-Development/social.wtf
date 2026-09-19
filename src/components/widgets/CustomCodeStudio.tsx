@@ -23,12 +23,12 @@ interface CustomCodeStudioProps {
 const TEMPLATES = [
   {
     id: 'cookie_clicker',
-    name: ' Cookie Clicker On-Chain Game',
-    description: 'An interactive mini-game where visitors click the cookie to bake points on Cookie Chain.',
+    name: 'Interactive On-Chain Mini-App',
+    description: 'An interactive mini-game where visitors click to earn points on Cookie Chain.',
     html: `<div class="game-box">
-  <h2> Cookie Baker Mini-Game</h2>
-  <p class="sub">Click to bake $COOK!</p>
-  <button id="cookieBtn" class="big-cookie"></button>
+  <h2>On-Chain Mini-App Sandbox</h2>
+  <p class="sub">Click to generate $COOK points!</p>
+  <button id="cookieBtn" class="big-cookie">[TAP]</button>
   <div class="score-board">
     <div>Baked: <span id="score">0</span> COOK</div>
     <div>Speed: <span id="cps">0.0</span> /s</div>

@@ -15,6 +15,7 @@ const testFiles = [
   'distributed-store.test.mjs',
   'authorization.test.mjs',
   'trust-wallet-signer.test.mjs',
+  'profile-onboarding.test.mjs',
 ];
 
 let totalPassed = 0;
