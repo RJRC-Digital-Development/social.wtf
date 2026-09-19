@@ -1,50 +1,28 @@
 import { User, Post, Product, TransactionRecord, TreasuryMetrics } from '@/types';
 
-export const INITIAL_CREATORS: User[] = [
-  {
-    id: 'protocol-owner',
-    handle: 'owner',
-    name: 'Social.wtf Protocol Owner',
-    avatar: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=150&auto=format&fit=crop&q=80',
-    coverImage: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200&auto=format&fit=crop&q=80',
-    bio: 'Official Social.wtf Protocol Treasury & Platform Owner on Cookie Chain SVM.',
-    verified: true,
-    ageVerified: true,
-    isAdmin: false,
-    walletAddress: 'HMnySuX1CdBfqysiLtU4brPawufcHxFTFZu97jrKQwT9',
-    sponsorUrl: 'https://github.com/sponsors/RJRC-Digital-Development',
-    sponsorGoal: 'Funding decentralized creator tooling, SVM smart contracts, and open grants.',
-    followersCount: 0,
-    followingCount: 0,
-    isCreator: true,
-    storeSettings: {
-      storeName: 'Protocol Storefront',
-      storeDescription: 'Official protocol tools, smart contract templates, and ecosystem utility passes on Cookie Chain SVM.',
-      supportCookTreasuryPct: 5,
-    },
-    widgets: [
-      {
-        id: 'w-1',
-        type: 'custom_links',
-        title: 'Official Channels',
-        enabled: true,
-        data: {
-          telegram: 'https://t.me/TheCookieNetChain',
-          docs: 'https://docs.cookiechain.wtf',
-          explorer: 'https://cookiescan.io',
-        },
-      },
-    ],
-  },
-];
+export const INITIAL_CREATORS: User[] = [];
 
 export const INITIAL_POSTS: Post[] = [
   {
-    id: 'post-1',
-    author: INITIAL_CREATORS[0],
+    id: 'post-system-welcome',
+    author: {
+      id: 'system',
+      name: 'Social.wtf System',
+      handle: 'system',
+      avatar: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=150&auto=format&fit=crop&q=80',
+      coverImage: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200&auto=format&fit=crop&q=80',
+      bio: 'Official Social.wtf System Announcements on Cookie Chain SVM.',
+      verified: true,
+      ageVerified: true,
+      isAdmin: false,
+      walletAddress: '',
+      followersCount: 0,
+      followingCount: 0,
+      isCreator: false,
+    },
     type: 'text',
-    content: `Welcome to Social.wtf on Cookie Chain SVM! \n\nEvery profile functions as a modular mini-app with sub-second finality and an automated 5% protocol fee split to the treasury (HMny...KQwT9). \n\nPublish your first personal post above, tip in COOK, or list digital products in your Storefront to see live on-chain settlement in action!`,
-    createdAt: 'Pinned Post',
+    content: `Welcome to Social.wtf on Cookie Chain SVM! \n\nEvery profile functions as a modular mini-app with sub-second finality and an automated 5% protocol fee split to the platform treasury. \n\nPublish your first personal post above, tip in COOK, or list digital products in your Storefront to see live on-chain settlement in action!`,
+    createdAt: 'Pinned Guide',
     likes: 0,
     tipsCount: 0,
     totalTipsCook: 0,
@@ -62,7 +40,7 @@ export const INITIAL_TRANSACTIONS: TransactionRecord[] = [];
 export const INITIAL_TREASURY_METRICS: TreasuryMetrics = {
   totalPlatformVolumeCook: 0,
   totalTreasuryCollectedCook: 0,
-  activeCreatorsCount: 1,
+  activeCreatorsCount: 0,
   totalTransactionsCount: 0,
 };
 

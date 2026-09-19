@@ -92,9 +92,9 @@ export default function Home() {
   const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
   const [creators, setCreators] = useState<User[]>(INITIAL_CREATORS);
   const [userProfile, setUserProfile] = useState<User>(DEFAULT_USER_PROFILE);
-  const [selectedCreator, setSelectedCreator] = useState<User>(INITIAL_CREATORS[0]);
+  const [selectedCreator, setSelectedCreator] = useState<User>(INITIAL_CREATORS[0] || DEFAULT_USER_PROFILE);
   const [transactions, setTransactions] = useState<TransactionRecord[]>(INITIAL_TRANSACTIONS);
-  const [followingHandles, setFollowingHandles] = useState<string[]>(['owner']);
+  const [followingHandles, setFollowingHandles] = useState<string[]>([]);
   const [metrics, setMetrics] = useState<TreasuryMetrics>(INITIAL_TREASURY_METRICS);
   const [copiedPersonalUrl, setCopiedPersonalUrl] = useState(false);
 
@@ -542,38 +542,44 @@ export default function Home() {
               </div>
 
               <div className="space-y-2">
-                {creators.map((c) => (
-                  <div
-                    key={c.id}
-                    onClick={() => {
-                      setSelectedCreator(c);
-                      setActiveView('creator');
-                      if (typeof window !== 'undefined' && window.history) {
-                        window.history.replaceState(null, '', `/?u=${c.handle}`);
-                      }
-                    }}
-                    className={`flex items-center justify-between p-2 rounded-2xl cursor-pointer transition-all ${
-                      selectedCreator.id === c.id && activeView === 'creator'
-                        ? 'bg-amber-500/15 border border-amber-500/40 text-amber-800 dark:text-amber-300'
-                        : 'hover:bg-slate-100 dark:hover:bg-slate-800/60 text-slate-700 dark:text-slate-300'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <img
-                        src={c.avatar}
-                        alt={c.name}
-                        className="w-8 h-8 rounded-xl object-cover border border-slate-200 dark:border-slate-700"
-                      />
-                      <div>
-                        <div className="font-bold text-xs line-clamp-1">{c.name}</div>
-                        <div className="text-[10px] text-slate-500 font-mono">@{c.handle}</div>
-                      </div>
-                    </div>
-                    <span className="text-[10px] text-amber-600 dark:text-amber-400 font-mono">
-                      {c.widgets?.length ? 'Profile' : 'Store'}
-                    </span>
+                {creators.length === 0 ? (
+                  <div className="p-3 text-center text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800">
+                    No creators yet. Connect your wallet to become the first creator on Social.wtf.
                   </div>
-                ))}
+                ) : (
+                  creators.map((c) => (
+                    <div
+                      key={c.id}
+                      onClick={() => {
+                        setSelectedCreator(c);
+                        setActiveView('creator');
+                        if (typeof window !== 'undefined' && window.history) {
+                          window.history.replaceState(null, '', `/?u=${c.handle}`);
+                        }
+                      }}
+                      className={`flex items-center justify-between p-2 rounded-2xl cursor-pointer transition-all ${
+                        selectedCreator.id === c.id && activeView === 'creator'
+                          ? 'bg-amber-500/15 border border-amber-500/40 text-amber-800 dark:text-amber-300'
+                          : 'hover:bg-slate-100 dark:hover:bg-slate-800/60 text-slate-700 dark:text-slate-300'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <img
+                          src={c.avatar}
+                          alt={c.name}
+                          className="w-8 h-8 rounded-xl object-cover border border-slate-200 dark:border-slate-700"
+                        />
+                        <div>
+                          <div className="font-bold text-xs line-clamp-1">{c.name}</div>
+                          <div className="text-[10px] text-slate-500 font-mono">@{c.handle}</div>
+                        </div>
+                      </div>
+                      <span className="text-[10px] text-amber-600 dark:text-amber-400 font-mono">
+                        {c.widgets?.length ? 'Profile' : 'Store'}
+                      </span>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           </aside>
@@ -589,38 +595,44 @@ export default function Home() {
                 </span>
               </div>
               <div className="flex items-center gap-3 overflow-x-auto pb-1">
-                {creators.map((c) => (
-                  <div
-                    key={c.id}
-                    onClick={() => {
-                      setSelectedCreator(c);
-                      setActiveView('creator');
-                      if (typeof window !== 'undefined' && window.history) {
-                        window.history.replaceState(null, '', `/?u=${c.handle}`);
-                      }
-                    }}
-                    className={`flex flex-col items-center gap-1 shrink-0 cursor-pointer p-1 rounded-xl transition-all ${
-                      selectedCreator.id === c.id && activeView === 'creator'
-                        ? 'opacity-100 scale-105'
-                        : 'opacity-80 hover:opacity-100'
-                    }`}
-                  >
-                    <div className={`relative p-0.5 rounded-2xl ${
-                      selectedCreator.id === c.id && activeView === 'creator'
-                        ? 'bg-gradient-to-tr from-amber-500 to-yellow-400'
-                        : 'bg-slate-200 dark:bg-slate-700'
-                    }`}>
-                      <img
-                        src={c.avatar}
-                        alt={c.name}
-                        className="w-11 h-11 rounded-2xl object-cover"
-                      />
-                    </div>
-                    <span className="text-[10px] font-medium text-slate-700 dark:text-slate-300 truncate max-w-[60px]">
-                      {c.name.split(' ')[0]}
-                    </span>
+                {creators.length === 0 ? (
+                  <div className="text-xs text-slate-500 dark:text-slate-400 py-1">
+                    No creators yet. Connect your wallet to become the first creator.
                   </div>
-                ))}
+                ) : (
+                  creators.map((c) => (
+                    <div
+                      key={c.id}
+                      onClick={() => {
+                        setSelectedCreator(c);
+                        setActiveView('creator');
+                        if (typeof window !== 'undefined' && window.history) {
+                          window.history.replaceState(null, '', `/?u=${c.handle}`);
+                        }
+                      }}
+                      className={`flex flex-col items-center gap-1 shrink-0 cursor-pointer p-1 rounded-xl transition-all ${
+                        selectedCreator.id === c.id && activeView === 'creator'
+                          ? 'opacity-100 scale-105'
+                          : 'opacity-80 hover:opacity-100'
+                      }`}
+                    >
+                      <div className={`relative p-0.5 rounded-2xl ${
+                        selectedCreator.id === c.id && activeView === 'creator'
+                          ? 'bg-gradient-to-tr from-amber-500 to-yellow-400'
+                          : 'bg-slate-200 dark:bg-slate-700'
+                      }`}>
+                        <img
+                          src={c.avatar}
+                          alt={c.name}
+                          className="w-11 h-11 rounded-2xl object-cover"
+                        />
+                      </div>
+                      <span className="text-[10px] font-medium text-slate-700 dark:text-slate-300 truncate max-w-[60px]">
+                        {c.name.split(' ')[0]}
+                      </span>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
 

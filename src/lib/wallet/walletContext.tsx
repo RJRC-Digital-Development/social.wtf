@@ -25,6 +25,23 @@ export function getTrustWalletProvider() {
   return null;
 }
 
+export function getNightlyProvider() {
+  if (typeof window === 'undefined') return null;
+  const win = window as any;
+  if (win.nightly?.solana) return win.nightly.solana;
+  if (win.nightly && typeof win.nightly.connect === 'function') return win.nightly;
+  return null;
+}
+
+export function getSolanaProvider() {
+  if (typeof window === 'undefined') return null;
+  const win = window as any;
+  if (win.phantom?.solana?.isPhantom) return win.phantom.solana;
+  if (win.solana && !win.solana.isTrust) return win.solana;
+  if (win.solana) return win.solana;
+  return null;
+}
+
 export interface WalletContextType {
   connected: boolean;
   connecting: boolean;
@@ -155,7 +172,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
       console.warn('Could not fetch Cookie Chain balance, using fallback:', err);
       if (walletType === 'demo') {
         const stored = localStorage.getItem('social_wtf_demo_balance');
-        setCookBalance(stored ? parseFloat(stored) : 42.5);
+        setCookBalance(stored ? parseFloat(stored) : 88.50);
       }
     }
   }, [publicKey, walletType]);
@@ -179,17 +196,35 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
       const solana = (window as any)?.solana;
 
       if (type === 'trust') {
+        const trust = getTrustWalletProvider();
         if (trust) {
-          await trust.connect();
-          const pubkeyStr = trust.publicKey?.toString() || trust.account?.address?.toString();
-          if (pubkeyStr) {
-            const pk = new PublicKey(pubkeyStr);
-            setPublicKey(pk);
-            setWalletAddress(pubkeyStr);
-            setWalletType('trust');
-            setConnected(true);
-            localStorage.setItem(WALLET_CONNECTED_KEY, 'trust');
-            return;
+          try {
+            const resp = await trust.connect();
+            const pubkeyStr = resp?.publicKey?.toString() || trust.publicKey?.toString() || trust.account?.address?.toString();
+            if (pubkeyStr) {
+              const pk = new PublicKey(pubkeyStr);
+              setPublicKey(pk);
+              setWalletAddress(pubkeyStr);
+              setWalletType('trust');
+              setConnected(true);
+              localStorage.setItem(WALLET_CONNECTED_KEY, 'trust');
+              return;
+            }
+          } catch (providerErr: any) {
+            const fallbackKey = trust.publicKey?.toString() || trust.account?.address?.toString();
+            if (fallbackKey) {
+              const pk = new PublicKey(fallbackKey);
+              setPublicKey(pk);
+              setWalletAddress(fallbackKey);
+              setWalletType('trust');
+              setConnected(true);
+              localStorage.setItem(WALLET_CONNECTED_KEY, 'trust');
+              return;
+            }
+            if (providerErr?.message?.includes('Broadcast channel')) {
+              throw new Error('Trust Wallet communication lost. Please reload the page or re-open Trust Wallet.');
+            }
+            throw new Error(providerErr?.message || 'Failed to connect to Trust Wallet.');
           }
         } else {
           if (typeof window !== 'undefined') {
@@ -197,29 +232,76 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
           }
           throw new Error('Trust Wallet not detected. Please install Trust Wallet or open in Trust Wallet App.');
         }
-      } else if (type === 'nightly' && nightly) {
-        await nightly.connect();
-        const pubkeyStr = nightly.publicKey?.toString();
-        if (pubkeyStr) {
-          const pk = new PublicKey(pubkeyStr);
-          setPublicKey(pk);
-          setWalletAddress(pubkeyStr);
-          setWalletType('nightly');
-          setConnected(true);
-          localStorage.setItem(WALLET_CONNECTED_KEY, 'nightly');
-          return;
+      } else if (type === 'nightly') {
+        const nightly = getNightlyProvider();
+        if (nightly) {
+          try {
+            const resp = await nightly.connect();
+            const pubkeyStr = resp?.publicKey?.toString() || nightly.publicKey?.toString();
+            if (pubkeyStr) {
+              const pk = new PublicKey(pubkeyStr);
+              setPublicKey(pk);
+              setWalletAddress(pubkeyStr);
+              setWalletType('nightly');
+              setConnected(true);
+              localStorage.setItem(WALLET_CONNECTED_KEY, 'nightly');
+              return;
+            }
+          } catch (providerErr: any) {
+            const fallbackKey = nightly.publicKey?.toString();
+            if (fallbackKey) {
+              const pk = new PublicKey(fallbackKey);
+              setPublicKey(pk);
+              setWalletAddress(fallbackKey);
+              setWalletType('nightly');
+              setConnected(true);
+              localStorage.setItem(WALLET_CONNECTED_KEY, 'nightly');
+              return;
+            }
+            throw new Error(providerErr?.message || 'Failed to connect to Nightly Wallet.');
+          }
+        } else {
+          if (typeof window !== 'undefined') {
+            window.open('https://nightly.app/', '_blank');
+          }
+          throw new Error('Nightly Wallet not detected. Please install Nightly Wallet.');
         }
-      } else if (type === 'solana' && solana) {
-        const resp = await solana.connect();
-        const pubkeyStr = resp.publicKey?.toString() || solana.publicKey?.toString();
-        if (pubkeyStr) {
-          const pk = new PublicKey(pubkeyStr);
-          setPublicKey(pk);
-          setWalletAddress(pubkeyStr);
-          setWalletType('solana');
-          setConnected(true);
-          localStorage.setItem(WALLET_CONNECTED_KEY, 'solana');
-          return;
+      } else if (type === 'solana') {
+        const solana = getSolanaProvider();
+        if (solana) {
+          try {
+            const resp = await solana.connect();
+            const pubkeyStr = resp?.publicKey?.toString() || solana.publicKey?.toString();
+            if (pubkeyStr) {
+              const pk = new PublicKey(pubkeyStr);
+              setPublicKey(pk);
+              setWalletAddress(pubkeyStr);
+              setWalletType('solana');
+              setConnected(true);
+              localStorage.setItem(WALLET_CONNECTED_KEY, 'solana');
+              return;
+            }
+          } catch (providerErr: any) {
+            const fallbackKey = solana.publicKey?.toString();
+            if (fallbackKey) {
+              const pk = new PublicKey(fallbackKey);
+              setPublicKey(pk);
+              setWalletAddress(fallbackKey);
+              setWalletType('solana');
+              setConnected(true);
+              localStorage.setItem(WALLET_CONNECTED_KEY, 'solana');
+              return;
+            }
+            if (providerErr?.message?.includes('Broadcast channel')) {
+              throw new Error('Wallet communication unavailable. Please reload the page or unlock your wallet extension.');
+            }
+            throw new Error(providerErr?.message || 'Failed to connect to Solana wallet extension.');
+          }
+        } else {
+          if (typeof window !== 'undefined') {
+            window.open('https://phantom.app/', '_blank');
+          }
+          throw new Error('No Solana wallet detected. Please install Phantom or Nightly.');
         }
       }
 
@@ -474,7 +556,10 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
   useEffect(() => {
     const prev = localStorage.getItem(WALLET_CONNECTED_KEY);
     if (prev === 'trust' || prev === 'nightly' || prev === 'solana' || prev === 'demo') {
-      connect(prev);
+      connect(prev).catch((err) => {
+        console.warn('Auto-reconnect skipped:', err?.message || err);
+        localStorage.removeItem(WALLET_CONNECTED_KEY);
+      });
     }
   }, []);
 

@@ -841,15 +841,13 @@ setInterval(() => {
                   <Radio className="w-4 h-4 text-amber-400" />
                   <span>Audio Spotlight Widget</span>
                 </div>
-                <span className="px-2 py-0.5 rounded text-[10px] bg-emerald-500/10 text-emerald-400 font-medium">
-                  Live On Profile
+                <span className="px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-400 font-medium">
+                  Audio Spotlight
                 </span>
               </div>
-              <AudioPlayer
-                audioUrl="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"
-                title="Original Audio Track"
-                artist={creator.name}
-              />
+              <div className="py-6 text-center text-xs text-slate-400">
+                No audio tracks uploaded yet.
+              </div>
             </div>
 
             {/* Widget 2: Tipping Jar Crowdfund Goal */}

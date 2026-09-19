@@ -37,6 +37,23 @@ export const NightlyWalletButton: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [showSelectModal, setShowSelectModal] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [connectError, setConnectError] = useState<string | null>(null);
+
+  const handleConnect = async (type: 'trust' | 'nightly' | 'solana' | 'demo') => {
+    setConnectError(null);
+    try {
+      await connect(type);
+      setShowSelectModal(false);
+    } catch (err: any) {
+      console.warn('Wallet connection attempt:', err);
+      const msg = err?.message || 'Connection failed';
+      setConnectError(
+        msg.includes('Broadcast channel')
+          ? 'Browser extension connection unavailable. Please unlock or reload your wallet extension.'
+          : msg
+      );
+    }
+  };
 
   const handleRefresh = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -83,12 +100,13 @@ export const NightlyWalletButton: React.FC = () => {
               </div>
 
               <div className="mt-4 space-y-3">
+                <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider px-1">
+                  Supported Web3 Wallets
+                </div>
+
                 {/* Trust Wallet Option */}
                 <button
-                  onClick={() => {
-                    connect('trust');
-                    setShowSelectModal(false);
-                  }}
+                  onClick={() => handleConnect('trust')}
                   className="w-full flex items-center justify-between p-3.5 rounded-xl border border-blue-500/40 bg-blue-950/20 hover:bg-blue-900/30 hover:border-blue-400 transition-all text-left group"
                 >
                   <div className="flex items-center gap-3">
@@ -120,10 +138,7 @@ export const NightlyWalletButton: React.FC = () => {
 
                 {/* Nightly Wallet Option */}
                 <button
-                  onClick={() => {
-                    connect('nightly');
-                    setShowSelectModal(false);
-                  }}
+                  onClick={() => handleConnect('nightly')}
                   className="w-full flex items-center justify-between p-3.5 rounded-xl border border-slate-700/60 bg-slate-800/40 hover:bg-slate-800 hover:border-amber-500/50 transition-all text-left group"
                 >
                   <div className="flex items-center gap-3">
@@ -153,10 +168,7 @@ export const NightlyWalletButton: React.FC = () => {
 
                 {/* Solana / Standard Adapter */}
                 <button
-                  onClick={() => {
-                    connect('solana');
-                    setShowSelectModal(false);
-                  }}
+                  onClick={() => handleConnect('solana')}
                   className="w-full flex items-center justify-between p-3.5 rounded-xl border border-slate-700/60 bg-slate-800/40 hover:bg-slate-800 hover:border-amber-500/50 transition-all text-left group"
                 >
                   <div className="flex items-center gap-3">
@@ -173,33 +185,42 @@ export const NightlyWalletButton: React.FC = () => {
                   <span className="text-xs text-slate-500">SVM Standard</span>
                 </button>
 
-                {/* Instant Dev / Demo Wallet */}
-                <button
-                  onClick={() => {
-                    connect('demo');
-                    setShowSelectModal(false);
-                  }}
-                  className="w-full flex items-center justify-between p-3.5 rounded-xl border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 hover:border-amber-500 transition-all text-left group"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-amber-500/20 border border-amber-500/40 flex items-center justify-center font-bold text-amber-300">
-                      <Zap className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-amber-200">
-                          Instant Demo Wallet
-                        </span>
-                        <span className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                          PRE-FUNDED
-                        </span>
-                      </div>
-                      <p className="text-xs text-slate-300">Explore immediately with 88.50 $COOK</p>
-                    </div>
+                {/* Secondary / Evaluation Mode */}
+                <div className="pt-3 border-t border-slate-800">
+                  <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider px-1 mb-2">
+                    Sandbox Evaluation Mode
                   </div>
-                  <span className="text-xs text-amber-400 font-medium">1-Click Test</span>
-                </button>
+                  <button
+                    onClick={() => handleConnect('demo')}
+                    className="w-full flex items-center justify-between p-3.5 rounded-xl border border-slate-700/60 bg-slate-900/60 hover:bg-slate-800 hover:border-amber-500/40 transition-all text-left group"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-center font-bold text-amber-400">
+                        <Zap className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-slate-200 group-hover:text-amber-300">
+                            Instant Demo Wallet
+                          </span>
+                          <span className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-slate-800 text-amber-400 border border-amber-500/30">
+                            SANDBOX
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-400">Explore platform with 88.50 Synthetic COOK</p>
+                      </div>
+                    </div>
+                    <span className="text-xs text-amber-400 font-medium">1-Click Test</span>
+                  </button>
+                </div>
               </div>
+
+              {connectError && (
+                <div className="mt-3 p-3 rounded-xl bg-red-950/50 border border-red-500/40 text-xs text-red-200 leading-relaxed animate-fade-in">
+                  <span className="font-semibold text-red-300">Connection Notice: </span>
+                  {connectError}
+                </div>
+              )}
 
               <div className="mt-4 p-3 rounded-xl bg-slate-900/80 border border-slate-800 text-[11px] text-slate-400 leading-relaxed">
                 <span className="text-amber-400 font-semibold">Cookie Chain Network:</span> RPC: <code className="text-slate-300">rpc.cookiescan.io</code> | 1-sec block times | Native token: <span className="text-amber-300 font-semibold">$COOK</span>.
@@ -229,8 +250,16 @@ export const NightlyWalletButton: React.FC = () => {
       >
         <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-300 font-mono font-medium text-xs">
           <span>{cookBalance.toFixed(2)}</span>
-          <span className="font-bold text-[10px] text-amber-400">COOK</span>
+          <span className="font-bold text-[10px] text-amber-400">
+            {walletType === 'demo' ? 'Synthetic COOK' : 'COOK'}
+          </span>
         </div>
+
+        {walletType === 'demo' && (
+          <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-bold">
+            [SANDBOX DEMO MODE]
+          </span>
+        )}
 
         <div className="flex items-center gap-1.5">
           <span
@@ -252,17 +281,26 @@ export const NightlyWalletButton: React.FC = () => {
       {isOpen && (
         <div className="absolute right-0 mt-2 w-72 max-w-[calc(100vw-2rem)] rounded-2xl bg-[#0d1527] border border-slate-700/80 p-3 shadow-2xl z-50 animate-fade-in text-xs">
           <div className="pb-2.5 mb-2 border-b border-slate-800">
-            <div className="text-[11px] text-slate-400">
-              Connected Wallet ({walletType === 'trust' ? 'Trust Wallet' : walletType === 'nightly' ? 'Nightly' : walletType === 'solana' ? 'Solana / Phantom' : 'Demo'})
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] text-slate-400">
+                Connected Wallet ({walletType === 'trust' ? 'Trust Wallet' : walletType === 'nightly' ? 'Nightly' : walletType === 'solana' ? 'Solana / Phantom' : 'Demo'})
+              </span>
+              {walletType === 'demo' && (
+                <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-bold">
+                  SANDBOX
+                </span>
+              )}
             </div>
             <div className="font-mono text-slate-200 break-all font-medium mt-0.5 text-[11px] select-all bg-slate-900/80 p-1.5 rounded-lg border border-slate-800">
               {walletAddress}
             </div>
             <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-800/60">
-              <span className="text-slate-400">Cookie Chain Balance:</span>
+              <span className="text-slate-400">
+                {walletType === 'demo' ? 'Synthetic Balance:' : 'Cookie Chain Balance:'}
+              </span>
               <div className="flex items-center gap-1.5">
                 <span className="font-bold text-amber-300 font-mono text-sm">
-                  {cookBalance.toFixed(2)} COOK
+                  {cookBalance.toFixed(2)} {walletType === 'demo' ? 'Synthetic COOK' : 'COOK'}
                 </span>
                 <button
                   onClick={handleRefresh}

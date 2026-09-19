@@ -20,6 +20,7 @@ const testFiles = [
   'persistence-concurrency-gate.test.mjs',
   'admin-capability-authorization.test.mjs',
   'identity-separation.test.mjs',
+  'fresh-wallet-access.test.mjs',
 ];
 
 let totalPassed = 0;

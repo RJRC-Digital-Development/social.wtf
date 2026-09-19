@@ -154,15 +154,21 @@ export const TxStatusModal: React.FC<TxStatusModalProps> = ({
         {/* Signature link */}
         {signature && (
           <div className="mt-4">
-            <a
-              href={getExplorerTxUrl(signature)}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-1.5 text-xs text-amber-400 hover:text-amber-300 underline font-mono break-all"
-            >
-              <span>View On-Chain on CookieScan</span>
-              <ExternalLink className="w-3.5 h-3.5" />
-            </a>
+            {signature.startsWith('cook_tx_') ? (
+              <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-[11px] text-amber-300 font-mono">
+                Simulated transaction (Not broadcast on-chain in Demo Sandbox)
+              </div>
+            ) : (
+              <a
+                href={getExplorerTxUrl(signature)}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 text-xs text-amber-400 hover:text-amber-300 underline font-mono break-all"
+              >
+                <span>View On-Chain on CookieScan</span>
+                <ExternalLink className="w-3.5 h-3.5" />
+              </a>
+            )}
           </div>
         )}
 
