@@ -88,8 +88,7 @@ for (const relPath of filesToScan) {
 
       for (const pattern of SUSPICIOUS_PATTERNS) {
         if (pattern.regex.test(line)) {
-          console.error(`[SECURITY VIOLATION] ${pattern.name} in ${relPath}:${idx + 1}`);
-          console.error(`   Content: ${line.trim().substring(0, 100)}...`);
+          console.error(`[SECURITY VIOLATION] ${pattern.name} in ${relPath}:${idx + 1} (Value: [REDACTED])`);
           violationsFound++;
         }
       }
