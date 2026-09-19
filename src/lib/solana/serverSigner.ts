@@ -15,10 +15,6 @@ import {
 } from './cookieChain';
 import { distributedStore } from '../security/distributedStore';
 
-/**
- * Minimum hot wallet operational reserve retained during routine sweeps (0.05 COOK / 50M lamports)
- */
-export const MIN_HOT_WALLET_RESERVE_LAMPORTS = 50_000_000n;
 export const STANDARD_TX_FEE_LAMPORTS = 5_000n;
 
 /**
@@ -121,42 +117,34 @@ export interface IntentRecord {
   operation: AllowedPlatformOperation;
   recipientAddress: string;
   amountCook?: number;
-  status: 'RESERVED' | 'SUBMITTED' | 'CONFIRMED' | 'FAILED';
+  status: 'RESERVED' | 'SUBMITTED' | 'SUBMISSION_UNKNOWN' | 'CONFIRMED' | 'FAILED';
   signature?: string;
   createdAt: number;
   updatedAt: number;
 }
 
-// In-memory fallback intent registry (for isolated test suites)
+// In-memory fallback intent registry (strictly for isolated unit test harnesses)
 const localIntents = new Map<string, IntentRecord>();
-let localSweepSeq = 1;
+
+/**
+ * Clears local test memory (for testing isolation)
+ */
+export function clearLocalIntentsForTest(): void {
+  localIntents.clear();
+}
 
 /**
  * Derives a deterministic server-side economic intent key.
  * Removes client authority over intent identity.
  */
-export async function deriveEconomicIntentKey(params: {
+export function deriveEconomicIntentKey(params: {
   operation: AllowedPlatformOperation;
   signerAddress: string;
   recipientAddress: string;
-}): Promise<string> {
+}): string {
   if (params.operation === 'emergency_migration') {
     const version = (process.env.EMERGENCY_MIGRATION_VERSION || '1').trim();
     return `migration:v${version}:${params.signerAddress}:${params.recipientAddress}`;
-  }
-
-  if (params.operation === 'platform_sweep' || params.operation === 'treasury_rebalance') {
-    let currentSeq = 1;
-    const seqKey = `tx_intent:sweep_seq:${params.signerAddress}`;
-    if (distributedStore.isConfigured()) {
-      const rawSeq = await distributedStore.get(seqKey);
-      if (rawSeq) {
-        currentSeq = parseInt(rawSeq, 10) || 1;
-      }
-    } else {
-      currentSeq = localSweepSeq;
-    }
-    return `${params.operation}:seq_${currentSeq}:${params.signerAddress}:${params.recipientAddress}`;
   }
 
   return `${params.operation}:${params.signerAddress}:${params.recipientAddress}`;
@@ -164,7 +152,7 @@ export async function deriveEconomicIntentKey(params: {
 
 /**
  * Atomically reserves a privileged operation intent to prevent concurrent execution and replay.
- * Enforces production distributed persistence when available.
+ * Enforces production distributed persistence.
  */
 export async function reservePrivilegedIntent(params: {
   intentId: string;
@@ -173,17 +161,17 @@ export async function reservePrivilegedIntent(params: {
   amountCook?: number;
 }): Promise<{
   allowed: boolean;
-  status?: 'RESERVED' | 'SUBMITTED' | 'CONFIRMED' | 'FAILED';
+  status?: 'RESERVED' | 'SUBMITTED' | 'SUBMISSION_UNKNOWN' | 'CONFIRMED' | 'FAILED';
   existingSignature?: string;
   error?: string;
   code?: string;
 }> {
-  // Production distributed store requirement
-  if (!distributedStore.isConfigured() && process.env.NODE_ENV !== 'test') {
+  // Production distributed store requirement: fail closed if unconfigured
+  if (!distributedStore.isConfigured()) {
     return {
       allowed: false,
-      error: 'Distributed persistence store (Upstash/Redis) is required for privileged operations.',
-      code: 'PERSISTENCE_NOT_CONFIGURED',
+      error: 'Distributed persistence store (Upstash/Redis) is mandatory for privileged money movement.',
+      code: 'PRIVILEGED_PERSISTENCE_UNAVAILABLE',
     };
   }
 
@@ -198,108 +186,77 @@ export async function reservePrivilegedIntent(params: {
     updatedAt: Date.now(),
   };
 
-  if (distributedStore.isConfigured()) {
-    // Unconfirmed reservations hold lock for 3600 seconds
-    const setOk = await distributedStore.setnx(key, JSON.stringify(record), 3600);
-    if (!setOk) {
-      const existingRaw = await distributedStore.get(key);
-      if (existingRaw) {
-        try {
-          const existing: IntentRecord = JSON.parse(existingRaw);
-          return {
-            allowed: false,
-            status: existing.status,
-            existingSignature: existing.signature,
-            error:
-              existing.status === 'CONFIRMED'
-                ? 'Intent already executed.'
-                : 'Intent is already currently in progress or awaiting confirmation.',
-          };
-        } catch {}
-      }
-      return { allowed: false, error: 'Intent conflict detected.' };
+  // Unconfirmed reservations hold lock for 3600 seconds
+  const setOk = await distributedStore.setnx(key, JSON.stringify(record), 3600);
+  if (!setOk) {
+    const existingRaw = await distributedStore.get(key);
+    if (existingRaw) {
+      try {
+        const existing: IntentRecord = JSON.parse(existingRaw);
+        return {
+          allowed: false,
+          status: existing.status,
+          existingSignature: existing.signature,
+          error:
+            existing.status === 'CONFIRMED'
+              ? 'Intent already executed.'
+              : existing.status === 'SUBMISSION_UNKNOWN'
+              ? 'Intent submission status is ambiguous and awaiting on-chain reconciliation. Re-execution is prohibited.'
+              : 'Intent is already currently in progress or awaiting confirmation.',
+        };
+      } catch {}
     }
-    return { allowed: true, status: 'RESERVED' };
+    return { allowed: false, error: 'Intent conflict detected.' };
   }
 
-  // Local test fallback
-  const existing = localIntents.get(params.intentId);
-  if (existing) {
-    return {
-      allowed: false,
-      status: existing.status,
-      existingSignature: existing.signature,
-      error:
-        existing.status === 'CONFIRMED'
-          ? 'Intent already executed.'
-          : 'Intent is already currently in progress or awaiting confirmation.',
-    };
-  }
-
-  localIntents.set(params.intentId, record);
   return { allowed: true, status: 'RESERVED' };
 }
 
 /**
- * Updates intent status to SUBMITTED, CONFIRMED (permanent retention, NO TTL), or FAILED.
- * Advances monotonic sweep sequence upon successful confirmation.
+ * Updates intent status to SUBMITTED, SUBMISSION_UNKNOWN, CONFIRMED (permanent retention, NO TTL), or FAILED.
+ * Throws explicit error on persistence failure to prevent unverified state drift.
  */
 export async function updatePrivilegedIntent(
   intentId: string,
-  status: 'SUBMITTED' | 'CONFIRMED' | 'FAILED',
-  signature?: string,
-  signerAddress?: string
-): Promise<void> {
+  status: 'SUBMITTED' | 'SUBMISSION_UNKNOWN' | 'CONFIRMED' | 'FAILED',
+  signature?: string
+): Promise<boolean> {
   const key = `tx_intent:${intentId}`;
-  if (distributedStore.isConfigured()) {
-    const raw = await distributedStore.get(key);
-    if (raw) {
-      try {
-        const record: IntentRecord = JSON.parse(raw);
-        record.status = status;
-        if (signature) record.signature = signature;
-        record.updatedAt = Date.now();
-        
-        if (status === 'CONFIRMED') {
-          // Permanent storage: NO TTL on confirmed economic intents
-          await distributedStore.set(key, JSON.stringify(record));
-
-          // Increment monotonic sequence for sweeps
-          if (signerAddress && (record.operation === 'platform_sweep' || record.operation === 'treasury_rebalance')) {
-            const seqKey = `tx_intent:sweep_seq:${signerAddress}`;
-            const currentRaw = await distributedStore.get(seqKey);
-            const nextSeq = (parseInt(currentRaw || '1', 10) || 1) + 1;
-            await distributedStore.set(seqKey, nextSeq.toString());
-          }
-        } else {
-          // Active in-flight submission TTL
-          await distributedStore.set(key, JSON.stringify(record), 86400);
-        }
-      } catch (err) {
-        console.error('[serverSigner] Failed to update intent in distributedStore:', err);
-        throw err;
-      }
-    }
-    return;
+  if (!distributedStore.isConfigured()) {
+    throw new Error('Distributed store is not configured during privileged intent state transition.');
   }
 
-  const record = localIntents.get(intentId);
-  if (record) {
-    record.status = status;
-    if (signature) record.signature = signature;
-    record.updatedAt = Date.now();
-
-    if (status === 'CONFIRMED' && (record.operation === 'platform_sweep' || record.operation === 'treasury_rebalance')) {
-      localSweepSeq++;
-    }
+  const raw = await distributedStore.get(key);
+  if (!raw) {
+    throw new Error(`Intent record ${intentId} not found in distributed store.`);
   }
+
+  const record: IntentRecord = JSON.parse(raw);
+  record.status = status;
+  if (signature) record.signature = signature;
+  record.updatedAt = Date.now();
+
+  let writeOk = false;
+  if (status === 'CONFIRMED') {
+    // Permanent storage: NO TTL on confirmed economic intents
+    writeOk = await distributedStore.set(key, JSON.stringify(record));
+  } else {
+    // In-flight or ambiguous submission retained with safety window
+    writeOk = await distributedStore.set(key, JSON.stringify(record), 86400);
+  }
+
+  if (!writeOk) {
+    throw new Error(`Failed to durably write intent status ${status} for ${intentId} to distributed store.`);
+  }
+
+  return true;
 }
 
 export interface DirectPlatformTransferParams {
   recipientPublicKey: PublicKey;
   operation: AllowedPlatformOperation;
   memo?: string;
-  intentId?: string;
+  intentId: string;
 }
 
 export interface ExecuteTransactionResult {
@@ -317,7 +274,7 @@ export interface ExecuteTransactionResult {
 }
 
 /**
- * Executes a direct 100% administrative platform transfer (e.g. Treasury Rebalance, Sweep, Migration)
+ * Executes a direct 100% administrative platform transfer (Emergency Migration)
  * without applying a creator commerce 95/5 split.
  * Server derives transfer amount from live on-chain balance.
  */
@@ -338,34 +295,22 @@ export async function executeDirectPlatformTransfer(
   try {
     // 1. Server-side balance determination
     const currentBalanceLamports = await connection.getBalance(signer.publicKey);
-    let transferLamports = 0n;
 
-    if (params.operation === 'emergency_migration') {
-      // Migrate 100% of available balance minus standard tx fee
-      transferLamports = BigInt(currentBalanceLamports) - STANDARD_TX_FEE_LAMPORTS;
-      if (transferLamports <= 0n) {
-        return {
-          success: false,
-          error: 'Hot wallet balance is insufficient for emergency migration.',
-          code: 'INSUFFICIENT_BALANCE',
-        };
-      }
-    } else if (params.operation === 'platform_sweep' || params.operation === 'treasury_rebalance') {
-      // Sweep excess funds above operational reserve (0.05 COOK) minus tx fee
-      transferLamports =
-        BigInt(currentBalanceLamports) - MIN_HOT_WALLET_RESERVE_LAMPORTS - STANDARD_TX_FEE_LAMPORTS;
-      if (transferLamports <= 0n) {
-        return {
-          success: false,
-          error: `Insufficient hot wallet balance for sweep. Minimum operational reserve of ${Number(MIN_HOT_WALLET_RESERVE_LAMPORTS) / LAMPORTS_PER_SOL} COOK required.`,
-          code: 'INSUFFICIENT_SWEEP_BALANCE',
-        };
-      }
-    } else {
+    if (params.operation !== 'emergency_migration') {
       return {
         success: false,
-        error: `Unsupported operation ${params.operation}`,
-        code: 'UNSUPPORTED_OPERATION',
+        error: `Operation ${params.operation} is disabled.`,
+        code: 'PRIVILEGED_OPERATION_DISABLED',
+      };
+    }
+
+    // Migrate 100% of available balance minus standard tx fee
+    const transferLamports = BigInt(currentBalanceLamports) - STANDARD_TX_FEE_LAMPORTS;
+    if (transferLamports <= 0n) {
+      return {
+        success: false,
+        error: 'Hot wallet balance is insufficient for emergency migration.',
+        code: 'INSUFFICIENT_BALANCE',
       };
     }
 
@@ -384,19 +329,30 @@ export async function executeDirectPlatformTransfer(
     tx.recentBlockhash = blockhash;
     tx.feePayer = signer.publicKey;
 
-    // Mark intent as SUBMITTED right before network broadcast
-    if (params.intentId) {
-      await updatePrivilegedIntent(params.intentId, 'SUBMITTED', undefined, signer.publicKey.toBase58());
+    // 2. Mandatory pre-broadcast persistence: fail closed before network call
+    await updatePrivilegedIntent(params.intentId, 'SUBMITTED');
+
+    let signature: string;
+    try {
+      signature = await sendAndConfirmTransaction(connection, tx, [signer], {
+        commitment: 'confirmed',
+      });
+    } catch (broadcastErr: any) {
+      // 3. Ambiguous submission handling: distinguish definite failure from unknown broadcast state
+      if (broadcastErr.message && broadcastErr.message.includes('Blockhash not found')) {
+        await updatePrivilegedIntent(params.intentId, 'FAILED');
+      } else {
+        await updatePrivilegedIntent(params.intentId, 'SUBMISSION_UNKNOWN');
+      }
+      return {
+        success: false,
+        error: broadcastErr.message || 'Transaction broadcast failed or status is ambiguous.',
+        code: 'TRANSACTION_BROADCAST_AMBIGUOUS',
+      };
     }
 
-    const signature = await sendAndConfirmTransaction(connection, tx, [signer], {
-      commitment: 'confirmed',
-    });
-
-    // Mark intent as CONFIRMED (permanent retention)
-    if (params.intentId) {
-      await updatePrivilegedIntent(params.intentId, 'CONFIRMED', signature, signer.publicKey.toBase58());
-    }
+    // 4. Mark intent as CONFIRMED (permanent retention without TTL)
+    await updatePrivilegedIntent(params.intentId, 'CONFIRMED', signature);
 
     return {
       success: true,
@@ -408,14 +364,10 @@ export async function executeDirectPlatformTransfer(
       explorerUrl: `${COOKIE_CHAIN_CONFIG.explorerUrl}/tx/${signature}`,
     };
   } catch (err: any) {
-    if (params.intentId) {
-      if (err.message && err.message.includes('Blockhash not found')) {
-        await updatePrivilegedIntent(params.intentId, 'FAILED', undefined, signer.publicKey.toBase58());
-      }
-    }
     return {
       success: false,
-      error: err.message || 'Transaction broadcast failed on Cookie Chain RPC.',
+      error: err.message || 'Transaction execution failed.',
+      code: err.code || 'EXECUTION_FAILED',
     };
   }
 }

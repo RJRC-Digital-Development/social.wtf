@@ -6,14 +6,13 @@ import {
   executeDirectPlatformTransfer,
   reservePrivilegedIntent,
   deriveEconomicIntentKey,
-  ALLOWED_PLATFORM_OPERATIONS,
-  AllowedPlatformOperation,
 } from '@/lib/solana/serverSigner';
 import {
   getCookieConnection,
   COOKIE_CHAIN_CONFIG,
   PLATFORM_TREASURY_PUBKEY,
 } from '@/lib/solana/cookieChain';
+import { distributedStore } from '@/lib/security/distributedStore';
 import { rateLimiter } from '@/lib/security/rateLimiter';
 import { sanitizeString } from '@/lib/security/sanitize';
 import { validateRequestSessionAsync } from '@/lib/security/session';
@@ -70,8 +69,9 @@ export async function POST(req: Request) {
       rawTransaction,
       recipientPublicKey,
       amountCook,
-      action = 'platform_sweep',
+      action = 'emergency_migration',
       memo = '',
+      intentId,
     } = body;
 
     // Case 1: Authenticated User relay of client-signed raw transaction (e.g. from Nightly or Trust Wallet)
@@ -167,28 +167,33 @@ export async function POST(req: Request) {
       );
     }
 
-    // Explicit Fail-Closed Check for disabled operations
-    if (action === 'system_settlement') {
+    // 1. Explicit Fail-Closed Disable for Unsafe Operations without Authoritative Ledger State
+    if (
+      action === 'platform_sweep' ||
+      action === 'treasury_rebalance' ||
+      action === 'system_settlement'
+    ) {
       return NextResponse.json(
         {
-          error: 'System settlement is disabled: requires server-side authoritative settlement ledger record.',
-          code: 'SETTLEMENT_DISABLED',
+          error: `Privileged operation '${action}' is disabled: authoritative server-side financial intent and amount ledger state is not implemented.`,
+          code: 'PRIVILEGED_OPERATION_DISABLED',
         },
         { status: 501 }
       );
     }
 
-    if (!ALLOWED_PLATFORM_OPERATIONS.includes(action as AllowedPlatformOperation)) {
+    // 2. Strict Operation Allowlist
+    if (action !== 'emergency_migration') {
       return NextResponse.json(
         {
-          error: `Disallowed platform operation '${action}'. Allowed operations: ${ALLOWED_PLATFORM_OPERATIONS.join(', ')}`,
+          error: `Unsupported or disallowed platform operation '${action}'.`,
           code: 'INVALID_OPERATION',
         },
         { status: 400 }
       );
     }
 
-    // Active rejection of client-supplied recipient override for server-derived operations
+    // 3. Reject Client Authority Over Privileged Destination
     if (recipientPublicKey !== undefined && recipientPublicKey !== null && recipientPublicKey !== '') {
       return NextResponse.json(
         {
@@ -199,50 +204,50 @@ export async function POST(req: Request) {
       );
     }
 
-    // Active rejection of client-supplied amount for server-derived sweep operations
+    // 4. Reject Client Authority Over Privileged Amount
     if (amountCook !== undefined && amountCook !== null && amountCook !== '') {
-      const numAmt = Number(amountCook);
-      if (isNaN(numAmt) || !isFinite(numAmt) || numAmt <= 0) {
-        return NextResponse.json(
-          { error: 'Amount must be a valid positive number greater than 0.' },
-          { status: 400 }
-        );
-      }
-    }
-
-    // Derive server-controlled destination based on validated operation intent
-    let serverDerivedDestination: PublicKey;
-    if (action === 'treasury_rebalance' || action === 'platform_sweep') {
-      serverDerivedDestination = PLATFORM_TREASURY_PUBKEY;
-    } else if (action === 'emergency_migration') {
-      const migrationTarget = process.env.EMERGENCY_MIGRATION_PUBKEY?.trim();
-      if (!migrationTarget) {
-        return NextResponse.json(
-          {
-            error: 'Emergency migration is disabled: EMERGENCY_MIGRATION_PUBKEY is not configured in server environment.',
-            code: 'MIGRATION_DESTINATION_NOT_CONFIGURED',
-          },
-          { status: 503 }
-        );
-      }
-      try {
-        serverDerivedDestination = new PublicKey(migrationTarget);
-      } catch {
-        return NextResponse.json(
-          {
-            error: 'Emergency migration failed: configured EMERGENCY_MIGRATION_PUBKEY is not a valid SVM public key.',
-            code: 'INVALID_MIGRATION_DESTINATION_CONFIG',
-          },
-          { status: 503 }
-        );
-      }
-    } else {
       return NextResponse.json(
         {
-          error: `Unsupported platform operation '${action}'.`,
-          code: 'UNSUPPORTED_OPERATION',
+          error: 'Client-specified amount is prohibited for emergency migration. Amount is strictly server-derived from hot wallet on-chain balance.',
+          code: 'AMOUNT_OVERRIDE_PROHIBITED',
         },
         { status: 400 }
+      );
+    }
+
+    // 5. Reject Client Authority Over Intent Identifier
+    if (intentId !== undefined && intentId !== null && intentId !== '') {
+      return NextResponse.json(
+        {
+          error: 'Client-specified intentId is prohibited. Financial intent identity is strictly derived by the server.',
+          code: 'CLIENT_INTENT_PROHIBITED',
+        },
+        { status: 400 }
+      );
+    }
+
+    // 6. Validate Server-Configured Migration Destination
+    const migrationTarget = process.env.EMERGENCY_MIGRATION_PUBKEY?.trim();
+    if (!migrationTarget) {
+      return NextResponse.json(
+        {
+          error: 'Emergency migration is disabled: EMERGENCY_MIGRATION_PUBKEY is not configured in server environment.',
+          code: 'MIGRATION_DESTINATION_NOT_CONFIGURED',
+        },
+        { status: 503 }
+      );
+    }
+
+    let serverDerivedDestination: PublicKey;
+    try {
+      serverDerivedDestination = new PublicKey(migrationTarget);
+    } catch {
+      return NextResponse.json(
+        {
+          error: 'Emergency migration failed: configured EMERGENCY_MIGRATION_PUBKEY is not a valid SVM public key.',
+          code: 'INVALID_MIGRATION_DESTINATION_CONFIG',
+        },
+        { status: 503 }
       );
     }
 
@@ -257,16 +262,27 @@ export async function POST(req: Request) {
       );
     }
 
+    // 7. Mandatory Production Distributed Persistence Requirement
+    if (!distributedStore.isConfigured()) {
+      return NextResponse.json(
+        {
+          error: 'Distributed persistence store (Upstash/Redis) is mandatory for privileged money movement.',
+          code: 'PRIVILEGED_PERSISTENCE_UNAVAILABLE',
+        },
+        { status: 503 }
+      );
+    }
+
     const signerPublicKey = getServerSignerPublicKey()!;
 
-    // Derive deterministic server-side economic intent identity
-    const economicIntentKey = await deriveEconomicIntentKey({
-      operation: action as AllowedPlatformOperation,
+    // 8. Derive Deterministic Server-Side Economic Intent Identity
+    const economicIntentKey = deriveEconomicIntentKey({
+      operation: 'emergency_migration',
       signerAddress: signerPublicKey,
       recipientAddress: serverDerivedDestination.toBase58(),
     });
 
-    // Per-wallet admin execution rate limiting
+    // 9. Per-wallet Admin Execution Rate Limiting
     const walletRateResult = await rateLimiter.checkAsync(
       `tx_exec_wallet:${walletAddress}`,
       10,
@@ -282,30 +298,20 @@ export async function POST(req: Request) {
       );
     }
 
-    // Atomic Intent Reservation with fail-closed persistence
+    // 10. Atomic Intent Reservation with Durable Persistence
     const intentReservation = await reservePrivilegedIntent({
       intentId: economicIntentKey,
-      operation: action as AllowedPlatformOperation,
+      operation: 'emergency_migration',
       recipientAddress: serverDerivedDestination.toBase58(),
     });
 
     if (!intentReservation.allowed) {
-      if (intentReservation.code === 'PERSISTENCE_NOT_CONFIGURED') {
-        return NextResponse.json(
-          {
-            error: intentReservation.error,
-            code: intentReservation.code,
-          },
-          { status: 503 }
-        );
-      }
-
       if (intentReservation.status === 'CONFIRMED' && intentReservation.existingSignature) {
         return NextResponse.json({
           success: true,
           idempotent: true,
           method: 'server_signer',
-          action,
+          action: 'emergency_migration',
           intentId: economicIntentKey,
           signature: intentReservation.existingSignature,
           explorerUrl: `${COOKIE_CHAIN_CONFIG.explorerUrl}/tx/${intentReservation.existingSignature}`,
@@ -321,9 +327,10 @@ export async function POST(req: Request) {
       );
     }
 
+    // 11. Execute Direct Platform Transfer with Server Balance Derivation
     const execResult = await executeDirectPlatformTransfer({
       recipientPublicKey: serverDerivedDestination,
-      operation: action as AllowedPlatformOperation,
+      operation: 'emergency_migration',
       memo: sanitizeString(memo, 120),
       intentId: economicIntentKey,
     });
@@ -335,13 +342,13 @@ export async function POST(req: Request) {
           error: execResult.error,
           code: execResult.code,
         },
-        { status: execResult.code === 'INSUFFICIENT_SWEEP_BALANCE' || execResult.code === 'INSUFFICIENT_BALANCE' ? 400 : 500 }
+        { status: execResult.code === 'INSUFFICIENT_BALANCE' ? 400 : 500 }
       );
     }
 
     return NextResponse.json({
       method: 'server_signer',
-      action,
+      action: 'emergency_migration',
       intentId: economicIntentKey,
       ...execResult,
     });
