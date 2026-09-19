@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
-import { getAllOnboardedProfiles } from '@/lib/data/profileStore';
+import { getAllOnboardedProfilesAsync } from '@/lib/data/profileStore';
 
 export async function GET() {
   try {
-    const profiles = getAllOnboardedProfiles();
+    const profiles = await getAllOnboardedProfilesAsync();
     return NextResponse.json({
       success: true,
       count: profiles.length,

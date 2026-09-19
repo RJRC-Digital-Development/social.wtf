@@ -16,6 +16,7 @@ const testFiles = [
   'authorization.test.mjs',
   'trust-wallet-signer.test.mjs',
   'profile-onboarding.test.mjs',
+  'durable-persistence.test.mjs',
 ];
 
 let totalPassed = 0;

@@ -1,5 +1,9 @@
 import { NextResponse } from 'next/server';
-import { getProfileByWallet, getProfileByHandle, saveOnboardedProfile } from '@/lib/data/profileStore';
+import {
+  getProfileByWalletAsync,
+  getProfileByHandleAsync,
+  saveOnboardedProfileAsync,
+} from '@/lib/data/profileStore';
 import { validateRequestSessionAsync } from '@/lib/security/session';
 import { globalRateLimiter } from '@/lib/security/rateLimiter';
 import { getClientIp } from '@/lib/security/ipHelper';
@@ -11,7 +15,7 @@ export async function GET(req: Request) {
     const handle = searchParams.get('handle');
 
     if (wallet) {
-      const profile = getProfileByWallet(wallet);
+      const profile = await getProfileByWalletAsync(wallet);
       if (!profile) {
         return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
       }
@@ -19,7 +23,7 @@ export async function GET(req: Request) {
     }
 
     if (handle) {
-      const profile = getProfileByHandle(handle);
+      const profile = await getProfileByHandleAsync(handle);
       if (!profile) {
         return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
       }
@@ -64,7 +68,7 @@ export async function POST(req: Request) {
     const authenticatedWallet = auth.payload.walletAddress;
     const isAdmin = auth.payload.scope === 'admin';
 
-    const result = saveOnboardedProfile(authenticatedWallet, body, isAdmin);
+    const result = await saveOnboardedProfileAsync(authenticatedWallet, body, isAdmin);
 
     if (!result.success) {
       return NextResponse.json(
