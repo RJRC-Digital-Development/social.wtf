@@ -5,6 +5,7 @@ import {
   getServerSignerPublicKey,
   executeDirectPlatformTransfer,
   reservePrivilegedIntent,
+  deriveEconomicIntentKey,
   ALLOWED_PLATFORM_OPERATIONS,
   AllowedPlatformOperation,
 } from '@/lib/solana/serverSigner';
@@ -17,8 +18,6 @@ import { rateLimiter } from '@/lib/security/rateLimiter';
 import { sanitizeString } from '@/lib/security/sanitize';
 import { validateRequestSessionAsync } from '@/lib/security/session';
 import { getClientIp } from '@/lib/security/ipHelper';
-
-const MAX_COOK_PER_TRANSACTION = 10_000;
 
 export async function GET(req: Request) {
   const isConfigured = isServerSignerConfigured();
@@ -73,7 +72,6 @@ export async function POST(req: Request) {
       amountCook,
       action = 'platform_sweep',
       memo = '',
-      intentId,
     } = body;
 
     // Case 1: Authenticated User relay of client-signed raw transaction (e.g. from Nightly or Trust Wallet)
@@ -201,6 +199,17 @@ export async function POST(req: Request) {
       );
     }
 
+    // Active rejection of client-supplied amount for server-derived sweep operations
+    if (amountCook !== undefined && amountCook !== null && amountCook !== '') {
+      const numAmt = Number(amountCook);
+      if (isNaN(numAmt) || !isFinite(numAmt) || numAmt <= 0) {
+        return NextResponse.json(
+          { error: 'Amount must be a valid positive number greater than 0.' },
+          { status: 400 }
+        );
+      }
+    }
+
     // Derive server-controlled destination based on validated operation intent
     let serverDerivedDestination: PublicKey;
     if (action === 'treasury_rebalance' || action === 'platform_sweep') {
@@ -237,6 +246,26 @@ export async function POST(req: Request) {
       );
     }
 
+    if (!isServerSignerConfigured()) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Server signer is not configured in environment.',
+          code: 'SERVER_KEY_NOT_CONFIGURED',
+        },
+        { status: 503 }
+      );
+    }
+
+    const signerPublicKey = getServerSignerPublicKey()!;
+
+    // Derive deterministic server-side economic intent identity
+    const economicIntentKey = await deriveEconomicIntentKey({
+      operation: action as AllowedPlatformOperation,
+      signerAddress: signerPublicKey,
+      recipientAddress: serverDerivedDestination.toBase58(),
+    });
+
     // Per-wallet admin execution rate limiting
     const walletRateResult = await rateLimiter.checkAsync(
       `tx_exec_wallet:${walletAddress}`,
@@ -253,46 +282,36 @@ export async function POST(req: Request) {
       );
     }
 
-    const numericAmount = Number(amountCook);
-    if (isNaN(numericAmount) || !isFinite(numericAmount) || numericAmount <= 0) {
-      return NextResponse.json(
-        { error: 'Amount must be a valid positive number greater than 0.' },
-        { status: 400 }
-      );
-    }
-
-    if (numericAmount > MAX_COOK_PER_TRANSACTION) {
-      return NextResponse.json(
-        {
-          error: `Transaction amount exceeds safety limit of ${MAX_COOK_PER_TRANSACTION.toLocaleString()} COOK.`,
-        },
-        { status: 400 }
-      );
-    }
-
-    // Atomic Replay & Idempotency Check
-    const effectiveIntentId =
-      (typeof intentId === 'string' && intentId.trim()) ||
-      `intent:${action}:${walletAddress}:${Date.now()}:${Math.random().toString(36).substring(2, 7)}`;
-
+    // Atomic Intent Reservation with fail-closed persistence
     const intentReservation = await reservePrivilegedIntent({
-      intentId: effectiveIntentId,
+      intentId: economicIntentKey,
       operation: action as AllowedPlatformOperation,
       recipientAddress: serverDerivedDestination.toBase58(),
-      amountCook: numericAmount,
     });
 
     if (!intentReservation.allowed) {
+      if (intentReservation.code === 'PERSISTENCE_NOT_CONFIGURED') {
+        return NextResponse.json(
+          {
+            error: intentReservation.error,
+            code: intentReservation.code,
+          },
+          { status: 503 }
+        );
+      }
+
       if (intentReservation.status === 'CONFIRMED' && intentReservation.existingSignature) {
         return NextResponse.json({
           success: true,
           idempotent: true,
           method: 'server_signer',
           action,
+          intentId: economicIntentKey,
           signature: intentReservation.existingSignature,
           explorerUrl: `${COOKIE_CHAIN_CONFIG.explorerUrl}/tx/${intentReservation.existingSignature}`,
         });
       }
+
       return NextResponse.json(
         {
           error: intentReservation.error || 'Operation intent conflict or duplicate submission.',
@@ -302,23 +321,11 @@ export async function POST(req: Request) {
       );
     }
 
-    if (!isServerSignerConfigured()) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Server signer is not configured in environment.',
-          code: 'SERVER_KEY_NOT_CONFIGURED',
-        },
-        { status: 503 }
-      );
-    }
-
     const execResult = await executeDirectPlatformTransfer({
       recipientPublicKey: serverDerivedDestination,
-      amountCook: numericAmount,
       operation: action as AllowedPlatformOperation,
       memo: sanitizeString(memo, 120),
-      intentId: effectiveIntentId,
+      intentId: economicIntentKey,
     });
 
     if (!execResult.success) {
@@ -326,15 +333,16 @@ export async function POST(req: Request) {
         {
           success: false,
           error: execResult.error,
+          code: execResult.code,
         },
-        { status: 500 }
+        { status: execResult.code === 'INSUFFICIENT_SWEEP_BALANCE' || execResult.code === 'INSUFFICIENT_BALANCE' ? 400 : 500 }
       );
     }
 
     return NextResponse.json({
       method: 'server_signer',
       action,
-      intentId: effectiveIntentId,
+      intentId: economicIntentKey,
       ...execResult,
     });
   } catch (err: any) {

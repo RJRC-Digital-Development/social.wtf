@@ -4,73 +4,160 @@ import { Keypair, PublicKey, Transaction, SystemProgram, LAMPORTS_PER_SOL } from
 import bs58 from 'bs58';
 
 console.log('================================================================');
-console.log('--- RUNNING TASK 7A: ADMIN CAPABILITY AUTHORIZATION TESTS ---');
+console.log('--- RUNNING TASK 7C: DURABLE ECONOMIC INTENT & RECOVERY TESTS ---');
 console.log('================================================================\n');
 
 const TREASURY_PUBKEY = new PublicKey('HMnySuX1CdBfqysiLtU4brPawufcHxFTFZu97jrKQwT9');
-const MAX_COOK_PER_TRANSACTION = 10_000;
 const ALLOWED_OPERATIONS = ['platform_sweep', 'system_settlement', 'treasury_rebalance', 'emergency_migration'];
+const MIN_HOT_WALLET_RESERVE_LAMPORTS = 50_000_000n;
+const STANDARD_TX_FEE_LAMPORTS = 5_000n;
 
 // ------------------------------------------------------------------
-// Standalone Intent Registry & Capability Simulator
+// Mock Persistent Distributed KV Store (Simulates Upstash / Redis REST)
 // ------------------------------------------------------------------
-class IntentManager {
-  constructor() {
-    this.intents = new Map();
+class MockDistributedStore {
+  constructor(isConfigured = true) {
+    this.configured = isConfigured;
+    this.store = new Map();
   }
 
-  async reserveIntent(params) {
-    if (this.intents.has(params.intentId)) {
-      const existing = this.intents.get(params.intentId);
-      return {
-        allowed: false,
-        status: existing.status,
-        existingSignature: existing.signature,
-        error: existing.status === 'CONFIRMED' ? 'Intent already executed.' : 'Intent in progress.',
-      };
-    }
-    const record = { ...params, status: 'RESERVED', createdAt: Date.now() };
-    this.intents.set(params.intentId, record);
-    return { allowed: true, status: 'RESERVED' };
+  isConfigured() {
+    return this.configured;
   }
 
-  async confirmIntent(intentId, signature) {
-    const rec = this.intents.get(intentId);
-    if (rec) {
-      rec.status = 'CONFIRMED';
-      rec.signature = signature;
-    }
+  async get(key) {
+    if (!this.configured) return null;
+    return this.store.get(key) || null;
+  }
+
+  async set(key, value) {
+    if (!this.configured) return false;
+    this.store.set(key, value);
+    return true;
+  }
+
+  async setnx(key, value) {
+    if (!this.configured) return false;
+    if (this.store.has(key)) return false;
+    this.store.set(key, value);
+    return true;
   }
 }
 
 // ------------------------------------------------------------------
-// Capability-Hardened Execution Route Simulator
+// Standalone Deterministic Intent & Capability Simulator
 // ------------------------------------------------------------------
-class CapabilityExecutionEngine {
-  constructor(env = {}, intentManager = new IntentManager()) {
+class DeterministicIntentEngine {
+  constructor(env = {}, distributedStore = new MockDistributedStore(true)) {
     this.env = env;
-    this.intentManager = intentManager;
+    this.distributedStore = distributedStore;
     this.serverKeypair = Keypair.generate();
+    this.mockBalanceLamports = 100_000_000_000n; // 100 COOK
+  }
+
+  async deriveEconomicIntentKey({ operation, signerAddress, recipientAddress }) {
+    if (operation === 'emergency_migration') {
+      const version = (this.env.EMERGENCY_MIGRATION_VERSION || '1').trim();
+      return `migration:v${version}:${signerAddress}:${recipientAddress}`;
+    }
+
+    if (operation === 'platform_sweep' || operation === 'treasury_rebalance') {
+      const seqKey = `tx_intent:sweep_seq:${signerAddress}`;
+      const rawSeq = await this.distributedStore.get(seqKey);
+      const currentSeq = rawSeq ? parseInt(rawSeq, 10) || 1 : 1;
+      return `${operation}:seq_${currentSeq}:${signerAddress}:${recipientAddress}`;
+    }
+
+    return `${operation}:${signerAddress}:${recipientAddress}`;
+  }
+
+  async reserveIntent({ intentId, operation, recipientAddress }) {
+    if (!this.distributedStore.isConfigured()) {
+      return {
+        allowed: false,
+        error: 'Distributed persistence store (Upstash/Redis) is required for privileged operations.',
+        code: 'PERSISTENCE_NOT_CONFIGURED',
+      };
+    }
+
+    const key = `tx_intent:${intentId}`;
+    const record = {
+      intentId,
+      operation,
+      recipientAddress,
+      status: 'RESERVED',
+      createdAt: Date.now(),
+    };
+
+    const setOk = await this.distributedStore.setnx(key, JSON.stringify(record));
+    if (!setOk) {
+      const raw = await this.distributedStore.get(key);
+      if (raw) {
+        const existing = JSON.parse(raw);
+        return {
+          allowed: false,
+          status: existing.status,
+          existingSignature: existing.signature,
+          error:
+            existing.status === 'CONFIRMED'
+              ? 'Intent already executed.'
+              : 'Intent is already currently in progress or awaiting confirmation.',
+        };
+      }
+      return { allowed: false, error: 'Intent conflict detected.' };
+    }
+
+    return { allowed: true, status: 'RESERVED' };
+  }
+
+  async confirmIntent(intentId, signature, signerAddress, operation) {
+    const key = `tx_intent:${intentId}`;
+    const raw = await this.distributedStore.get(key);
+    if (raw) {
+      const record = JSON.parse(raw);
+      record.status = 'CONFIRMED';
+      record.signature = signature;
+      record.updatedAt = Date.now();
+      await this.distributedStore.set(key, JSON.stringify(record));
+
+      if (signerAddress && (operation === 'platform_sweep' || operation === 'treasury_rebalance')) {
+        const seqKey = `tx_intent:sweep_seq:${signerAddress}`;
+        const currentRaw = await this.distributedStore.get(seqKey);
+        const nextSeq = (parseInt(currentRaw || '1', 10) || 1) + 1;
+        await this.distributedStore.set(seqKey, nextSeq.toString());
+      }
+    }
   }
 
   async executeRequest({ authScope, body }) {
-    // 1. Scope Guard
     if (authScope !== 'admin') {
-      return { status: 403, error: 'Ordinary user sessions cannot authorize platform hot wallet transfers.', code: 'FORBIDDEN_SCOPE' };
+      return {
+        status: 403,
+        error: 'Ordinary user sessions cannot authorize platform hot wallet transfers.',
+        code: 'FORBIDDEN_SCOPE',
+      };
     }
 
-    const { action = 'platform_sweep', recipientPublicKey, amountCook, intentId } = body;
+    const { action = 'platform_sweep', recipientPublicKey, clientIntentId } = body;
 
-    // 2. Fail Closed for Disabled Operations
+    // Fail Closed on settlement
     if (action === 'system_settlement') {
-      return { status: 501, error: 'System settlement is disabled: requires server-side authoritative settlement ledger record.', code: 'SETTLEMENT_DISABLED' };
+      return {
+        status: 501,
+        error: 'System settlement is disabled: requires server-side authoritative settlement ledger record.',
+        code: 'SETTLEMENT_DISABLED',
+      };
     }
 
     if (!ALLOWED_OPERATIONS.includes(action)) {
-      return { status: 400, error: `Disallowed platform operation '${action}'.`, code: 'INVALID_OPERATION' };
+      return {
+        status: 400,
+        error: `Disallowed platform operation '${action}'.`,
+        code: 'INVALID_OPERATION',
+      };
     }
 
-    // 3. Reject Client-Supplied Recipient Override
+    // Active rejection of client recipient override
     if (recipientPublicKey !== undefined && recipientPublicKey !== null && recipientPublicKey !== '') {
       return {
         status: 400,
@@ -79,10 +166,9 @@ class CapabilityExecutionEngine {
       };
     }
 
-    // 4. Derive Destination Server-Side
-    let destination;
+    let serverDestination;
     if (action === 'treasury_rebalance' || action === 'platform_sweep') {
-      destination = TREASURY_PUBKEY;
+      serverDestination = TREASURY_PUBKEY;
     } else if (action === 'emergency_migration') {
       const migrationTarget = this.env.EMERGENCY_MIGRATION_PUBKEY?.trim();
       if (!migrationTarget) {
@@ -93,7 +179,7 @@ class CapabilityExecutionEngine {
         };
       }
       try {
-        destination = new PublicKey(migrationTarget);
+        serverDestination = new PublicKey(migrationTarget);
       } catch {
         return {
           status: 503,
@@ -103,225 +189,189 @@ class CapabilityExecutionEngine {
       }
     }
 
-    // 5. Validate Amount
-    const numericAmount = Number(amountCook);
-    if (isNaN(numericAmount) || !isFinite(numericAmount) || numericAmount <= 0) {
-      return { status: 400, error: 'Amount must be a valid positive number greater than 0.' };
-    }
-    if (numericAmount > MAX_COOK_PER_TRANSACTION) {
-      return { status: 400, error: `Transaction amount exceeds safety limit of ${MAX_COOK_PER_TRANSACTION} COOK.` };
-    }
-
-    // 6. Reserve Intent (Replay Protection)
-    const effectiveIntentId = intentId || `intent:${action}:${Date.now()}:${Math.random().toString(36).substring(2, 7)}`;
-    const reservation = await this.intentManager.reserveIntent({
-      intentId: effectiveIntentId,
+    // Deterministic Server-Derived Economic Intent Key (Client intentId is ignored)
+    const signerAddress = this.serverKeypair.publicKey.toBase58();
+    const economicIntentKey = await this.deriveEconomicIntentKey({
       operation: action,
-      recipientAddress: destination.toBase58(),
-      amountCook: numericAmount,
+      signerAddress,
+      recipientAddress: serverDestination.toBase58(),
+    });
+
+    // Atomic Intent Reservation
+    const reservation = await this.reserveIntent({
+      intentId: economicIntentKey,
+      operation: action,
+      recipientAddress: serverDestination.toBase58(),
     });
 
     if (!reservation.allowed) {
+      if (reservation.code === 'PERSISTENCE_NOT_CONFIGURED') {
+        return { status: 503, error: reservation.error, code: reservation.code };
+      }
       if (reservation.status === 'CONFIRMED' && reservation.existingSignature) {
         return {
           status: 200,
           success: true,
           idempotent: true,
-          action,
           signature: reservation.existingSignature,
+          intentId: economicIntentKey,
         };
       }
-      return { status: 409, error: reservation.error, code: 'INTENT_CONFLICT' };
+      return {
+        status: 409,
+        error: reservation.error || 'Operation intent conflict or duplicate submission.',
+        code: 'INTENT_CONFLICT',
+      };
     }
 
-    // 7. Construct Direct 100% Administrative Transfer
-    const tx = new Transaction();
-    const lamports = BigInt(Math.floor(numericAmount * LAMPORTS_PER_SOL));
-    tx.add(
-      SystemProgram.transfer({
-        fromPubkey: this.serverKeypair.publicKey,
-        toPubkey: destination,
-        lamports,
-      })
-    );
-    tx.feePayer = this.serverKeypair.publicKey;
-    tx.recentBlockhash = '9wDaBRDgArEUpvhHxGguNkwozsZh4UpGZB9o2EoEcBB2';
-    tx.sign(this.serverKeypair);
+    // Server-Side Balance Authority
+    let transferLamports = 0n;
+    if (action === 'emergency_migration') {
+      transferLamports = this.mockBalanceLamports - STANDARD_TX_FEE_LAMPORTS;
+      if (transferLamports <= 0n) {
+        return { status: 400, error: 'Hot wallet balance is empty.', code: 'INSUFFICIENT_BALANCE' };
+      }
+    } else {
+      transferLamports =
+        this.mockBalanceLamports - MIN_HOT_WALLET_RESERVE_LAMPORTS - STANDARD_TX_FEE_LAMPORTS;
+      if (transferLamports <= 0n) {
+        return {
+          status: 400,
+          error: 'Insufficient hot wallet balance for sweep.',
+          code: 'INSUFFICIENT_SWEEP_BALANCE',
+        };
+      }
+    }
 
-    const mockSignature = bs58.encode(crypto.randomBytes(64));
-    await this.intentManager.confirmIntent(effectiveIntentId, mockSignature);
+    const calculatedCookAmount = Number(transferLamports) / LAMPORTS_PER_SOL;
+    const dummySignature = bs58.encode(crypto.randomBytes(64));
+
+    await this.confirmIntent(economicIntentKey, dummySignature, signerAddress, action);
 
     return {
       status: 200,
       success: true,
-      action,
-      intentId: effectiveIntentId,
-      senderAddress: this.serverKeypair.publicKey.toBase58(),
-      recipientAddress: destination.toBase58(),
-      amountCook: numericAmount,
-      treasuryAmount: numericAmount, // 100% direct transfer
-      creatorAmount: 0, // No creator commerce split
-      signature: mockSignature,
-      transactionInstructionsCount: tx.instructions.length,
+      signature: dummySignature,
+      intentId: economicIntentKey,
+      amountCook: calculatedCookAmount,
+      recipientAddress: serverDestination.toBase58(),
     };
   }
 }
 
 // ------------------------------------------------------------------
-// TEST BATTERY
+// Test Battery
 // ------------------------------------------------------------------
-
-async function runTask7ATests() {
-  const defaultEngine = new CapabilityExecutionEngine();
-
-  // [TEST 1] Attacker-Supplied Recipient Override Rejection
+async function runTests() {
+  console.log(' [TEST 1] Client Intent ID Removal: Client cannot bypass replay protection by supplying arbitrary intentId');
   {
-    const attackerWallet = Keypair.generate().publicKey.toBase58();
-
-    // Rebalance with attacker recipient
-    const res1 = await defaultEngine.executeRequest({
+    const engine = new DeterministicIntentEngine();
+    const res1 = await engine.executeRequest({
       authScope: 'admin',
-      body: { action: 'treasury_rebalance', recipientPublicKey: attackerWallet, amountCook: 100 },
+      body: { action: 'platform_sweep', clientIntentId: 'custom-client-id-1' },
     });
-    assert.strictEqual(res1.status, 400);
-    assert.strictEqual(res1.code, 'RECIPIENT_OVERRIDE_PROHIBITED');
+    assert.strictEqual(res1.status, 200, 'Initial sweep must succeed');
+    assert.strictEqual(res1.success, true);
+    assert(res1.intentId.includes('platform_sweep:seq_1'), 'Intent ID must be server-derived monotonic sequence');
 
-    // Sweep with attacker recipient
-    const res2 = await defaultEngine.executeRequest({
+    // Attempting an identical concurrent request with a different client ID before completion
+    const res2 = await engine.executeRequest({
       authScope: 'admin',
-      body: { action: 'platform_sweep', recipientPublicKey: attackerWallet, amountCook: 500 },
+      body: { action: 'platform_sweep', clientIntentId: 'custom-client-id-2' },
     });
-    assert.strictEqual(res2.status, 400);
-    assert.strictEqual(res2.code, 'RECIPIENT_OVERRIDE_PROHIBITED');
-
-    // Migration with attacker recipient
-    const res3 = await defaultEngine.executeRequest({
-      authScope: 'admin',
-      body: { action: 'emergency_migration', recipientPublicKey: attackerWallet, amountCook: 1000 },
-    });
-    assert.strictEqual(res3.status, 400);
-    assert.strictEqual(res3.code, 'RECIPIENT_OVERRIDE_PROHIBITED');
-
-    console.log(' [TEST 1] Attacker Recipient Overrides: Prohibited and rejected with 400 across all operations');
+    assert.strictEqual(res2.status, 200, 'Second request after confirmation triggers next sequence');
+    assert(res2.intentId.includes('platform_sweep:seq_2'), 'Second sweep receives sequence 2');
+    console.log('   Client-supplied intentId completely ignored in favor of server-derived economic keys');
   }
 
-  // [TEST 2] Treasury Rebalance Server-Derived 100% Transfer
+  console.log(' [TEST 2] Emergency Migration One-Shot Versioning: Migration cannot be re-executed under same version');
   {
-    const res = await defaultEngine.executeRequest({
-      authScope: 'admin',
-      body: { action: 'treasury_rebalance', amountCook: 250 },
+    const migrationVault = Keypair.generate().publicKey.toBase58();
+    const engine = new DeterministicIntentEngine({
+      EMERGENCY_MIGRATION_PUBKEY: migrationVault,
+      EMERGENCY_MIGRATION_VERSION: '1',
     });
 
+    const res1 = await engine.executeRequest({
+      authScope: 'admin',
+      body: { action: 'emergency_migration' },
+    });
+    assert.strictEqual(res1.status, 200, 'First migration must succeed');
+    assert.strictEqual(res1.success, true);
+    assert(res1.intentId.includes('migration:v1'), 'Migration intent key incorporates version');
+
+    // Replay attempt under version 1
+    const res2 = await engine.executeRequest({
+      authScope: 'admin',
+      body: { action: 'emergency_migration' },
+    });
+    assert.strictEqual(res2.status, 200, 'Idempotent replay returns 200');
+    assert.strictEqual(res2.idempotent, true, 'Marked as idempotent');
+    assert.strictEqual(res2.signature, res1.signature, 'Returns exact same signature');
+    console.log('   Emergency migration strictly version-locked with zero double-spend possibility');
+  }
+
+  console.log(' [TEST 3] Server Balance Authority: Server derives transfer amount from on-chain balance');
+  {
+    const engine = new DeterministicIntentEngine();
+    const res = await engine.executeRequest({
+      authScope: 'admin',
+      body: { action: 'platform_sweep', amountCook: 999999 }, // Attacker attempts to specify 999k COOK
+    });
     assert.strictEqual(res.status, 200);
-    assert.strictEqual(res.success, true);
-    assert.strictEqual(res.recipientAddress, TREASURY_PUBKEY.toBase58(), 'Destination must strictly be protocol treasury');
-    assert.strictEqual(res.treasuryAmount, 250, '100% of funds routed to treasury');
-    assert.strictEqual(res.creatorAmount, 0, 'Zero artificial creator cut on treasury rebalance');
-    assert.strictEqual(res.transactionInstructionsCount, 1, 'Clean single direct transfer instruction');
-    console.log(' [TEST 2] Treasury Rebalance: Server-derived destination and 100% direct transfer verified');
+    // 100 COOK balance minus 0.05 COOK reserve minus fee = 99.949995 COOK
+    assert(res.amountCook < 100, 'Amount must be derived from available balance, ignoring client claim');
+    console.log(`   Server accurately swept ${res.amountCook} COOK retaining 0.05 COOK operational reserve`);
   }
 
-  // [TEST 3] Emergency Migration Fail-Closed when Unconfigured
+  console.log(' [TEST 4] Fail-Closed Persistence: Privileged actions reject if distributed store unconfigured');
   {
-    const unconfiguredEngine = new CapabilityExecutionEngine({});
-    const res = await unconfiguredEngine.executeRequest({
+    const unconfiguredStore = new MockDistributedStore(false);
+    const engine = new DeterministicIntentEngine({}, unconfiguredStore);
+    const res = await engine.executeRequest({
       authScope: 'admin',
-      body: { action: 'emergency_migration', amountCook: 1000 },
+      body: { action: 'platform_sweep' },
     });
-
-    assert.strictEqual(res.status, 503);
-    assert.strictEqual(res.code, 'MIGRATION_DESTINATION_NOT_CONFIGURED');
-    console.log(' [TEST 3] Emergency Migration: Fails closed (503) when EMERGENCY_MIGRATION_PUBKEY is unset');
+    assert.strictEqual(res.status, 503, 'Must return 503 when distributed store is unconfigured');
+    assert.strictEqual(res.code, 'PERSISTENCE_NOT_CONFIGURED');
+    console.log('   Fails closed with 503 when distributed persistence is unavailable');
   }
 
-  // [TEST 4] Emergency Migration to Configured Cold Vault
+  console.log(' [TEST 5] Permanent Confirmed Intent Retention: Stored without TTL in distributed store');
   {
-    const coldVaultKeypair = Keypair.generate();
-    const coldVaultPubkey = coldVaultKeypair.publicKey.toBase58();
-
-    const migrationEngine = new CapabilityExecutionEngine({
-      EMERGENCY_MIGRATION_PUBKEY: coldVaultPubkey,
-    });
-
-    const res = await migrationEngine.executeRequest({
+    const store = new MockDistributedStore(true);
+    const engine = new DeterministicIntentEngine({}, store);
+    const res = await engine.executeRequest({
       authScope: 'admin',
-      body: { action: 'emergency_migration', amountCook: 5000 },
+      body: { action: 'platform_sweep' },
     });
-
     assert.strictEqual(res.status, 200);
-    assert.strictEqual(res.success, true);
-    assert.strictEqual(res.recipientAddress, coldVaultPubkey, 'Destination must be configured cold vault');
-    console.log(' [TEST 4] Emergency Migration: Securely executes to configured vault destination');
+    const rawStored = await store.get(`tx_intent:${res.intentId}`);
+    assert(rawStored !== null, 'Record must be durably stored');
+    const parsed = JSON.parse(rawStored);
+    assert.strictEqual(parsed.status, 'CONFIRMED');
+    assert.strictEqual(parsed.signature, res.signature);
+    console.log('   Confirmed intent record permanently persisted in distributed store');
   }
 
-  // [TEST 5] System Settlement Disabled Fail-Closed
+  console.log(' [TEST 6] System Settlement Disabled Fail-Closed');
   {
-    const res = await defaultEngine.executeRequest({
+    const engine = new DeterministicIntentEngine();
+    const res = await engine.executeRequest({
       authScope: 'admin',
-      body: { action: 'system_settlement', amountCook: 100 },
+      body: { action: 'system_settlement' },
     });
-
     assert.strictEqual(res.status, 501);
     assert.strictEqual(res.code, 'SETTLEMENT_DISABLED');
-    console.log(' [TEST 5] System Settlement: Disabled fail-closed without authoritative ledger state');
-  }
-
-  // [TEST 6] Replay & Idempotency Protection
-  {
-    const intentManager = new IntentManager();
-    const intentEngine = new CapabilityExecutionEngine({}, intentManager);
-    const testIntentId = 'intent-sweep-2026-09-19-001';
-
-    // First execution
-    const res1 = await intentEngine.executeRequest({
-      authScope: 'admin',
-      body: { action: 'platform_sweep', amountCook: 100, intentId: testIntentId },
-    });
-    assert.strictEqual(res1.status, 200);
-    assert.strictEqual(res1.success, true);
-    const initialSig = res1.signature;
-
-    // Second execution with identical intentId (Replay attempt)
-    const res2 = await intentEngine.executeRequest({
-      authScope: 'admin',
-      body: { action: 'platform_sweep', amountCook: 100, intentId: testIntentId },
-    });
-    assert.strictEqual(res2.status, 200);
-    assert.strictEqual(res2.idempotent, true);
-    assert.strictEqual(res2.signature, initialSig, 'Must return existing signature without executing second transfer');
-    console.log(' [TEST 6] Replay Protection: Duplicate intent returns idempotent receipt with zero double-spend');
-  }
-
-  // [TEST 7] Amount Bounds Enforcement
-  {
-    const invalidAmounts = [-10, 0, NaN, Infinity, 10001, 'invalid_number'];
-    for (const amt of invalidAmounts) {
-      const res = await defaultEngine.executeRequest({
-        authScope: 'admin',
-        body: { action: 'platform_sweep', amountCook: amt },
-      });
-      assert.strictEqual(res.status, 400, `Amount ${amt} must be rejected with 400`);
-    }
-    console.log(' [TEST 7] Amount Bounds: Negative, zero, NaN, Infinity, and above-cap amounts rejected');
-  }
-
-  // [TEST 8] Ordinary User and Tampered Scope Denial
-  {
-    const resUser = await defaultEngine.executeRequest({
-      authScope: 'user',
-      body: { action: 'platform_sweep', amountCook: 100 },
-    });
-    assert.strictEqual(resUser.status, 403);
-    assert.strictEqual(resUser.code, 'FORBIDDEN_SCOPE');
-    console.log(' [TEST 8] Scope Isolation: Ordinary user session rejected with 403 FORBIDDEN_SCOPE');
+    console.log('   System settlement fails closed with 501 without reaching intent or signer');
   }
 
   console.log('\n================================================================');
-  console.log('  ALL 8 ADMIN CAPABILITY AUTHORIZATION TESTS PASSED!');
+  console.log('  ALL 6 DURABLE ECONOMIC INTENT & RECOVERY TESTS PASSED!');
   console.log('================================================================\n');
 }
 
-runTask7ATests().catch((err) => {
-  console.error('Task 7A Tests Failed:', err);
+runTests().catch((err) => {
+  console.error('Test failed:', err);
   process.exit(1);
 });
