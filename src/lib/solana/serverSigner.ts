@@ -3,7 +3,7 @@ import {
   PublicKey,
   Transaction,
   SystemProgram,
-  sendAndConfirmTransaction,
+  Connection,
   LAMPORTS_PER_SOL,
 } from '@solana/web3.js';
 import bs58 from 'bs58';
@@ -12,8 +12,8 @@ import {
   calculateFeeSplit,
   PLATFORM_TREASURY_PUBKEY,
   COOKIE_CHAIN_CONFIG,
-} from './cookieChain';
-import { distributedStore } from '../security/distributedStore';
+} from './cookieChain.ts';
+import { distributedStore, DistributedStore } from '../security/distributedStore.ts';
 
 export const STANDARD_TX_FEE_LAMPORTS = 5_000n;
 
@@ -41,7 +41,7 @@ export function parsePrivateKey(rawKey: string): Keypair | null {
         }
       }
     } catch {
-      // Fall through to other formats
+      // Fall through
     }
   }
 
@@ -117,20 +117,18 @@ export interface IntentRecord {
   operation: AllowedPlatformOperation;
   recipientAddress: string;
   amountCook?: number;
-  status: 'RESERVED' | 'SUBMITTED' | 'SUBMISSION_UNKNOWN' | 'CONFIRMED' | 'FAILED';
+  status:
+    | 'RESERVED'
+    | 'SUBMITTED'
+    | 'SUBMISSION_UNKNOWN'
+    | 'CONFIRMED'
+    | 'FAILED'
+    | 'EXPIRED_UNRECONCILED';
   signature?: string;
+  recentBlockhash?: string;
+  lastValidBlockHeight?: number;
   createdAt: number;
   updatedAt: number;
-}
-
-// In-memory fallback intent registry (strictly for isolated unit test harnesses)
-const localIntents = new Map<string, IntentRecord>();
-
-/**
- * Clears local test memory (for testing isolation)
- */
-export function clearLocalIntentsForTest(): void {
-  localIntents.clear();
 }
 
 /**
@@ -151,23 +149,32 @@ export function deriveEconomicIntentKey(params: {
 }
 
 /**
- * Atomically reserves a privileged operation intent to prevent concurrent execution and replay.
- * Enforces production distributed persistence.
+ * Atomically reserves a privileged operation intent and performs on-chain reconciliation
+ * if an existing in-flight/ambiguous intent is detected.
  */
-export async function reservePrivilegedIntent(params: {
-  intentId: string;
-  operation: AllowedPlatformOperation;
-  recipientAddress: string;
-  amountCook?: number;
-}): Promise<{
+export async function reservePrivilegedIntent(
+  params: {
+    intentId: string;
+    operation: AllowedPlatformOperation;
+    recipientAddress: string;
+    amountCook?: number;
+  },
+  deps?: {
+    store?: DistributedStore;
+    connection?: Connection;
+  }
+): Promise<{
   allowed: boolean;
-  status?: 'RESERVED' | 'SUBMITTED' | 'SUBMISSION_UNKNOWN' | 'CONFIRMED' | 'FAILED';
+  status?: IntentRecord['status'];
   existingSignature?: string;
   error?: string;
   code?: string;
 }> {
+  const store = deps?.store || distributedStore;
+  const connection = deps?.connection || getCookieConnection();
+
   // Production distributed store requirement: fail closed if unconfigured
-  if (!distributedStore.isConfigured()) {
+  if (!store.isConfigured()) {
     return {
       allowed: false,
       error: 'Distributed persistence store (Upstash/Redis) is mandatory for privileged money movement.',
@@ -186,21 +193,100 @@ export async function reservePrivilegedIntent(params: {
     updatedAt: Date.now(),
   };
 
-  // Unconfirmed reservations hold lock for 3600 seconds
-  const setOk = await distributedStore.setnx(key, JSON.stringify(record), 3600);
+  // Initial reservation lock: held for 3600 seconds until signed identity is established
+  const setOk = await store.setnx(key, JSON.stringify(record), 3600);
   if (!setOk) {
-    const existingRaw = await distributedStore.get(key);
+    const existingRaw = await store.get(key);
     if (existingRaw) {
       try {
         const existing: IntentRecord = JSON.parse(existingRaw);
+
+        // 1. If already confirmed, return idempotently
+        if (existing.status === 'CONFIRMED' && existing.signature) {
+          return {
+            allowed: false,
+            status: 'CONFIRMED',
+            existingSignature: existing.signature,
+            error: 'Intent already executed.',
+          };
+        }
+
+        // 2. If existing record has a signature and is SUBMITTED or SUBMISSION_UNKNOWN, reconcile on-chain
+        if (
+          existing.signature &&
+          (existing.status === 'SUBMITTED' || existing.status === 'SUBMISSION_UNKNOWN')
+        ) {
+          try {
+            const sigStatus = await connection.getSignatureStatus(existing.signature, {
+              searchTransactionHistory: true,
+            });
+
+            if (
+              sigStatus?.value?.confirmationStatus === 'confirmed' ||
+              sigStatus?.value?.confirmationStatus === 'finalized'
+            ) {
+              // Reconciled as CONFIRMED! Durably write permanent status
+              await updatePrivilegedIntent(
+                params.intentId,
+                { status: 'CONFIRMED', signature: existing.signature },
+                deps
+              );
+              return {
+                allowed: false,
+                status: 'CONFIRMED',
+                existingSignature: existing.signature,
+                error: 'Intent already executed.',
+              };
+            }
+
+            // Check if block height is still within validity window
+            const currentHeight = await connection.getBlockHeight('confirmed');
+            if (existing.lastValidBlockHeight && currentHeight <= existing.lastValidBlockHeight) {
+              return {
+                allowed: false,
+                status: 'SUBMITTED',
+                existingSignature: existing.signature,
+                error: 'Transaction is currently pending on-chain confirmation. Re-execution prohibited.',
+              };
+            } else {
+              // Blockhash expired without confirmation. Mark EXPIRED_UNRECONCILED
+              await updatePrivilegedIntent(
+                params.intentId,
+                { status: 'EXPIRED_UNRECONCILED' },
+                deps
+              );
+              return {
+                allowed: false,
+                status: 'EXPIRED_UNRECONCILED',
+                existingSignature: existing.signature,
+                error: 'Previous migration transaction expired unconfirmed. Manual/versioned recovery required.',
+              };
+            }
+          } catch {
+            return {
+              allowed: false,
+              status: existing.status,
+              existingSignature: existing.signature,
+              error: 'Transaction status is ambiguous. Re-execution prohibited.',
+            };
+          }
+        }
+
+        if (existing.status === 'EXPIRED_UNRECONCILED') {
+          return {
+            allowed: false,
+            status: 'EXPIRED_UNRECONCILED',
+            existingSignature: existing.signature,
+            error: 'Previous migration transaction expired unconfirmed. Manual/versioned recovery required.',
+          };
+        }
+
         return {
           allowed: false,
           status: existing.status,
           existingSignature: existing.signature,
           error:
-            existing.status === 'CONFIRMED'
-              ? 'Intent already executed.'
-              : existing.status === 'SUBMISSION_UNKNOWN'
+            existing.status === 'SUBMISSION_UNKNOWN'
               ? 'Intent submission status is ambiguous and awaiting on-chain reconciliation. Re-execution is prohibited.'
               : 'Intent is already currently in progress or awaiting confirmation.',
         };
@@ -213,40 +299,58 @@ export async function reservePrivilegedIntent(params: {
 }
 
 /**
- * Updates intent status to SUBMITTED, SUBMISSION_UNKNOWN, CONFIRMED (permanent retention, NO TTL), or FAILED.
- * Throws explicit error on persistence failure to prevent unverified state drift.
+ * Updates intent record in distributed store.
+ * Once a signature or confirmed state exists, the record is stored permanently without TTL.
+ * Throws on failure to prevent unverified state drift.
  */
 export async function updatePrivilegedIntent(
   intentId: string,
-  status: 'SUBMITTED' | 'SUBMISSION_UNKNOWN' | 'CONFIRMED' | 'FAILED',
-  signature?: string
+  update: Partial<IntentRecord> & { status: IntentRecord['status'] },
+  deps?: {
+    store?: DistributedStore;
+  }
 ): Promise<boolean> {
+  const store = deps?.store || distributedStore;
   const key = `tx_intent:${intentId}`;
-  if (!distributedStore.isConfigured()) {
+
+  if (!store.isConfigured()) {
     throw new Error('Distributed store is not configured during privileged intent state transition.');
   }
 
-  const raw = await distributedStore.get(key);
-  if (!raw) {
-    throw new Error(`Intent record ${intentId} not found in distributed store.`);
+  const raw = await store.get(key);
+  let record: IntentRecord;
+
+  if (raw) {
+    record = JSON.parse(raw);
+    Object.assign(record, update);
+    record.updatedAt = Date.now();
+  } else {
+    record = {
+      intentId,
+      operation: update.operation || 'emergency_migration',
+      recipientAddress: update.recipientAddress || '',
+      ...update,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
   }
 
-  const record: IntentRecord = JSON.parse(raw);
-  record.status = status;
-  if (signature) record.signature = signature;
-  record.updatedAt = Date.now();
-
   let writeOk = false;
-  if (status === 'CONFIRMED') {
-    // Permanent storage: NO TTL on confirmed economic intents
-    writeOk = await distributedStore.set(key, JSON.stringify(record));
+  // Permanent non-expiring retention for any signed, submitted, confirmed, or unreconciled intent
+  if (
+    record.signature ||
+    record.status === 'CONFIRMED' ||
+    record.status === 'SUBMITTED' ||
+    record.status === 'SUBMISSION_UNKNOWN' ||
+    record.status === 'EXPIRED_UNRECONCILED'
+  ) {
+    writeOk = await store.set(key, JSON.stringify(record));
   } else {
-    // In-flight or ambiguous submission retained with safety window
-    writeOk = await distributedStore.set(key, JSON.stringify(record), 86400);
+    writeOk = await store.set(key, JSON.stringify(record), 3600);
   }
 
   if (!writeOk) {
-    throw new Error(`Failed to durably write intent status ${status} for ${intentId} to distributed store.`);
+    throw new Error(`Failed to durably write intent status ${update.status} for ${intentId} to distributed store.`);
   }
 
   return true;
@@ -274,14 +378,25 @@ export interface ExecuteTransactionResult {
 }
 
 /**
- * Executes a direct 100% administrative platform transfer (Emergency Migration)
- * without applying a creator commerce 95/5 split.
- * Server derives transfer amount from live on-chain balance.
+ * Executes a direct 100% administrative platform transfer (Emergency Migration).
+ * 
+ * Strict sequence:
+ * 1. Derives amount from live on-chain balance.
+ * 2. Constructs transaction and obtains latest blockhash + lastValidBlockHeight.
+ * 3. Signs locally and derives signature BEFORE network broadcast.
+ * 4. Pre-persists SUBMITTED record with signature and blockheight bounds permanently in distributed KV.
+ * 5. Calls sendRawTransaction only after verified persistence.
+ * 6. Confirms separately on-chain and updates status to CONFIRMED.
  */
 export async function executeDirectPlatformTransfer(
-  params: DirectPlatformTransferParams
+  params: DirectPlatformTransferParams,
+  deps?: {
+    signer?: Keypair;
+    connection?: Connection;
+    store?: DistributedStore;
+  }
 ): Promise<ExecuteTransactionResult> {
-  const signer = getServerSignerKeypair();
+  const signer = deps?.signer || getServerSignerKeypair();
   if (!signer) {
     return {
       success: false,
@@ -290,7 +405,7 @@ export async function executeDirectPlatformTransfer(
     };
   }
 
-  const connection = getCookieConnection();
+  const connection = deps?.connection || getCookieConnection();
 
   try {
     // 1. Server-side balance determination
@@ -316,6 +431,7 @@ export async function executeDirectPlatformTransfer(
 
     const calculatedCookAmount = Number(transferLamports) / LAMPORTS_PER_SOL;
 
+    // 2. Build Transaction
     const tx = new Transaction();
     tx.add(
       SystemProgram.transfer({
@@ -325,34 +441,112 @@ export async function executeDirectPlatformTransfer(
       })
     );
 
-    const { blockhash } = await connection.getLatestBlockhash('confirmed');
+    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
     tx.recentBlockhash = blockhash;
+    tx.lastValidBlockHeight = lastValidBlockHeight;
     tx.feePayer = signer.publicKey;
 
-    // 2. Mandatory pre-broadcast persistence: fail closed before network call
-    await updatePrivilegedIntent(params.intentId, 'SUBMITTED');
-
-    let signature: string;
-    try {
-      signature = await sendAndConfirmTransaction(connection, tx, [signer], {
-        commitment: 'confirmed',
-      });
-    } catch (broadcastErr: any) {
-      // 3. Ambiguous submission handling: distinguish definite failure from unknown broadcast state
-      if (broadcastErr.message && broadcastErr.message.includes('Blockhash not found')) {
-        await updatePrivilegedIntent(params.intentId, 'FAILED');
-      } else {
-        await updatePrivilegedIntent(params.intentId, 'SUBMISSION_UNKNOWN');
-      }
+    // 3. Local signing & signature derivation BEFORE network broadcast
+    tx.sign(signer);
+    const rawSig = tx.signature || (tx.signatures && tx.signatures[0] && tx.signatures[0].signature);
+    if (!rawSig) {
       return {
         success: false,
-        error: broadcastErr.message || 'Transaction broadcast failed or status is ambiguous.',
-        code: 'TRANSACTION_BROADCAST_AMBIGUOUS',
+        error: 'Failed to locally sign transaction.',
+        code: 'SIGNING_FAILED',
+      };
+    }
+    const signature = bs58.encode(rawSig);
+
+    // 4. Mandatory Pre-Broadcast Persistence:
+    // Persist SUBMITTED status with signature, blockhash, lastValidBlockHeight, and amountCook BEFORE broadcast!
+    try {
+      await updatePrivilegedIntent(
+        params.intentId,
+        {
+          status: 'SUBMITTED',
+          signature,
+          recentBlockhash: blockhash,
+          lastValidBlockHeight,
+          amountCook: calculatedCookAmount,
+          recipientAddress: params.recipientPublicKey.toBase58(),
+          operation: 'emergency_migration',
+        },
+        deps
+      );
+    } catch (persistErr: any) {
+      return {
+        success: false,
+        error: `Pre-broadcast intent persistence failed: ${persistErr.message}. Transaction was NOT broadcast.`,
+        code: 'PRE_BROADCAST_PERSISTENCE_FAILED',
       };
     }
 
-    // 4. Mark intent as CONFIRMED (permanent retention without TTL)
-    await updatePrivilegedIntent(params.intentId, 'CONFIRMED', signature);
+    // 5. Broadcast raw serialized transaction
+    try {
+      await connection.sendRawTransaction(tx.serialize(), {
+        skipPreflight: false,
+        preflightCommitment: 'confirmed',
+      });
+    } catch (broadcastErr: any) {
+      if (broadcastErr.message && broadcastErr.message.includes('Blockhash not found')) {
+        await updatePrivilegedIntent(params.intentId, { status: 'FAILED' }, deps);
+        return {
+          success: false,
+          error: 'Blockhash expired before broadcast.',
+          code: 'BROADCAST_FAILED',
+        };
+      }
+      // Ambiguous broadcast: RPC dropped or timed out after submission. Must retain signature in SUBMISSION_UNKNOWN!
+      await updatePrivilegedIntent(params.intentId, { status: 'SUBMISSION_UNKNOWN' }, deps);
+      return {
+        success: false,
+        error: broadcastErr.message || 'Transaction broadcast was ambiguous. Signature preserved for reconciliation.',
+        code: 'TRANSACTION_BROADCAST_AMBIGUOUS',
+        signature,
+      };
+    }
+
+    // 6. Confirm transaction separately using stored signature and blockhash bounds
+    try {
+      const confirmRes = await connection.confirmTransaction(
+        {
+          signature,
+          blockhash,
+          lastValidBlockHeight,
+        },
+        'confirmed'
+      );
+
+      if (confirmRes.value && confirmRes.value.err) {
+        await updatePrivilegedIntent(params.intentId, { status: 'FAILED' }, deps);
+        return {
+          success: false,
+          error: `Transaction confirmed with error: ${JSON.stringify(confirmRes.value.err)}`,
+          code: 'TRANSACTION_ONCHAIN_ERROR',
+          signature,
+        };
+      }
+    } catch (confirmErr: any) {
+      // Confirmation timed out or network blip; signature was already submitted. Mark SUBMISSION_UNKNOWN
+      await updatePrivilegedIntent(params.intentId, { status: 'SUBMISSION_UNKNOWN' }, deps);
+      return {
+        success: false,
+        error: 'Transaction broadcast was submitted but confirmation timed out. Signature preserved for reconciliation.',
+        code: 'CONFIRMATION_TIMEOUT',
+        signature,
+      };
+    }
+
+    // 7. Mark intent as CONFIRMED (permanent retention without TTL)
+    await updatePrivilegedIntent(
+      params.intentId,
+      {
+        status: 'CONFIRMED',
+        signature,
+      },
+      deps
+    );
 
     return {
       success: true,
@@ -425,8 +619,10 @@ export async function executeOnChainSplitTransaction(params: {
     tx.recentBlockhash = blockhash;
     tx.feePayer = signer.publicKey;
 
-    const signature = await sendAndConfirmTransaction(connection, tx, [signer], {
-      commitment: 'confirmed',
+    tx.sign(signer);
+    const signature = await connection.sendRawTransaction(tx.serialize(), {
+      skipPreflight: false,
+      preflightCommitment: 'confirmed',
     });
 
     return {

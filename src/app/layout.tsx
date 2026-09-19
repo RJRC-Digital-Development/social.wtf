@@ -3,6 +3,8 @@ import './globals.css';
 import { ThemeProvider } from '@/lib/theme/themeContext';
 import { WalletProvider } from '@/lib/wallet/walletContext';
 import { ShieldProvider } from '@/lib/shield/shieldContext';
+import { Analytics } from '@vercel/analytics/react';
+import { SpeedInsights } from '@vercel/speed-insights/next';
 
 export const metadata: Metadata = {
   title: 'Social.wtf | Decentralized Social Ecosystem & Storefronts on Cookie Chain (SVM)',
@@ -45,6 +47,8 @@ export default function RootLayout({
           <WalletProvider>
             <ShieldProvider>
               {children}
+              <Analytics />
+              <SpeedInsights />
             </ShieldProvider>
           </WalletProvider>
         </ThemeProvider>
