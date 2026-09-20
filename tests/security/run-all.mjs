@@ -29,6 +29,16 @@ const testFiles = [
   'platform-login-gate.test.mjs',
   'secret-club-authorization.test.mjs',
   'text-first-release.test.mjs',
+  'account-auth.test.mjs',
+  'wallet-binding.test.mjs',
+  'owner-dashboard.test.mjs',
+  'account-canonical-unification.test.mjs',
+  'legacy-claim-security.test.mjs',
+  'owner-bootstrap-race.test.mjs',
+  'wallet-free-flow.test.mjs',
+  'step-up-session.test.mjs',
+  'username-normalization.test.mjs',
+  'owner-data-leak.test.mjs',
 ];
 
 let totalPassed = 0;

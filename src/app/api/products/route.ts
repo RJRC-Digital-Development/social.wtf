@@ -16,16 +16,16 @@ import { getClientIp } from '../../../lib/security/ipHelper.ts';
 
 export async function GET(req: Request) {
   try {
-    // Authenticate caller via SIWS session
+    // Authenticate caller via session
     const auth = await validateRequestSessionAsync(req);
-    if (!auth.authenticated || !auth.payload?.walletAddress) {
+    if (!auth.authenticated) {
       return NextResponse.json(
         { error: 'Authentication required to view storefront products', code: 'AUTH_REQUIRED' },
         { status: 401 }
       );
     }
 
-    const callerWallet = auth.payload.walletAddress;
+    const callerWallet = auth.payload.walletAddress || auth.payload.accountId;
     const { searchParams } = new URL(req.url);
     const creator = searchParams.get('creator');
 
@@ -90,9 +90,9 @@ export async function POST(req: Request) {
       );
     }
 
-    // Authenticate caller via SIWS session
+    // Authenticate caller via session
     const auth = await validateRequestSessionAsync(req);
-    if (!auth.authenticated || !auth.payload?.walletAddress) {
+    if (!auth.authenticated) {
       return NextResponse.json(
         { error: 'Authentication required to list digital products on storefront' },
         { status: 401 }
@@ -101,8 +101,8 @@ export async function POST(req: Request) {
 
     const body = await req.json().catch(() => ({}));
 
-    // Security Invariant: creatorWallet is derived strictly from the authenticated SIWS session
-    const authenticatedWallet = auth.payload.walletAddress;
+    // Security Invariant: creatorWallet is derived strictly from the authenticated session
+    const authenticatedWallet = auth.payload.walletAddress || auth.payload.accountId;
 
     const result = await saveProductAsync(authenticatedWallet, body);
 

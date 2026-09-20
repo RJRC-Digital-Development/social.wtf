@@ -3,6 +3,7 @@ import path from 'path';
 import type { User } from '../../types/index.ts';
 import { sanitizePlainText } from '../security/sanitize.ts';
 import { distributedStore } from '../security/distributedStore.ts';
+import { isCanonicalOrBoundAsync } from './accountStore.ts';
 
 const DISTRIBUTED_WALLETS_SET_KEY = 'platform:profiles:wallets';
 const HANDLE_PREFIX = 'profile:handle:';
@@ -262,6 +263,14 @@ export async function saveOnboardedProfileAsync(
 ): Promise<{ success: boolean; profile?: User; error?: string }> {
   if (!authenticatedWallet || typeof authenticatedWallet !== 'string') {
     return { success: false, error: 'Valid authenticated wallet identity required' };
+  }
+
+  const isBound = await isCanonicalOrBoundAsync(authenticatedWallet);
+  if (!isBound && !isAdminSession) {
+    return {
+      success: false,
+      error: 'Unbound legacy wallet cannot create or mutate profile. Account registration or migration required.',
+    };
   }
 
   const rawHandle = input.handle?.trim().toLowerCase().replace(/^@+/, '') || '';

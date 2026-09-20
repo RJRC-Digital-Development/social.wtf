@@ -21,7 +21,7 @@ export async function GET(req: Request) {
       );
     }
 
-    const { walletAddress } = sessionResult.payload;
+    const walletAddress = sessionResult.payload.walletAddress || sessionResult.payload.accountId;
     const url = new URL(req.url);
     const target = url.searchParams.get('target') || url.searchParams.get('wallet');
 

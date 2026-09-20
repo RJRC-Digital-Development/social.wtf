@@ -12,6 +12,7 @@
     "test:security": "node tests/security/run-all.mjs"
   },
   "dependencies": {
+    "@node-rs/argon2": "^2.2.1",
     "@solana/web3.js": "^1.95.8",
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",

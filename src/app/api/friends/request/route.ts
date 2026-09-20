@@ -27,7 +27,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const { walletAddress } = sessionResult.payload;
+    const walletAddress = sessionResult.payload.walletAddress || sessionResult.payload.accountId;
     const body = await req.json().catch(() => ({}));
     const targetWallet = body.targetWallet || body.walletAddress || body.recipientWallet;
 
@@ -66,7 +66,7 @@ export async function DELETE(req: Request) {
       );
     }
 
-    const { walletAddress } = sessionResult.payload;
+    const walletAddress = sessionResult.payload.walletAddress || sessionResult.payload.accountId;
     const body = await req.json().catch(() => ({}));
     const targetWallet = body.targetWallet || body.recipientWallet;
 

@@ -24,6 +24,7 @@ import type { Post, ShieldClassification } from '../../types/index.ts';
 import { sanitizeString } from '../security/sanitize.ts';
 import { distributedStore } from '../security/distributedStore.ts';
 import { getProfileByWalletAsync } from './profileStore.ts';
+import { resolveCanonicalIdentityAsync, isCanonicalOrBoundAsync } from './accountStore.ts';
 
 export const DISTRIBUTED_POSTS_SET_KEY = 'platform:posts';
 export const AUTHOR_POSTS_SET_PREFIX = 'posts:author:';
@@ -125,12 +126,18 @@ export async function savePostAsync(post: Post): Promise<Post> {
     throw new Error('Invalid post payload: id and author.walletAddress are required');
   }
 
+  const isBound = await isCanonicalOrBoundAsync(post.author.walletAddress);
+  if (!isBound) {
+    throw new Error('Unbound legacy wallet cannot create new posts. Account registration or migration required.');
+  }
+
   const isProduction = process.env.NODE_ENV === 'production';
 
   // 1. Authoritative Distributed Path (Redis / Vercel KV)
   if (distributedStore.isConfigured()) {
+    const canonicalAuthor = await resolveCanonicalIdentityAsync(post.author.walletAddress);
     const postKey = `${POST_PREFIX}${post.id}`;
-    const authorKey = `${AUTHOR_POSTS_SET_PREFIX}${post.author.walletAddress}`;
+    const authorKey = `${AUTHOR_POSTS_SET_PREFIX}${canonicalAuthor}`;
 
     // Step 1: Write primary post record (permanent, no TTL)
     const setSuccess = await distributedStore.set(postKey, JSON.stringify(post));
@@ -155,6 +162,11 @@ export async function savePostAsync(post: Post): Promise<Post> {
       throw new PostStoreUnavailableError('Failed to add post to author index');
     }
 
+    // If authorWallet differs from canonicalAuthor, also index legacy key for instant lookup
+    if (canonicalAuthor !== post.author.walletAddress) {
+      await distributedStore.sadd(`${AUTHOR_POSTS_SET_PREFIX}${post.author.walletAddress}`, post.id).catch(() => {});
+    }
+
     return post;
   }
 
@@ -168,12 +180,22 @@ export async function savePostAsync(post: Post): Promise<Post> {
     ensureLocalInitialized();
     postsCache.set(post.id, post);
 
-    let authorSet = authorPostsCache.get(post.author.walletAddress);
+    const canonicalAuthor = await resolveCanonicalIdentityAsync(post.author.walletAddress);
+    let authorSet = authorPostsCache.get(canonicalAuthor);
     if (!authorSet) {
       authorSet = new Set<string>();
-      authorPostsCache.set(post.author.walletAddress, authorSet);
+      authorPostsCache.set(canonicalAuthor, authorSet);
     }
     authorSet.add(post.id);
+
+    if (canonicalAuthor !== post.author.walletAddress) {
+      let legacySet = authorPostsCache.get(post.author.walletAddress);
+      if (!legacySet) {
+        legacySet = new Set<string>();
+        authorPostsCache.set(post.author.walletAddress, legacySet);
+      }
+      legacySet.add(post.id);
+    }
 
     flushToLocalDisk();
     return post;
@@ -286,15 +308,25 @@ export async function getAdultAuthorizedPostsAsync(): Promise<Post[]> {
  */
 export async function getPostsByAuthorAsync(authorWallet: string): Promise<Post[]> {
   if (!authorWallet || typeof authorWallet !== 'string') return [];
+  const canonicalAuthor = await resolveCanonicalIdentityAsync(authorWallet);
 
   const isProduction = process.env.NODE_ENV === 'production';
 
   if (distributedStore.isConfigured()) {
-    const authorKey = `${AUTHOR_POSTS_SET_PREFIX}${authorWallet}`;
-    const postIds = await distributedStore.smembers(authorKey);
+    const authorKey = `${AUTHOR_POSTS_SET_PREFIX}${canonicalAuthor}`;
+    let postIds = await distributedStore.smembers(authorKey);
     if (!Array.isArray(postIds)) {
-      throw new PostStoreUnavailableError('Failed to read author posts index');
+      postIds = [];
     }
+
+    if (authorWallet !== canonicalAuthor) {
+      const legacyIds = await distributedStore.smembers(`${AUTHOR_POSTS_SET_PREFIX}${authorWallet}`);
+      if (Array.isArray(legacyIds) && legacyIds.length > 0) {
+        postIds = Array.from(new Set([...postIds, ...legacyIds]));
+      }
+    }
+
+    if (postIds.length === 0) return [];
 
     const postPromises = postIds.map(async (id) => {
       const postKey = `${POST_PREFIX}${id}`;
@@ -325,7 +357,7 @@ export async function getPostsByAuthorAsync(authorWallet: string): Promise<Post[
   }
 
   ensureLocalInitialized();
-  const authorSet = authorPostsCache.get(authorWallet);
+  const authorSet = authorPostsCache.get(canonicalAuthor) || authorPostsCache.get(authorWallet);
   if (!authorSet) return [];
 
   const posts: Post[] = [];

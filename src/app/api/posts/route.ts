@@ -46,7 +46,7 @@ export async function GET(req: Request) {
       );
     }
 
-    const callerWallet = sessionResult.payload.walletAddress;
+    const callerWallet = sessionResult.payload.walletAddress || sessionResult.payload.accountId;
     const friends = await getFriendsListAsync(callerWallet);
     const authorizedAuthors = new Set([callerWallet, ...friends]);
 
@@ -198,7 +198,8 @@ export async function POST(req: Request) {
     );
   }
 
-  const { walletAddress, scope } = sessionResult.payload;
+  const walletAddress = sessionResult.payload.walletAddress || sessionResult.payload.accountId;
+  const scope = sessionResult.payload.scope;
 
   const body = await req.json().catch(() => ({}));
   const content = sanitizeString(body.content || '', 2000);
@@ -251,8 +252,22 @@ export async function POST(req: Request) {
   } else if (isSensitive) {
     isShielded = true;
     shieldCategory = 'age_restricted';
+  }
 
-    // 2. Sensitive write authorization check: author must have adult eligibility AND club membership
+  // Server-Side Kill Switch: If Adult Club is disabled, reject all sensitive posts
+  if (isShielded || shieldCategory === 'age_restricted') {
+    const isClubEnabled = isAdultClubEnabled();
+    if (!isClubEnabled) {
+      return NextResponse.json(
+        {
+          error: 'Secret Adult Club is currently disabled. Sensitive content cannot be published.',
+          code: 'ADULT_CLUB_DISABLED',
+        },
+        { status: 403 }
+      );
+    }
+
+    // Sensitive write authorization check: author must have adult eligibility AND club membership
     const writeAuth = await authorizeClubWriteAsync(walletAddress);
     if (!writeAuth.authorized) {
       const code = !isAdultClubEnabled() ? 'ADULT_CLUB_DISABLED' : 'CLUB_MEMBERSHIP_REQUIRED';
@@ -263,9 +278,9 @@ export async function POST(req: Request) {
     }
   }
 
-  // Author Profile
-  let authorHandle = `user_${walletAddress.slice(0, 4).toLowerCase()}${walletAddress.slice(-4).toLowerCase()}`;
-  let authorName = `@${walletAddress.slice(0, 4)}...${walletAddress.slice(-4)}`;
+  // 2. Authoritative Profile Derivation
+  let authorHandle = sessionResult.payload.username || (walletAddress.length > 8 ? walletAddress.slice(0, 8) : walletAddress);
+  let authorName = `@${authorHandle}`;
   let authorAvatar = `https://api.dicebear.com/7.x/bottts/svg?seed=${walletAddress}`;
   let isAgeVerified = false;
   let isVerified = false;
@@ -287,7 +302,7 @@ export async function POST(req: Request) {
   const newPost: Post = {
     id: `post-${crypto.randomUUID()}`,
     author: {
-      id: `user-${walletAddress}`,
+      id: sessionResult.payload.accountId || `user-${walletAddress}`,
       handle: authorHandle,
       name: authorName,
       avatar: authorAvatar,

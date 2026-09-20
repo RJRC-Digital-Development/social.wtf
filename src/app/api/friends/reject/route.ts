@@ -15,7 +15,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const { walletAddress } = sessionResult.payload;
+    const walletAddress = sessionResult.payload.walletAddress || sessionResult.payload.accountId;
     const body = await req.json().catch(() => ({}));
     const senderWallet = body.senderWallet || body.walletAddress || body.targetWallet;
 

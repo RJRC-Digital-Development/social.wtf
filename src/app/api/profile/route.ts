@@ -21,14 +21,14 @@ export async function GET(req: Request) {
 
     // Authenticate caller via SIWS session
     const auth = await validateRequestSessionAsync(req);
-    if (!auth.authenticated || !auth.payload?.walletAddress) {
+    if (!auth.authenticated) {
       return NextResponse.json(
         { error: 'Authentication required to view profile records', code: 'AUTH_REQUIRED' },
         { status: 401 }
       );
     }
 
-    const callerWallet = auth.payload.walletAddress;
+    const callerWallet = auth.payload.walletAddress || auth.payload.accountId;
 
     let targetProfile = null;
     if (targetWallet) {
@@ -86,9 +86,8 @@ export async function POST(req: Request) {
       );
     }
 
-    // Authenticate caller via SIWS session
     const auth = await validateRequestSessionAsync(req);
-    if (!auth.authenticated || !auth.payload?.walletAddress) {
+    if (!auth.authenticated) {
       return NextResponse.json(
         { error: 'Authentication required to create or update profile space' },
         { status: 401 }
@@ -98,7 +97,7 @@ export async function POST(req: Request) {
     const body = await req.json().catch(() => ({}));
     
     // Security Rule: Never trust client-supplied walletAddress / ownerId for profile ownership
-    const authenticatedWallet = auth.payload.walletAddress;
+    const authenticatedWallet = auth.payload.walletAddress || auth.payload.accountId;
     const isAdmin = auth.payload.scope === 'admin';
 
     const result = await saveOnboardedProfileAsync(authenticatedWallet, body, isAdmin);

@@ -5,6 +5,7 @@ import type { Product } from '../../types/index.ts';
 import { sanitizePlainText, sanitizeString } from '../security/sanitize.ts';
 import { distributedStore } from '../security/distributedStore.ts';
 import { getProfileByWalletAsync, getProfileByWallet } from './profileStore.ts';
+import { resolveCanonicalIdentityAsync, isCanonicalOrBoundAsync } from './accountStore.ts';
 
 const DISTRIBUTED_PRODUCTS_SET_KEY = 'platform:products';
 const CREATOR_PRODUCTS_SET_PREFIX = 'products:creator:';
@@ -284,6 +285,14 @@ export async function saveProductAsync(
     return { success: false, error: 'Valid authenticated wallet is required' };
   }
 
+  const isBound = await isCanonicalOrBoundAsync(authenticatedWallet);
+  if (!isBound) {
+    return {
+      success: false,
+      error: 'Unbound legacy wallet cannot create new products. Account registration or migration required.',
+    };
+  }
+
   const validation = validateProductPayload(input);
   if (!validation.valid || !validation.sanitized) {
     return { success: false, error: validation.error || 'Invalid product payload' };
@@ -329,9 +338,11 @@ export async function saveProductAsync(
   // -------------------------------------------------------------
   // Path A: Production Authoritative Distributed Storage (Redis / KV)
   // -------------------------------------------------------------
+  const canonicalCreator = await resolveCanonicalIdentityAsync(authenticatedWallet);
+
   if (distributedStore.isConfigured()) {
     const productKey = `${PRODUCT_PREFIX}${productId}`;
-    const creatorSetKey = `${CREATOR_PRODUCTS_SET_PREFIX}${authenticatedWallet}`;
+    const creatorSetKey = `${CREATOR_PRODUCTS_SET_PREFIX}${canonicalCreator}`;
 
     try {
       // Step 1: Write primary product record
@@ -363,14 +374,27 @@ export async function saveProductAsync(
         };
       }
 
+      if (canonicalCreator !== authenticatedWallet) {
+        await distributedStore.sadd(`${CREATOR_PRODUCTS_SET_PREFIX}${authenticatedWallet}`, productId).catch(() => {});
+      }
+
       // Update memory cache for local read optimization
       productsCache.set(productId, canonicalProduct);
-      let creatorSet = creatorProductsCache.get(authenticatedWallet);
+      let creatorSet = creatorProductsCache.get(canonicalCreator);
       if (!creatorSet) {
         creatorSet = new Set<string>();
-        creatorProductsCache.set(authenticatedWallet, creatorSet);
+        creatorProductsCache.set(canonicalCreator, creatorSet);
       }
       creatorSet.add(productId);
+
+      if (canonicalCreator !== authenticatedWallet) {
+        let legacySet = creatorProductsCache.get(authenticatedWallet);
+        if (!legacySet) {
+          legacySet = new Set<string>();
+          creatorProductsCache.set(authenticatedWallet, legacySet);
+        }
+        legacySet.add(productId);
+      }
 
       return { success: true, product: canonicalProduct };
     } catch (err) {
@@ -406,12 +430,21 @@ export async function saveProductAsync(
     ensureLocalInitialized();
 
     productsCache.set(productId, canonicalProduct);
-    let creatorSet = creatorProductsCache.get(authenticatedWallet);
+    let creatorSet = creatorProductsCache.get(canonicalCreator);
     if (!creatorSet) {
       creatorSet = new Set<string>();
-      creatorProductsCache.set(authenticatedWallet, creatorSet);
+      creatorProductsCache.set(canonicalCreator, creatorSet);
     }
     creatorSet.add(productId);
+
+    if (canonicalCreator !== authenticatedWallet) {
+      let legacySet = creatorProductsCache.get(authenticatedWallet);
+      if (!legacySet) {
+        legacySet = new Set<string>();
+        creatorProductsCache.set(authenticatedWallet, legacySet);
+      }
+      legacySet.add(productId);
+    }
 
     saveToLocalDisk();
 
@@ -507,13 +540,21 @@ export async function getProductsByCreatorAsync(
     return { success: true, products: [] };
   }
 
+  const canonicalCreator = await resolveCanonicalIdentityAsync(creatorWallet);
+
   // -------------------------------------------------------------
   // Path A: Production Authoritative Distributed Storage
   // -------------------------------------------------------------
   if (distributedStore.isConfigured()) {
-    const creatorSetKey = `${CREATOR_PRODUCTS_SET_PREFIX}${creatorWallet}`;
+    const creatorSetKey = `${CREATOR_PRODUCTS_SET_PREFIX}${canonicalCreator}`;
     try {
-      const productIds = await distributedStore.smembers(creatorSetKey);
+      let productIds = await distributedStore.smembers(creatorSetKey);
+      if (creatorWallet !== canonicalCreator) {
+        const legacyIds = await distributedStore.smembers(`${CREATOR_PRODUCTS_SET_PREFIX}${creatorWallet}`);
+        if (Array.isArray(legacyIds) && legacyIds.length > 0) {
+          productIds = Array.from(new Set([...(Array.isArray(productIds) ? productIds : []), ...legacyIds]));
+        }
+      }
       if (!productIds || productIds.length === 0) {
         return { success: true, products: [] };
       }
@@ -577,7 +618,7 @@ export async function getProductsByCreatorAsync(
   // Path B: Local Development / Testing Fallback
   // -------------------------------------------------------------
   ensureLocalInitialized();
-  const ids = creatorProductsCache.get(creatorWallet);
+  const ids = creatorProductsCache.get(canonicalCreator) || creatorProductsCache.get(creatorWallet);
   if (!ids) {
     return { success: true, products: [] };
   }
@@ -719,4 +760,13 @@ export function getProductsByCreator(creatorWallet: string): Product[] {
     if (p) prods.push(p);
   }
   return prods;
+}
+
+export function resetProductsStore(): void {
+  productsCache.clear();
+  creatorProductsCache.clear();
+  isLocalInitialized = false;
+  if (distributedStore.isConfigured()) {
+    distributedStore.clearLocalFallback?.();
+  }
 }

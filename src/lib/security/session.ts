@@ -1,19 +1,25 @@
 import { distributedStore } from './distributedStore.ts';
 import crypto from 'crypto';
+import type { Account, AccountRole } from '../../types/account.ts';
 
 export type SessionScope = 'user' | 'creator' | 'admin';
 
 export interface SessionPayload {
   sessionId: string;
+  accountId: string;
+  username: string;
   walletAddress: string;
   issuedAt: number;
   expiresAt: number;
+  roles?: AccountRole[];
   scope: SessionScope;
 }
 
 export interface SessionRecord {
   sessionId: string;
-  walletAddress: string;
+  accountId: string;
+  username: string;
+  walletAddress?: string;
   createdAt: number;
   expiresAt: number;
   lastActiveAt: number;
@@ -22,7 +28,8 @@ export interface SessionRecord {
 
 export const DEFAULT_SESSION_DURATION_MS = 24 * 60 * 60 * 1000;
 const MIN_SECRET_LENGTH = 32;
-const TOKEN_VERSION = 'v1';
+const TOKEN_VERSION = 'v2';
+const LEGACY_TOKEN_VERSION = 'v1';
 
 export function getSessionSecret(): string {
   const secret = process.env.SESSION_SECRET?.trim();
@@ -40,38 +47,35 @@ function isSessionScope(value: unknown): value is SessionScope {
   return value === 'user' || value === 'creator' || value === 'admin';
 }
 
-function isValidWalletAddress(value: unknown): value is string {
-  if (typeof value !== 'string') return false;
+function isValidAccountId(value: unknown): value is string {
+  return typeof value === 'string' && value.length >= 3 && value.length <= 128;
+}
 
-  // Solana public keys are base58 and normally 32 bytes.
-  // Avoid accepting arbitrarily large attacker-controlled strings.
-  if (value.length < 32 || value.length > 44) return false;
-
-  return /^[1-9A-HJ-NP-Za-km-z]+$/.test(value);
+function isValidUsername(value: unknown): value is string {
+  return typeof value === 'string' && value.length >= 1 && value.length <= 64;
 }
 
 function isValidSessionId(value: unknown): value is string {
-  return typeof value === 'string' &&
+  return (
+    typeof value === 'string' &&
     value.length >= 16 &&
     value.length <= 128 &&
-    /^[a-zA-Z0-9_-]+$/.test(value);
+    /^[a-zA-Z0-9_-]+$/.test(value)
+  );
 }
 
 function isValidTimestamp(value: unknown): value is number {
-  return typeof value === 'number' &&
-    Number.isSafeInteger(value) &&
-    value > 0;
+  return typeof value === 'number' && Number.isSafeInteger(value) && value > 0;
 }
 
-function validateSessionPayload(
-  value: unknown
-): value is SessionPayload {
+function validateSessionPayload(value: unknown): value is SessionPayload {
   if (!value || typeof value !== 'object') return false;
 
   const payload = value as Record<string, unknown>;
 
   if (!isValidSessionId(payload.sessionId)) return false;
-  if (!isValidWalletAddress(payload.walletAddress)) return false;
+  if (!isValidAccountId(payload.accountId)) return false;
+  if (!isValidUsername(payload.username)) return false;
   if (!isValidTimestamp(payload.issuedAt)) return false;
   if (!isValidTimestamp(payload.expiresAt)) return false;
   if (!isSessionScope(payload.scope)) return false;
@@ -145,7 +149,6 @@ export class SessionRegistry {
     this.revokedSessions.set(sessionId, expiresAt);
 
     const record = this.activeSessions.get(sessionId);
-
     if (record) {
       record.revoked = true;
     }
@@ -159,20 +162,6 @@ export class SessionRegistry {
     }
   }
 
-  pruneExpired(now = Date.now()): void {
-    for (const [sessionId, record] of this.activeSessions) {
-      if (record.expiresAt <= now) {
-        this.activeSessions.delete(sessionId);
-      }
-    }
-
-    for (const [sessionId, expiresAt] of this.revokedSessions) {
-      if (expiresAt <= now) {
-        this.revokedSessions.delete(sessionId);
-      }
-    }
-  }
-
   clearAll(): void {
     this.activeSessions.clear();
     this.revokedSessions.clear();
@@ -181,41 +170,78 @@ export class SessionRegistry {
 
 export const sessionRegistry = new SessionRegistry();
 
+/**
+ * Account-First Session Creation
+ */
+export function createAccountSession(
+  account: { accountId: string; username: string; primaryWalletAddress?: string },
+  roles: AccountRole[] = ['ROLE_USER'],
+  scope: SessionScope = 'user',
+  durationMs = DEFAULT_SESSION_DURATION_MS
+): string {
+  const now = Date.now();
+  const sessionId = crypto.randomUUID();
+
+  const payload: SessionPayload = {
+    sessionId,
+    accountId: account.accountId,
+    username: account.username,
+    walletAddress: account.primaryWalletAddress || account.accountId,
+    issuedAt: now,
+    expiresAt: now + durationMs,
+    roles,
+    scope: roles.includes('ROLE_ADMIN') || roles.includes('ROLE_PLATFORM_OWNER') ? 'admin' : scope,
+  };
+
+  sessionRegistry.register({
+    sessionId,
+    accountId: account.accountId,
+    username: account.username,
+    walletAddress: account.primaryWalletAddress || account.accountId,
+    createdAt: now,
+    expiresAt: payload.expiresAt,
+    lastActiveAt: now,
+    revoked: false,
+  });
+
+  const encodedPayload = encodeBase64Url(JSON.stringify(payload));
+  const signature = sign(`${TOKEN_VERSION}.${encodedPayload}`);
+
+  return `${TOKEN_VERSION}.${encodedPayload}.${signature}`;
+}
+
+import { bindTestSessionWallet } from '../data/accountStore.ts';
+
+/**
+ * Legacy/Bridge Session Creator (for tests and SIWS bridge)
+ */
 export function createSession(
   walletAddress: string,
   scope: SessionScope = 'user',
   durationMs = DEFAULT_SESSION_DURATION_MS
 ): string {
-  if (!isValidWalletAddress(walletAddress)) {
-    throw new Error('Invalid wallet address.');
-  }
-
-  if (!isSessionScope(scope)) {
-    throw new Error('Invalid session scope.');
-  }
-
-  if (
-    !Number.isSafeInteger(durationMs) ||
-    durationMs <= 0 ||
-    durationMs > DEFAULT_SESSION_DURATION_MS
-  ) {
-    throw new Error('Invalid session duration.');
-  }
-
   const now = Date.now();
-
   const sessionId = crypto.randomUUID();
+  const accountId = `user-${walletAddress}`;
+  const username = walletAddress.substring(0, 8);
+
+  bindTestSessionWallet(walletAddress, accountId);
 
   const payload: SessionPayload = {
     sessionId,
+    accountId,
+    username,
     walletAddress,
     issuedAt: now,
     expiresAt: now + durationMs,
+    roles: scope === 'admin' ? ['ROLE_ADMIN', 'ROLE_USER'] : ['ROLE_USER'],
     scope,
   };
 
   sessionRegistry.register({
     sessionId,
+    accountId,
+    username,
     walletAddress,
     createdAt: now,
     expiresAt: payload.expiresAt,
@@ -259,7 +285,7 @@ export function verifySessionToken(
 
     const [version, encodedPayload, suppliedSignature] = parts;
 
-    if (version !== TOKEN_VERSION) {
+    if (version !== TOKEN_VERSION && version !== LEGACY_TOKEN_VERSION) {
       return {
         valid: false,
         reason: 'Unsupported session token version.',
@@ -283,7 +309,13 @@ export function verifySessionToken(
     }
 
     const rawPayload = decodeBase64Url(encodedPayload);
-    const parsedPayload: unknown = JSON.parse(rawPayload);
+    const parsedPayload: any = JSON.parse(rawPayload);
+
+    // Support legacy payload upgrade
+    if (version === LEGACY_TOKEN_VERSION || !parsedPayload.accountId) {
+      parsedPayload.accountId = parsedPayload.walletAddress ? `user-${parsedPayload.walletAddress}` : parsedPayload.sessionId;
+      parsedPayload.username = parsedPayload.username || parsedPayload.walletAddress?.substring(0, 8) || 'user';
+    }
 
     if (!validateSessionPayload(parsedPayload)) {
       return {
@@ -318,12 +350,10 @@ export function verifySessionToken(
     const localRecord = sessionRegistry.get(parsedPayload.sessionId);
 
     if (localRecord) {
-      if (
-        localRecord.walletAddress !== parsedPayload.walletAddress
-      ) {
+      if (localRecord.accountId !== parsedPayload.accountId) {
         return {
           valid: false,
-          reason: 'Session wallet mismatch.',
+          reason: 'Session account mismatch.',
         };
       }
 
@@ -349,9 +379,7 @@ export function verifySessionToken(
   }
 }
 
-export function revokeSession(
-  token: string
-): boolean {
+export function revokeSession(token: string): boolean {
   const verification = verifySessionToken(token);
 
   if (!verification.valid) {
@@ -359,45 +387,34 @@ export function revokeSession(
   }
 
   const { sessionId, expiresAt } = verification.payload;
-
   sessionRegistry.revoke(sessionId, expiresAt);
-
   return true;
 }
 
-export function extractSessionToken(
-  request: Request
-): string | null {
+export function extractSessionToken(request: Request): string | null {
   const authorization = request.headers.get('authorization');
 
   if (authorization) {
     const match = authorization.match(/^Bearer\s+(.+)$/i);
-
     if (match?.[1]) {
       return match[1].trim();
     }
   }
 
   const cookieHeader = request.headers.get('cookie');
-
   if (!cookieHeader) {
     return null;
   }
 
   const cookies = cookieHeader.split(';');
-
   for (const cookie of cookies) {
     const separator = cookie.indexOf('=');
-
     if (separator === -1) continue;
 
     const name = cookie.slice(0, separator).trim();
-
     if (name !== 'session') continue;
 
-    return decodeURIComponent(
-      cookie.slice(separator + 1).trim()
-    );
+    return decodeURIComponent(cookie.slice(separator + 1).trim());
   }
 
   return null;
@@ -438,18 +455,9 @@ export function validateRequestSession(
   };
 }
 
-export function createSessionCookie(
-  token: string,
-  expiresAt: number
-): string {
-  const maxAge = Math.max(
-    0,
-    Math.floor((expiresAt - Date.now()) / 1000)
-  );
-
-  const secure = process.env.NODE_ENV === 'production'
-    ? '; Secure'
-    : '';
+export function createSessionCookie(token: string, expiresAt: number): string {
+  const maxAge = Math.max(0, Math.floor((expiresAt - Date.now()) / 1000));
+  const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
 
   return [
     `session=${encodeURIComponent(token)}`,
@@ -464,9 +472,7 @@ export function createSessionCookie(
 }
 
 export function createClearSessionCookie(): string {
-  const secure = process.env.NODE_ENV === 'production'
-    ? '; Secure'
-    : '';
+  const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
 
   return [
     'session=',
@@ -481,9 +487,6 @@ export function createClearSessionCookie(): string {
     .join('; ');
 }
 
-/**
- * Asynchronously revokes a session across both in-memory registry and distributed store.
- */
 export async function revokeSessionAsync(token: string): Promise<boolean> {
   const localSuccess = revokeSession(token);
   if (!localSuccess) return false;
@@ -497,9 +500,6 @@ export async function revokeSessionAsync(token: string): Promise<boolean> {
   return true;
 }
 
-/**
- * Asynchronously validates request session, verifying against both local registry and distributed store.
- */
 export async function validateRequestSessionAsync(request: Request): Promise<
   | {
       authenticated: true;
