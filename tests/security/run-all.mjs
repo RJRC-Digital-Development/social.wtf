@@ -22,6 +22,7 @@ const testFiles = [
   'identity-separation.test.mjs',
   'fresh-wallet-access.test.mjs',
   'profile-persistence.test.mjs',
+  'product-persistence.test.mjs',
 ];
 
 let totalPassed = 0;

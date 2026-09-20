@@ -32,7 +32,7 @@ export const Storefront: React.FC<StorefrontProps> = ({
   onAddProduct,
   onPurchaseCompleted,
 }) => {
-  const { connected, connect, signAndSendTransaction, cookBalance, walletAddress } = useWallet();
+  const { connected, connect, signAndSendTransaction, cookBalance, walletAddress, sessionToken, isAuthenticated } = useWallet();
 
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [purchasedProductIds, setPurchasedProductIds] = useState<string[]>([]);
@@ -56,6 +56,8 @@ export const Storefront: React.FC<StorefrontProps> = ({
   const [newPrice, setNewPrice] = useState<number>(5.0);
   const [newCategory, setNewCategory] = useState<Product['category']>('digital_art');
   const [newFormat, setNewFormat] = useState('ZIP (.blend, .png)');
+  const [isPublishing, setIsPublishing] = useState(false);
+  const [publishError, setPublishError] = useState('');
 
   const filteredProducts = products.filter((p) => {
     if (creatorHandle && p.creatorHandle !== creatorHandle) return false;
@@ -105,43 +107,66 @@ export const Storefront: React.FC<StorefrontProps> = ({
     }
   };
 
-  const handleCreateProduct = (e: React.FormEvent) => {
+  const handleCreateProduct = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newTitle.trim()) return;
+    setPublishError('');
 
-    if (!connected || !walletAddress) {
-      alert('Please connect your wallet to create and sell digital products.');
+    if (!newTitle.trim()) {
+      setPublishError('Product title is required.');
       return;
     }
 
-    const activeWallet = walletAddress;
-    const activeHandle = creatorHandle || `user_${walletAddress.slice(0, 4).toLowerCase()}${walletAddress.slice(-4).toLowerCase()}`;
-    const activeName = `@${walletAddress.slice(0, 4)}...${walletAddress.slice(-4)}`;
-
-    const newProd: Product = {
-      id: `prod-${Date.now()}`,
-      creatorId: activeHandle,
-      creatorHandle: activeHandle,
-      creatorName: activeName,
-      creatorWallet: activeWallet,
-      title: newTitle.trim(),
-      description: newDesc.trim() || 'Exclusive creator digital item.',
-      priceCook: Number(newPrice),
-      category: newCategory,
-      previewUrl:
-        'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80',
-      salesCount: 0,
-      fileSize: '24.5 MB',
-      fileFormat: newFormat,
-      featured: true,
-    };
-
-    if (onAddProduct) {
-      onAddProduct(newProd);
+    if (!connected || !walletAddress) {
+      setPublishError('Please connect your wallet to create and sell digital products.');
+      return;
     }
-    setShowAddModal(false);
-    setNewTitle('');
-    setNewDesc('');
+
+    if (!isAuthenticated || !sessionToken) {
+      setPublishError('Please complete wallet authentication (SIWS) before listing products.');
+      return;
+    }
+
+    setIsPublishing(true);
+
+    try {
+      const res = await fetch('/api/products', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${sessionToken}`,
+        },
+        body: JSON.stringify({
+          title: newTitle.trim(),
+          description: newDesc.trim() || 'Exclusive creator digital item.',
+          priceCook: Number(newPrice),
+          category: newCategory,
+          fileFormat: newFormat,
+        }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (res.status === 201 && data?.success && data?.product) {
+        if (onAddProduct) {
+          onAddProduct(data.product);
+        }
+        setShowAddModal(false);
+        setNewTitle('');
+        setNewDesc('');
+        setPublishError('');
+      } else if (res.status === 401) {
+        setPublishError('Session expired or unauthorized. Please re-authenticate your wallet.');
+      } else if (res.status === 503) {
+        setPublishError(data?.error || 'Authoritative product store is temporarily unavailable. Please retry.');
+      } else {
+        setPublishError(data?.error || 'Failed to publish product. Please check your inputs.');
+      }
+    } catch (err: any) {
+      console.error('[Storefront] Product publication failure:', err);
+      setPublishError('Network error connecting to product catalog service. Please retry.');
+    } finally {
+      setIsPublishing(false);
+    }
   };
 
   const split = selectedProduct ? calculateFeeSplit(selectedProduct.priceCook) : null;
@@ -380,6 +405,12 @@ export const Storefront: React.FC<StorefrontProps> = ({
             </div>
 
             <form onSubmit={handleCreateProduct} className="space-y-3.5 text-xs">
+              {publishError && (
+                <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs font-semibold leading-relaxed animate-fade-in">
+                  {publishError}
+                </div>
+              )}
+
               <div>
                 <label className="block text-slate-600 dark:text-slate-400 mb-1">Product Title</label>
                 <input
@@ -412,11 +443,11 @@ export const Storefront: React.FC<StorefrontProps> = ({
                   <label className="block text-slate-600 dark:text-slate-400 mb-1">Price (in $COOK)</label>
                   <input
                     type="number"
-                    min="0.1"
+                    min="0"
                     step="0.5"
                     required
                     value={newPrice}
-                    onChange={(e) => setNewPrice(parseFloat(e.target.value) || 0.1)}
+                    onChange={(e) => setNewPrice(parseFloat(e.target.value) || 0)}
                     className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-slate-900 dark:text-slate-200 font-mono focus:outline-none focus:border-amber-500"
                   />
                 </div>
@@ -448,9 +479,14 @@ export const Storefront: React.FC<StorefrontProps> = ({
 
               <button
                 type="submit"
-                className="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition-all shadow-md shadow-amber-500/20"
+                disabled={isPublishing}
+                className={`w-full py-2.5 rounded-xl font-bold text-xs transition-all shadow-md ${
+                  isPublishing
+                    ? 'bg-amber-500/50 text-slate-700 cursor-not-allowed'
+                    : 'bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-amber-500/20'
+                }`}
               >
-                Publish to Creator Storefront
+                {isPublishing ? 'Publishing to Authoritative Catalog...' : 'Publish to Creator Storefront'}
               </button>
             </form>
           </div>

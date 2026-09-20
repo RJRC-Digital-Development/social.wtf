@@ -104,7 +104,7 @@ export default function Home() {
   const [ecosystemModalOpen, setEcosystemModalOpen] = useState(false);
   const [ecosystemTab, setEcosystemTab] = useState<'bridge' | 'cookieswap' | 'cookiebox' | 'das' | 'mcp'>('bridge');
   const { isAgeVerified, isVideoVerified, isIdVerified, isCardVerified, isAdultContentUnlocked, canAccessAdultContent, unshieldedMode } = useShield();
-  const { connected, walletAddress, sessionToken } = useWallet();
+  const { connected, walletAddress, sessionToken, isAuthenticated } = useWallet();
 
   // Load saved profile & handle deep linking from URL
   useEffect(() => {
@@ -180,6 +180,30 @@ export default function Home() {
           .catch(() => {});
       }
     }
+  }, []);
+
+  // Hydrate authoritative product catalog from /api/products on mount
+  useEffect(() => {
+    let isMounted = true;
+    fetch('/api/products')
+      .then(async (res) => {
+        if (!isMounted) return;
+        if (res.status === 200) {
+          const data = await res.json();
+          if (data?.success && Array.isArray(data.products)) {
+            setProducts(data.products);
+          }
+        } else {
+          console.warn('[Page] Authoritative product catalog unavailable (status:', res.status, ')');
+        }
+      })
+      .catch((err) => {
+        console.warn('[Page] Network failure fetching product catalog:', err);
+      });
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   // Sync wallet address with authoritative server profile space when connected & authenticated
@@ -279,12 +303,18 @@ export default function Home() {
   };
 
   const handleProductPurchased = (product: Product, txSig: string) => {
+    // Production Authenticity Invariant: Never manufacture synthetic addresses or fake receipts
+    if (!product || !product.creatorWallet || !walletAddress || !txSig || typeof txSig !== 'string' || !txSig.trim()) {
+      console.warn('[Storefront] Cannot record purchase transaction: missing required wallet or transaction signature');
+      return;
+    }
+
     const split = calculateFeeSplit(product.priceCook, 500);
     const newTx: TransactionRecord = {
       id: `tx-prod-${Date.now()}`,
-      signature: txSig,
-      fromAddress: walletAddress || 'CookYourWallet11111111111111111111111111',
-      toAddress: product.creatorWallet || 'CookCreator11111111111111111111111111',
+      signature: txSig.trim(),
+      fromAddress: walletAddress,
+      toAddress: product.creatorWallet,
       treasuryAddress: 'HMnySuX1CdBfqysiLtU4brPawufcHxFTFZu97jrKQwT9',
       totalAmountCook: product.priceCook,
       creatorAmountCook: split.creatorAmount,
@@ -315,7 +345,10 @@ export default function Home() {
   };
 
   const handleAddProduct = (newProd: Product) => {
-    setProducts([newProd, ...products]);
+    setProducts((prev) => {
+      if (prev.some((p) => p.id === newProd.id)) return prev;
+      return [newProd, ...prev];
+    });
   };
 
   const handleOpenStore = (creatorHandle: string) => {
