@@ -63,6 +63,8 @@ export const Feed: React.FC<FeedProps> = ({
     reason: string;
   } | null>(null);
 
+  const [connectError, setConnectError] = useState<string | null>(null);
+
   // Apply invisible shielding filter
   const visiblePosts = filterFeedPosts(posts);
 
@@ -110,12 +112,18 @@ export const Feed: React.FC<FeedProps> = ({
     }
   };
 
-  const handleCreatePost = (e: React.FormEvent) => {
+  const handleCreatePost = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!content.trim()) return;
 
     if (!connected || !walletAddress) {
-      connect();
+      try {
+        setConnectError(null);
+        await connect();
+      } catch (err: any) {
+        console.warn('Feed wallet connect error:', err?.message || err);
+        setConnectError(err?.message || 'Failed to connect wallet');
+      }
       return;
     }
 
@@ -352,7 +360,15 @@ export const Feed: React.FC<FeedProps> = ({
             {!connected || !walletAddress ? (
               <button
                 type="button"
-                onClick={() => connect()}
+                onClick={async () => {
+                  try {
+                    setConnectError(null);
+                    await connect();
+                  } catch (err: any) {
+                    console.warn('Feed wallet connect click error:', err?.message || err);
+                    setConnectError(err?.message || 'Failed to connect wallet');
+                  }
+                }}
                 className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-500 text-slate-950 font-bold text-xs hover:brightness-110 active:scale-95 transition-all shadow-md shadow-amber-500/20"
               >
                 <LogIn className="w-3.5 h-3.5" />
@@ -369,6 +385,18 @@ export const Feed: React.FC<FeedProps> = ({
               </button>
             )}
           </div>
+          {connectError && (
+            <div className="mt-3 p-2.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-xs flex items-center justify-between">
+              <span>{connectError}</span>
+              <button
+                type="button"
+                onClick={() => setConnectError(null)}
+                className="text-red-400 hover:text-red-300 font-bold text-xs ml-2"
+              >
+                Dismiss
+              </button>
+            </div>
+          )}
         </form>
       </div>
 

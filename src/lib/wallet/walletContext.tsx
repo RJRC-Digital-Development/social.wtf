@@ -18,18 +18,35 @@ import {
 export function getTrustWalletProvider() {
   if (typeof window === 'undefined') return null;
   const win = window as any;
-  if (win.trustwallet?.solana) return win.trustwallet.solana;
-  if (win.trustWallet?.solana) return win.trustWallet.solana;
-  if (win.trustwallet && typeof win.trustwallet.signMessage === 'function') return win.trustwallet;
-  if (win.solana?.isTrust) return win.solana;
+  const provider = win.trustwallet?.solana || win.trustWallet?.solana;
+  if (
+    provider &&
+    typeof provider.connect === 'function' &&
+    typeof provider.signMessage === 'function'
+  ) {
+    return provider;
+  }
+  if (
+    win.solana?.isTrust &&
+    typeof win.solana.connect === 'function' &&
+    typeof win.solana.signMessage === 'function'
+  ) {
+    return win.solana;
+  }
   return null;
 }
 
 export function getNightlyProvider() {
   if (typeof window === 'undefined') return null;
   const win = window as any;
-  if (win.nightly?.solana) return win.nightly.solana;
-  if (win.nightly && typeof win.nightly.connect === 'function') return win.nightly;
+  const provider = win.nightly?.solana || (win.nightly?.connect ? win.nightly : null);
+  if (
+    provider &&
+    typeof provider.connect === 'function' &&
+    typeof provider.signMessage === 'function'
+  ) {
+    return provider;
+  }
   return null;
 }
 
@@ -40,6 +57,32 @@ export function getSolanaProvider() {
   if (win.solana && !win.solana.isTrust) return win.solana;
   if (win.solana) return win.solana;
   return null;
+}
+
+export function classifyWalletError(providerErr: any, walletName: string): Error {
+  const msg = providerErr?.message || (typeof providerErr === 'string' ? providerErr : '');
+  const code = providerErr?.code;
+
+  if (
+    code === 4001 ||
+    /user rejected|user canceled|cancelled|rejected by user/i.test(msg)
+  ) {
+    return new Error(`${walletName} connection request was rejected.`);
+  }
+
+  if (
+    /broadcast channel|channel closed|disconnected port|port closed|extension context invalidated/i.test(msg)
+  ) {
+    return new Error(
+      `${walletName} lost communication with this page. Reopen or unlock ${walletName}, then try Connect again.`
+    );
+  }
+
+  if (/not found|not detected|missing provider/i.test(msg)) {
+    return new Error(`${walletName} was not detected. Please install or enable the extension.`);
+  }
+
+  return new Error(msg || `Failed to connect to ${walletName}.`);
 }
 
 export interface WalletContextType {
@@ -185,146 +228,294 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   }, [connected, publicKey, refreshBalance]);
 
+  // Local session invalidation helper (fails closed immediately)
+  const invalidateAuthSessionLocally = useCallback(() => {
+    setIsAuthenticated(false);
+    setSessionToken(null);
+    setSessionScope(null);
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(SESSION_TOKEN_STORAGE_KEY);
+    }
+  }, []);
+
+  // Local wallet state reset helper
+  const clearWalletState = useCallback(() => {
+    setConnected(false);
+    setWalletAddress(null);
+    setPublicKey(null);
+    setCookBalance(0);
+    setWalletType(null);
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(WALLET_CONNECTED_KEY);
+    }
+  }, []);
+
+  // Revoke session (logout) - calls API and always clears local auth state
+  const logoutSession = useCallback(async () => {
+    try {
+      const storedToken =
+        sessionToken ||
+        (typeof window !== 'undefined'
+          ? localStorage.getItem(SESSION_TOKEN_STORAGE_KEY)
+          : null);
+      if (storedToken) {
+        await fetch('/api/auth/session', {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${storedToken}` },
+        });
+      }
+    } catch (err) {
+      console.warn('Error during session logout:', err);
+    } finally {
+      invalidateAuthSessionLocally();
+    }
+  }, [sessionToken, invalidateAuthSessionLocally]);
+
+  // Full disconnect (clears auth session and wallet state)
+  const disconnect = useCallback(async () => {
+    await logoutSession();
+    clearWalletState();
+  }, [logoutSession, clearWalletState]);
+
+  // Manage provider event listeners (account change, disconnect)
+  useEffect(() => {
+    if (!connected || !walletType || walletType === 'demo' || typeof window === 'undefined') {
+      return;
+    }
+
+    let activeProvider: any = null;
+    if (walletType === 'trust') activeProvider = getTrustWalletProvider();
+    else if (walletType === 'nightly') activeProvider = getNightlyProvider();
+    else if (walletType === 'solana') activeProvider = getSolanaProvider();
+
+    if (!activeProvider) return;
+
+    const handleAccountChanged = (newAccount: any) => {
+      if (!newAccount) {
+        disconnect();
+        return;
+      }
+
+      const newKeyCandidate =
+        typeof newAccount === 'string'
+          ? newAccount
+          : newAccount?.publicKey?.toString() || newAccount?.toString?.();
+
+      if (!newKeyCandidate || newKeyCandidate === '[object Object]') {
+        disconnect();
+        return;
+      }
+
+      try {
+        const validatedPk = new PublicKey(newKeyCandidate);
+        const validatedStr = validatedPk.toBase58();
+
+        if (validatedStr === walletAddress) {
+          return;
+        }
+
+        // Invariant: Account changed from Wallet A to Wallet B
+        // 1. Immediately invalidate Wallet A's authenticated session
+        invalidateAuthSessionLocally();
+
+        // 2. Adopt new wallet address, but require fresh SIWS (isAuthenticated = false)
+        setPublicKey(validatedPk);
+        setWalletAddress(validatedStr);
+      } catch {
+        disconnect();
+      }
+    };
+
+    const handleDisconnect = () => {
+      disconnect();
+    };
+
+    const hasOn = typeof activeProvider.on === 'function';
+    const hasRemoveListener = typeof activeProvider.removeListener === 'function';
+    const hasOff = typeof activeProvider.off === 'function';
+
+    if (hasOn) {
+      try {
+        activeProvider.on('accountChanged', handleAccountChanged);
+        activeProvider.on('disconnect', handleDisconnect);
+      } catch (e) {
+        console.warn('Failed to attach wallet event listeners:', e);
+      }
+    }
+
+    return () => {
+      if (activeProvider) {
+        try {
+          if (hasRemoveListener) {
+            activeProvider.removeListener('accountChanged', handleAccountChanged);
+            activeProvider.removeListener('disconnect', handleDisconnect);
+          } else if (hasOff) {
+            activeProvider.off('accountChanged', handleAccountChanged);
+            activeProvider.off('disconnect', handleDisconnect);
+          }
+        } catch (e) {
+          console.warn('Failed to remove wallet event listeners:', e);
+        }
+      }
+    };
+  }, [connected, walletType, walletAddress, disconnect, invalidateAuthSessionLocally]);
+
   // Connect handler supporting Trust Wallet, Nightly, general Solana, and Demo Web3 wallet
   const connect = async (type: 'trust' | 'nightly' | 'solana' | 'demo' = 'trust') => {
     setConnecting(true);
     try {
       if (typeof window === 'undefined') return;
 
-      const trust = getTrustWalletProvider();
-      const nightly = (window as any)?.nightly?.solana || (window as any)?.nightly;
-      const solana = (window as any)?.solana;
-
       if (type === 'trust') {
         const trust = getTrustWalletProvider();
-        if (trust) {
-          try {
-            const resp = await trust.connect();
-            const pubkeyStr = resp?.publicKey?.toString() || trust.publicKey?.toString() || trust.account?.address?.toString();
-            if (pubkeyStr) {
-              const pk = new PublicKey(pubkeyStr);
-              setPublicKey(pk);
-              setWalletAddress(pubkeyStr);
-              setWalletType('trust');
-              setConnected(true);
-              localStorage.setItem(WALLET_CONNECTED_KEY, 'trust');
-              return;
-            }
-          } catch (providerErr: any) {
-            const fallbackKey = trust.publicKey?.toString() || trust.account?.address?.toString();
-            if (fallbackKey) {
-              const pk = new PublicKey(fallbackKey);
-              setPublicKey(pk);
-              setWalletAddress(fallbackKey);
-              setWalletType('trust');
-              setConnected(true);
-              localStorage.setItem(WALLET_CONNECTED_KEY, 'trust');
-              return;
-            }
-            if (providerErr?.message?.includes('Broadcast channel')) {
-              throw new Error('Trust Wallet communication lost. Please reload the page or re-open Trust Wallet.');
-            }
-            throw new Error(providerErr?.message || 'Failed to connect to Trust Wallet.');
-          }
-        } else {
+        if (!trust) {
           if (typeof window !== 'undefined') {
             window.open('https://trustwallet.com/browser-extension', '_blank');
           }
           throw new Error('Trust Wallet not detected. Please install Trust Wallet or open in Trust Wallet App.');
         }
+
+        try {
+          const resp = await trust.connect();
+          const pubkeyCandidate =
+            resp?.publicKey?.toString() ||
+            trust.publicKey?.toString() ||
+            trust.account?.address?.toString();
+
+          if (!pubkeyCandidate || typeof pubkeyCandidate !== 'string') {
+            throw new Error('Trust Wallet did not return a valid account address.');
+          }
+
+          let pk: PublicKey;
+          try {
+            pk = new PublicKey(pubkeyCandidate);
+          } catch {
+            throw new Error('Trust Wallet returned an invalid Solana public key.');
+          }
+
+          const pubkeyStr = pk.toBase58();
+
+          if (walletAddress && walletAddress !== pubkeyStr) {
+            invalidateAuthSessionLocally();
+          }
+
+          setPublicKey(pk);
+          setWalletAddress(pubkeyStr);
+          setWalletType('trust');
+          setConnected(true);
+          localStorage.setItem(WALLET_CONNECTED_KEY, 'trust');
+          return;
+        } catch (providerErr: any) {
+          clearWalletState();
+          invalidateAuthSessionLocally();
+          throw classifyWalletError(providerErr, 'Trust Wallet');
+        }
       } else if (type === 'nightly') {
         const nightly = getNightlyProvider();
-        if (nightly) {
-          try {
-            const resp = await nightly.connect();
-            const pubkeyStr = resp?.publicKey?.toString() || nightly.publicKey?.toString();
-            if (pubkeyStr) {
-              const pk = new PublicKey(pubkeyStr);
-              setPublicKey(pk);
-              setWalletAddress(pubkeyStr);
-              setWalletType('nightly');
-              setConnected(true);
-              localStorage.setItem(WALLET_CONNECTED_KEY, 'nightly');
-              return;
-            }
-          } catch (providerErr: any) {
-            const fallbackKey = nightly.publicKey?.toString();
-            if (fallbackKey) {
-              const pk = new PublicKey(fallbackKey);
-              setPublicKey(pk);
-              setWalletAddress(fallbackKey);
-              setWalletType('nightly');
-              setConnected(true);
-              localStorage.setItem(WALLET_CONNECTED_KEY, 'nightly');
-              return;
-            }
-            throw new Error(providerErr?.message || 'Failed to connect to Nightly Wallet.');
-          }
-        } else {
+        if (!nightly) {
           if (typeof window !== 'undefined') {
             window.open('https://nightly.app/', '_blank');
           }
           throw new Error('Nightly Wallet not detected. Please install Nightly Wallet.');
         }
+
+        try {
+          const resp = await nightly.connect();
+          const pubkeyCandidate = resp?.publicKey?.toString() || nightly.publicKey?.toString();
+
+          if (!pubkeyCandidate || typeof pubkeyCandidate !== 'string') {
+            throw new Error('Nightly Wallet did not return a valid account address.');
+          }
+
+          let pk: PublicKey;
+          try {
+            pk = new PublicKey(pubkeyCandidate);
+          } catch {
+            throw new Error('Nightly Wallet returned an invalid Solana public key.');
+          }
+
+          const pubkeyStr = pk.toBase58();
+
+          if (walletAddress && walletAddress !== pubkeyStr) {
+            invalidateAuthSessionLocally();
+          }
+
+          setPublicKey(pk);
+          setWalletAddress(pubkeyStr);
+          setWalletType('nightly');
+          setConnected(true);
+          localStorage.setItem(WALLET_CONNECTED_KEY, 'nightly');
+          return;
+        } catch (providerErr: any) {
+          clearWalletState();
+          invalidateAuthSessionLocally();
+          throw classifyWalletError(providerErr, 'Nightly Wallet');
+        }
       } else if (type === 'solana') {
         const solana = getSolanaProvider();
-        if (solana) {
-          try {
-            const resp = await solana.connect();
-            const pubkeyStr = resp?.publicKey?.toString() || solana.publicKey?.toString();
-            if (pubkeyStr) {
-              const pk = new PublicKey(pubkeyStr);
-              setPublicKey(pk);
-              setWalletAddress(pubkeyStr);
-              setWalletType('solana');
-              setConnected(true);
-              localStorage.setItem(WALLET_CONNECTED_KEY, 'solana');
-              return;
-            }
-          } catch (providerErr: any) {
-            const fallbackKey = solana.publicKey?.toString();
-            if (fallbackKey) {
-              const pk = new PublicKey(fallbackKey);
-              setPublicKey(pk);
-              setWalletAddress(fallbackKey);
-              setWalletType('solana');
-              setConnected(true);
-              localStorage.setItem(WALLET_CONNECTED_KEY, 'solana');
-              return;
-            }
-            if (providerErr?.message?.includes('Broadcast channel')) {
-              throw new Error('Wallet communication unavailable. Please reload the page or unlock your wallet extension.');
-            }
-            throw new Error(providerErr?.message || 'Failed to connect to Solana wallet extension.');
-          }
-        } else {
+        if (!solana) {
           if (typeof window !== 'undefined') {
             window.open('https://phantom.app/', '_blank');
           }
           throw new Error('No Solana wallet detected. Please install Phantom or Nightly.');
         }
+
+        try {
+          const resp = await solana.connect();
+          const pubkeyCandidate = resp?.publicKey?.toString() || solana.publicKey?.toString();
+
+          if (!pubkeyCandidate || typeof pubkeyCandidate !== 'string') {
+            throw new Error('Solana wallet did not return a valid account address.');
+          }
+
+          let pk: PublicKey;
+          try {
+            pk = new PublicKey(pubkeyCandidate);
+          } catch {
+            throw new Error('Solana wallet returned an invalid Solana public key.');
+          }
+
+          const pubkeyStr = pk.toBase58();
+
+          if (walletAddress && walletAddress !== pubkeyStr) {
+            invalidateAuthSessionLocally();
+          }
+
+          setPublicKey(pk);
+          setWalletAddress(pubkeyStr);
+          setWalletType('solana');
+          setConnected(true);
+          localStorage.setItem(WALLET_CONNECTED_KEY, 'solana');
+          return;
+        } catch (providerErr: any) {
+          clearWalletState();
+          invalidateAuthSessionLocally();
+          throw classifyWalletError(providerErr, 'Solana Wallet');
+        }
+      } else if (type === 'demo') {
+        let storedDemo = localStorage.getItem(DEMO_WALLET_STORAGE_KEY);
+        let storedSecret = localStorage.getItem(DEMO_WALLET_SECRET_KEY);
+
+        if (!storedDemo || !storedSecret) {
+          const kp = Keypair.generate();
+          storedDemo = kp.publicKey.toBase58();
+          storedSecret = JSON.stringify(Array.from(kp.secretKey));
+          localStorage.setItem(DEMO_WALLET_STORAGE_KEY, storedDemo);
+          localStorage.setItem(DEMO_WALLET_SECRET_KEY, storedSecret);
+          localStorage.setItem('social_wtf_demo_balance', '88.50');
+        }
+
+        const pk = new PublicKey(storedDemo);
+        if (walletAddress && walletAddress !== storedDemo) {
+          invalidateAuthSessionLocally();
+        }
+        setWalletAddress(storedDemo);
+        setPublicKey(pk);
+        setWalletType('demo');
+        setCookBalance(parseFloat(localStorage.getItem('social_wtf_demo_balance') || '88.50'));
+        setConnected(true);
+        localStorage.setItem(WALLET_CONNECTED_KEY, 'demo');
       }
-
-      // Demo/Instant Web3 Cookie Chain Wallet (deterministic Keypair)
-      let storedDemo = localStorage.getItem(DEMO_WALLET_STORAGE_KEY);
-      let storedSecret = localStorage.getItem(DEMO_WALLET_SECRET_KEY);
-
-      if (!storedDemo || !storedSecret) {
-        const kp = Keypair.generate();
-        storedDemo = kp.publicKey.toBase58();
-        storedSecret = JSON.stringify(Array.from(kp.secretKey));
-        localStorage.setItem(DEMO_WALLET_STORAGE_KEY, storedDemo);
-        localStorage.setItem(DEMO_WALLET_SECRET_KEY, storedSecret);
-        localStorage.setItem('social_wtf_demo_balance', '88.50');
-      }
-
-      const pk = new PublicKey(storedDemo);
-      setWalletAddress(storedDemo);
-      setPublicKey(pk);
-      setWalletType('demo');
-      setCookBalance(parseFloat(localStorage.getItem('social_wtf_demo_balance') || '88.50'));
-      setConnected(true);
-      localStorage.setItem(WALLET_CONNECTED_KEY, 'demo');
     } catch (err: any) {
       console.error('Wallet connection error:', err);
       throw err;
@@ -422,35 +613,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
     } finally {
       setAuthenticating(false);
     }
-  }, [walletAddress, publicKey, walletType]);
-
-  // Revoke session (logout)
-  const logoutSession = useCallback(async () => {
-    try {
-      const storedToken = sessionToken || localStorage.getItem(SESSION_TOKEN_STORAGE_KEY);
-      await fetch('/api/auth/session', {
-        method: 'DELETE',
-        headers: storedToken ? { Authorization: `Bearer ${storedToken}` } : {},
-      });
-    } catch (err) {
-      console.warn('Error during session logout:', err);
-    } finally {
-      setSessionToken(null);
-      setSessionScope(null);
-      setIsAuthenticated(false);
-      localStorage.removeItem(SESSION_TOKEN_STORAGE_KEY);
-    }
-  }, [sessionToken]);
-
-  const disconnect = useCallback(async () => {
-    await logoutSession();
-    setConnected(false);
-    setWalletAddress(null);
-    setPublicKey(null);
-    setCookBalance(0);
-    setWalletType(null);
-    localStorage.removeItem(WALLET_CONNECTED_KEY);
-  }, [logoutSession]);
+  }, [walletAddress, publicKey, walletType, invalidateAuthSessionLocally]);
 
   // Sign and send transaction to Cookie Chain RPC
   const signAndSendTransaction = async (tx: any): Promise<string> => {

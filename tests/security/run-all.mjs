@@ -23,6 +23,7 @@ const testFiles = [
   'fresh-wallet-access.test.mjs',
   'profile-persistence.test.mjs',
   'product-persistence.test.mjs',
+  'wallet-connection-resilience.test.mjs',
 ];
 
 let totalPassed = 0;
