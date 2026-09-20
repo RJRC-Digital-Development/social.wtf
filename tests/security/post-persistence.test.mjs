@@ -49,6 +49,11 @@ import {
   verifySessionToken,
 } from '../../src/lib/security/session.ts';
 import { distributedStore } from '../../src/lib/security/distributedStore.ts';
+import {
+  saveOnboardedProfileAsync,
+  resetProfileStore,
+  setAuthoritativeProfileForTests,
+} from '../../src/lib/data/profileStore.ts';
 import { GET, POST } from '../../src/app/api/posts/route.ts';
 
 let reqIpCounter = 1;
@@ -778,8 +783,144 @@ async function runTests() {
     console.log('  PASS: Full lifecycle genuine POST -> genuine GET verified across route exports.\n');
   }
 
+  // Test 25: Ordinary Authenticated Profile with verified=false Creates Post -> post.author.verified === false
+  console.log('[TEST 25] Ordinary Profile (verified=false) Post Creation -> verified === false');
+  {
+    const unverifiedKp = Keypair.generate();
+    const unverifiedWallet = unverifiedKp.publicKey.toBase58();
+    const unverifiedToken = createSession(unverifiedWallet, 'user');
+
+    await saveOnboardedProfileAsync(unverifiedWallet, {
+      handle: 'unverified_user',
+      name: 'Unverified User',
+      bio: 'Regular member',
+    });
+
+    const req = createMockRequest('http://localhost:3000/api/posts', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${unverifiedToken}` },
+      body: { content: 'Post by unverified member #unverified' },
+    });
+
+    const res = await POST(req);
+    assert.strictEqual(res.status, 201);
+    const { post } = await res.json();
+    assert.strictEqual(post.author.verified, false, 'Author verified must be false for ordinary profile');
+    console.log('  PASS: Ordinary member post correctly has verified=false.\n');
+  }
+
+  // Test 26: Authoritative Profile with verified=true Creates Post -> post.author.verified === true
+  console.log('[TEST 26] Authoritative Profile (verified=true) Post Creation -> verified === true');
+  {
+    const verifiedKp = Keypair.generate();
+    const verifiedWallet = verifiedKp.publicKey.toBase58();
+    const verifiedToken = createSession(verifiedWallet, 'user');
+
+    // Persist an authoritative profile with verified=true directly in authoritative store
+    setAuthoritativeProfileForTests({
+      id: `user-${verifiedWallet}`,
+      handle: 'verified_official',
+      name: 'Verified Official',
+      bio: 'Official representative',
+      walletAddress: verifiedWallet,
+      verified: true,
+      ageVerified: false,
+      isCreator: false,
+      followersCount: 0,
+      followingCount: 0,
+      createdAt: new Date().toISOString(),
+    });
+
+    const req = createMockRequest('http://localhost:3000/api/posts', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${verifiedToken}` },
+      body: { content: 'Post by verified official #verified' },
+    });
+
+    const res = await POST(req);
+    assert.strictEqual(res.status, 201);
+    const { post } = await res.json();
+    assert.strictEqual(post.author.verified, true, 'Author verified must be true for authoritative verified profile');
+    console.log('  PASS: Authoritative verified profile post correctly has verified=true.\n');
+  }
+
+  // Test 27: Request Body Containing verified:true Cannot Change False Verification
+  console.log('[TEST 27] Client Injection of verified:true Cannot Manufacture Verification');
+  {
+    const attackerKp = Keypair.generate();
+    const attackerWallet = attackerKp.publicKey.toBase58();
+    const attackerToken = createSession(attackerWallet, 'user');
+
+    await saveOnboardedProfileAsync(attackerWallet, {
+      handle: 'spoof_tester',
+      name: 'Spoof Tester',
+      bio: 'Attacker attempting verification injection',
+    });
+
+    const req = createMockRequest('http://localhost:3000/api/posts', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${attackerToken}` },
+      body: {
+        content: 'Attacker attempting to inject verified:true',
+        verified: true,
+        author: {
+          verified: true,
+          walletAddress: attackerWallet,
+        },
+      },
+    });
+
+    const res = await POST(req);
+    assert.strictEqual(res.status, 201);
+    const { post } = await res.json();
+    assert.strictEqual(post.author.verified, false, 'Client-supplied verified:true must be ignored');
+    console.log('  PASS: Client injection of verified:true safely ignored by server.\n');
+  }
+
+  // Test 28: Fresh Wallet / No Authoritative Verified Profile -> verified === false
+  console.log('[TEST 28] Fresh Wallet Without Profile Post Creation -> verified === false');
+  {
+    const freshKp = Keypair.generate();
+    const freshWallet = freshKp.publicKey.toBase58();
+    const freshToken = createSession(freshWallet, 'user');
+
+    const req = createMockRequest('http://localhost:3000/api/posts', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${freshToken}` },
+      body: { content: 'Post by brand new fresh wallet #fresh' },
+    });
+
+    const res = await POST(req);
+    assert.strictEqual(res.status, 201);
+    const { post } = await res.json();
+    assert.strictEqual(post.author.verified, false, 'Fresh wallet must have verified=false');
+    console.log('  PASS: Fresh wallet post has verified=false by default.\n');
+  }
+
+  // Test 29: SIWS Authentication Alone Never Produces verified=true (user, creator, admin scopes)
+  console.log('[TEST 29] SIWS Authentication Scopes Alone Never Manufacture verified=true');
+  {
+    for (const testScope of ['user', 'creator', 'admin']) {
+      const scopeKp = Keypair.generate();
+      const scopeWallet = scopeKp.publicKey.toBase58();
+      const scopeToken = createSession(scopeWallet, testScope);
+
+      const req = createMockRequest('http://localhost:3000/api/posts', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${scopeToken}` },
+        body: { content: `Post with SIWS scope ${testScope}` },
+      });
+
+      const res = await POST(req);
+      assert.strictEqual(res.status, 201);
+      const { post } = await res.json();
+      assert.strictEqual(post.author.verified, false, `Scope ${testScope} alone must not grant verified=true`);
+    }
+    console.log('  PASS: SIWS authentication scopes (user/creator/admin) alone never produce verified=true.\n');
+  }
+
   console.log('================================================================');
-  console.log('--- ALL 24 POST PERSISTENCE TESTS PASSED ---');
+  console.log('--- ALL 29 POST PERSISTENCE TESTS PASSED ---');
   console.log('================================================================');
 }
 

@@ -268,6 +268,7 @@ export async function POST(req: Request) {
   let authorName = `@${walletAddress.slice(0, 4)}...${walletAddress.slice(-4)}`;
   let authorAvatar = `https://api.dicebear.com/7.x/bottts/svg?seed=${walletAddress}`;
   let isAgeVerified = false;
+  let isVerified = false;
 
   try {
     const existingProfile = await getProfileByWalletAsync(walletAddress);
@@ -276,6 +277,7 @@ export async function POST(req: Request) {
       if (existingProfile.name) authorName = existingProfile.name;
       if (existingProfile.avatar) authorAvatar = existingProfile.avatar;
       if (existingProfile.ageVerified) isAgeVerified = true;
+      if (existingProfile.verified === true) isVerified = true;
     }
   } catch {
     // Non-fatal profile fallback
@@ -290,7 +292,7 @@ export async function POST(req: Request) {
       name: authorName,
       avatar: authorAvatar,
       bio: 'Cookie Chain Creator',
-      verified: true,
+      verified: isVerified,
       ageVerified: isAgeVerified,
       walletAddress,
       followersCount: 0,

@@ -118,6 +118,16 @@ export function resetProfileStore(cleanDisk: boolean = false): void {
 }
 
 /**
+ * Set authoritative profile directly (for testing privileged states)
+ */
+export function setAuthoritativeProfileForTests(profile: User): void {
+  ensureLocalInitialized();
+  profilesCache.set(profile.walletAddress, profile);
+  handleCache.set(profile.handle.toLowerCase(), profile.walletAddress);
+  saveToLocalDisk();
+}
+
+/**
  * Get all legitimate onboarded profiles
  */
 export function getAllOnboardedProfiles(): User[] {
