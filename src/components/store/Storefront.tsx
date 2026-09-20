@@ -24,6 +24,7 @@ interface StorefrontProps {
   creatorHandle?: string;
   onAddProduct?: (newProduct: Product) => void;
   onPurchaseCompleted?: (product: Product, txSig: string) => void;
+  onOpenVerifyModal?: (tab?: 'card_auth' | 'video_liveness' | 'id_upload') => void;
 }
 
 export const Storefront: React.FC<StorefrontProps> = ({

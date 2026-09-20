@@ -1,6 +1,8 @@
 import crypto from 'crypto';
-import { getSessionSecret } from './session';
-import { AppEnvironment, getAppEnvironment, isProductionEnvironment } from './envConfig';
+import { getSessionSecret } from './session.ts';
+import { getAppEnvironment, isProductionEnvironment, type AppEnvironment } from './envConfig.ts';
+
+
 
 export type VerificationFactor = 'card' | 'video' | 'id';
 

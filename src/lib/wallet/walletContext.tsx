@@ -101,6 +101,7 @@ export interface WalletContextType {
   isOwner: boolean;
   isAuthenticated: boolean;
   authenticating: boolean;
+  authStatus: 'unknown' | 'authenticated' | 'unauthenticated';
   connect: (type?: 'trust' | 'nightly' | 'solana' | 'demo') => Promise<void>;
   disconnect: () => Promise<void>;
   refreshBalance: () => Promise<void>;
@@ -137,6 +138,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
   const [sessionScope, setSessionScope] = useState<'admin' | 'user' | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authenticating, setAuthenticating] = useState(false);
+  const [authStatus, setAuthStatus] = useState<'unknown' | 'authenticated' | 'unauthenticated'>('unknown');
 
   const isOwner = sessionScope === 'admin';
 
@@ -173,31 +175,45 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
     const introspectSession = async () => {
       try {
         const storedToken = localStorage.getItem(SESSION_TOKEN_STORAGE_KEY);
-        const headers: Record<string, string> = {};
-        if (storedToken) {
-          headers['Authorization'] = `Bearer ${storedToken}`;
+        if (!storedToken) {
+          setIsAuthenticated(false);
+          setAuthStatus('unauthenticated');
+          return;
         }
+
+        const headers: Record<string, string> = {
+          Authorization: `Bearer ${storedToken}`,
+        };
         const res = await fetch('/api/auth/session', {
           method: 'GET',
           headers,
         });
+
         if (res.ok) {
           const data = await res.json();
-          if (data.authenticated) {
+          if (data.authenticated && data.walletAddress) {
             setIsAuthenticated(true);
             if (data.scope) {
               setSessionScope(data.scope);
             }
-            if (storedToken) setSessionToken(storedToken);
+            setSessionToken(storedToken);
+            setAuthStatus('authenticated');
+            return;
           }
-        } else {
-          localStorage.removeItem(SESSION_TOKEN_STORAGE_KEY);
-          setIsAuthenticated(false);
-          setSessionToken(null);
-          setSessionScope(null);
         }
+
+        // Invalid or expired session
+        localStorage.removeItem(SESSION_TOKEN_STORAGE_KEY);
+        setIsAuthenticated(false);
+        setSessionToken(null);
+        setSessionScope(null);
+        setAuthStatus('unauthenticated');
       } catch {
-        // Silently ignore network errors during background introspection
+        localStorage.removeItem(SESSION_TOKEN_STORAGE_KEY);
+        setIsAuthenticated(false);
+        setSessionToken(null);
+        setSessionScope(null);
+        setAuthStatus('unauthenticated');
       }
     };
     introspectSession();
@@ -231,6 +247,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
   // Local session invalidation helper (fails closed immediately)
   const invalidateAuthSessionLocally = useCallback(() => {
     setIsAuthenticated(false);
+    setAuthStatus('unauthenticated');
     setSessionToken(null);
     setSessionScope(null);
     if (typeof window !== 'undefined') {
@@ -245,6 +262,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
     setPublicKey(null);
     setCookBalance(0);
     setWalletType(null);
+    setAuthStatus('unauthenticated');
     if (typeof window !== 'undefined') {
       localStorage.removeItem(WALLET_CONNECTED_KEY);
     }
@@ -605,6 +623,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
         setSessionToken(verifyData.sessionToken);
         setSessionScope(verifyData.scope === 'admin' ? 'admin' : 'user');
         setIsAuthenticated(true);
+        setAuthStatus('authenticated');
         localStorage.setItem(SESSION_TOKEN_STORAGE_KEY, verifyData.sessionToken);
         return true;
       }
@@ -744,6 +763,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
         isOwner,
         isAuthenticated,
         authenticating,
+        authStatus,
         connect,
         disconnect,
         refreshBalance,

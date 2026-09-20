@@ -1,10 +1,10 @@
-import { NextResponse } from 'next/server';
+import { NextResponse } from 'next/server.js';
 import {
   createClearSessionCookie,
   extractSessionToken,
   validateRequestSessionAsync,
   revokeSessionAsync,
-} from '@/lib/security/session';
+} from '../../../../lib/security/session.ts';
 
 export async function GET(request: Request) {
   const session = await validateRequestSessionAsync(request);

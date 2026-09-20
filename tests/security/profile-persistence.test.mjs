@@ -217,8 +217,32 @@ async function runTests() {
   assert.strictEqual(nullWallet.error, 'Valid authenticated wallet identity required');
   console.log('  PASS: Unauthenticated profile save rejected fail-closed.\n');
 
+  // --------------------------------------------------------------------------
+  // TEST 12: Client Privilege Injection Blocked (ageVerified, verified, isAdmin)
+  // --------------------------------------------------------------------------
+  console.log('[TEST 12] Client Privilege Injection Blocked (ageVerified, verified, isAdmin)');
+  const attackerWallet = Keypair.generate().publicKey.toBase58();
+  const injectionResult = await saveOnboardedProfileAsync(attackerWallet, {
+    handle: 'attacker_user',
+    name: 'Attacker Legit',
+    ageVerified: true,
+    verified: true,
+    isAdmin: true,
+  }, false);
+
+  assert.strictEqual(injectionResult.success, true);
+  assert.strictEqual(injectionResult.profile?.ageVerified, false, 'Client input MUST NOT manufacture ageVerified: true');
+  assert.strictEqual(injectionResult.profile?.verified, false, 'Client input MUST NOT manufacture verified: true');
+  assert.strictEqual(injectionResult.profile?.isAdmin, false, 'Client input MUST NOT manufacture isAdmin: true');
+
+  const persistedAttacker = await getProfileByWalletAsync(attackerWallet);
+  assert.strictEqual(persistedAttacker?.ageVerified, false, 'Persisted profile MUST NOT become ageVerified');
+  assert.strictEqual(persistedAttacker?.verified, false, 'Persisted profile MUST NOT become verified');
+  assert.strictEqual(persistedAttacker?.isAdmin, false, 'Persisted profile MUST NOT become isAdmin');
+  console.log('  PASS: Client input cannot manufacture trusted server privileges.\n');
+
   console.log('================================================================');
-  console.log('  ALL 11 REPAIR #1 PROFILE PERSISTENCE TESTS PASSED!');
+  console.log('  ALL 12 REPAIR #1 PROFILE PERSISTENCE TESTS PASSED!');
   console.log('================================================================\n');
 }
 

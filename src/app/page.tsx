@@ -10,13 +10,8 @@ import { AgeVerificationModal } from '@/components/verification/AgeVerificationM
 import { EcosystemHubModal } from '@/components/ecosystem/EcosystemHubModal';
 import { AiAgentModal } from '@/components/ai/AiAgentModal';
 import { CommunityHub } from '@/components/community/CommunityHub';
-import {
-  INITIAL_POSTS,
-  INITIAL_PRODUCTS,
-  INITIAL_CREATORS,
-  INITIAL_TRANSACTIONS,
-  INITIAL_TREASURY_METRICS,
-} from '@/lib/data/mockData';
+import { LoginGate } from '@/components/auth/LoginGate';
+import { INITIAL_TREASURY_METRICS } from '@/lib/data/mockData';
 import { Post, Product, User, TransactionRecord, TreasuryMetrics } from '@/types';
 import { calculateFeeSplit } from '@/lib/solana/cookieChain';
 import { useShield } from '@/lib/shield/shieldContext';
@@ -41,23 +36,8 @@ import {
   Link as LinkIcon,
   Copy,
   Check,
+  Shield,
 } from 'lucide-react';
-
-const DEFAULT_USER_PROFILE: User = {
-  id: 'guest-profile',
-  handle: 'you',
-  name: 'Cookie Creator',
-  avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&h=400&fit=crop',
-  bio: 'Socializing, creating, and trading natively on Cookie Chain SVM. Connect wallet to activate your personal profile space.',
-  verified: false,
-  ageVerified: false,
-  walletAddress: '',
-  coverImage: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200&h=400&fit=crop',
-  followersCount: 0,
-  followingCount: 0,
-  isCreator: true,
-  isAdmin: false,
-};
 
 function buildDefaultProfileForWallet(address: string): User {
   const shortAddr = `${address.slice(0, 4)}...${address.slice(-4)}`;
@@ -88,12 +68,12 @@ export default function Home() {
   const [activeView, setActiveView] = useState<'feed' | 'store' | 'creator' | 'community' | 'analytics'>(
     'feed'
   );
-  const [posts, setPosts] = useState<Post[]>(INITIAL_POSTS);
-  const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
-  const [creators, setCreators] = useState<User[]>(INITIAL_CREATORS);
-  const [userProfile, setUserProfile] = useState<User>(DEFAULT_USER_PROFILE);
-  const [selectedCreator, setSelectedCreator] = useState<User>(INITIAL_CREATORS[0] || DEFAULT_USER_PROFILE);
-  const [transactions, setTransactions] = useState<TransactionRecord[]>(INITIAL_TRANSACTIONS);
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [creators, setCreators] = useState<User[]>([]);
+  const [userProfile, setUserProfile] = useState<User | null>(null);
+  const [selectedCreator, setSelectedCreator] = useState<User | null>(null);
+  const [transactions, setTransactions] = useState<TransactionRecord[]>([]);
   const [followingHandles, setFollowingHandles] = useState<string[]>([]);
   const [metrics, setMetrics] = useState<TreasuryMetrics>(INITIAL_TREASURY_METRICS);
   const [copiedPersonalUrl, setCopiedPersonalUrl] = useState(false);
@@ -104,184 +84,187 @@ export default function Home() {
   const [ecosystemModalOpen, setEcosystemModalOpen] = useState(false);
   const [ecosystemTab, setEcosystemTab] = useState<'bridge' | 'cookieswap' | 'cookiebox' | 'das' | 'mcp'>('bridge');
   const { isAgeVerified, isVideoVerified, isIdVerified, isCardVerified, isAdultContentUnlocked, canAccessAdultContent, unshieldedMode } = useShield();
-  const { connected, walletAddress, sessionToken, isAuthenticated } = useWallet();
+  const {
+    connected,
+    walletAddress,
+    sessionToken,
+    isAuthenticated,
+    authStatus,
+    logoutSession,
+  } = useWallet();
 
-  // Load saved profile & handle deep linking from URL
+  // Clear protected client state if unauthenticated or on wallet switch
   useEffect(() => {
-    let activeUser = DEFAULT_USER_PROFILE;
-    try {
-      const saved = localStorage.getItem('social_wtf_user_profile');
-      if (saved) {
-        activeUser = JSON.parse(saved);
-        setUserProfile(activeUser);
-      }
-      const savedFollowing = localStorage.getItem('social_wtf_following_handles');
-      if (savedFollowing) {
-        setFollowingHandles(JSON.parse(savedFollowing));
-      }
-    } catch (e) {
-      console.error('Failed to parse saved user profile', e);
+    if (!connected || !isAuthenticated || authStatus !== 'authenticated') {
+      setPosts([]);
+      setProducts([]);
+      setCreators([]);
+      setUserProfile(null);
+      setSelectedCreator(null);
+      setTransactions([]);
+      setFollowingHandles([]);
+    }
+  }, [connected, isAuthenticated, authStatus, walletAddress]);
+
+  // Sync wallet address with authoritative server profile space when connected & authenticated
+  useEffect(() => {
+    if (!connected || !walletAddress || !isAuthenticated || !sessionToken || authStatus !== 'authenticated') {
+      return;
     }
 
-    // Handle deep-linking URL parameters (?u=..., ?user=..., ?creator=..., ?wallet=...)
-    if (typeof window !== 'undefined') {
-      const searchParams = new URLSearchParams(window.location.search);
-      const targetParam =
-        searchParams.get('u') ||
-        searchParams.get('user') ||
-        searchParams.get('creator') ||
-        searchParams.get('profile') ||
-        searchParams.get('wallet');
-
-      if (targetParam) {
-        const cleanParam = targetParam.trim().replace(/^@+/, '').toLowerCase();
-        
-        // Match in existing loaded creators
-        const found = creators.find(
-          (c) => c.handle.toLowerCase() === cleanParam || c.walletAddress.toLowerCase() === cleanParam
-        );
-
-        if (found) {
-          setSelectedCreator(found);
-          setActiveView('creator');
-          return;
-        }
-
-        // Authoritative server lookup for profile by handle or wallet
-        const queryParam = cleanParam.length > 30 ? `wallet=${cleanParam}` : `handle=${cleanParam}`;
-        fetch(`/api/profile?${queryParam}`)
-          .then((res) => (res.ok ? res.json() : null))
-          .then((data) => {
-            if (data?.success && data.profile) {
-              setSelectedCreator(data.profile);
-              setCreators((prev) => [data.profile, ...prev.filter((c) => c.handle !== data.profile.handle)]);
-              setActiveView('creator');
-            } else {
-              // Honest not-found state without fabricating fake identity
-              const notFoundProfile: User = {
-                id: `not-found-${cleanParam}`,
-                handle: cleanParam,
-                name: `@${cleanParam}`,
-                avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${cleanParam}`,
-                bio: `No registered profile found on Cookie Chain for @${cleanParam}.`,
-                verified: false,
-                ageVerified: false,
-                walletAddress: '',
-                coverImage: '',
-                followersCount: 0,
-                followingCount: 0,
-                isCreator: false,
-                isAdmin: false,
-              };
-              setSelectedCreator(notFoundProfile);
-              setActiveView('creator');
-            }
-          })
-          .catch(() => {});
-      }
-    }
-  }, []);
-
-  // Hydrate authoritative product catalog from /api/products on mount
-  useEffect(() => {
     let isMounted = true;
-    fetch('/api/products')
+    const targetWallet = walletAddress;
+
+    // 1. Fetch Authoritative Server Profile
+    fetch(`/api/profile?wallet=${encodeURIComponent(targetWallet)}`, {
+      headers: { Authorization: `Bearer ${sessionToken}` },
+    })
       .then(async (res) => {
-        if (!isMounted) return;
+        if (!isMounted || walletAddress !== targetWallet) return;
+
+        if (res.status === 200) {
+          const data = await res.json();
+          if (data?.success && data.profile) {
+            const canonicalProfile: User = data.profile;
+            setUserProfile(canonicalProfile);
+            if (!selectedCreator) {
+              setSelectedCreator(canonicalProfile);
+            }
+          }
+        } else if (res.status === 404) {
+          // Fresh wallet with no profile yet
+          const freshDefaults = buildDefaultProfileForWallet(targetWallet);
+          setUserProfile(freshDefaults);
+          if (!selectedCreator) {
+            setSelectedCreator(freshDefaults);
+          }
+        } else if (res.status === 401) {
+          // Session expired or revoked
+          await logoutSession();
+        } else {
+          setUserProfile(buildDefaultProfileForWallet(targetWallet));
+        }
+      })
+      .catch(() => {
+        if (!isMounted || walletAddress !== targetWallet) return;
+        setUserProfile(buildDefaultProfileForWallet(targetWallet));
+      });
+
+    // 2. Fetch Directory of Self + Accepted Friends
+    fetch('/api/profiles', {
+      headers: { Authorization: `Bearer ${sessionToken}` },
+    })
+      .then(async (res) => {
+        if (!isMounted || walletAddress !== targetWallet) return;
+        if (res.status === 200) {
+          const data = await res.json();
+          if (data?.success && Array.isArray(data.profiles)) {
+            setCreators(data.profiles);
+          }
+        } else if (res.status === 401) {
+          await logoutSession();
+        }
+      })
+      .catch(() => {});
+
+    // 3. Fetch Relationship-Authorized Products
+    fetch('/api/products', {
+      headers: { Authorization: `Bearer ${sessionToken}` },
+    })
+      .then(async (res) => {
+        if (!isMounted || walletAddress !== targetWallet) return;
         if (res.status === 200) {
           const data = await res.json();
           if (data?.success && Array.isArray(data.products)) {
             setProducts(data.products);
           }
-        } else {
-          console.warn('[Page] Authoritative product catalog unavailable (status:', res.status, ')');
+        } else if (res.status === 401) {
+          await logoutSession();
         }
       })
-      .catch((err) => {
-        console.warn('[Page] Network failure fetching product catalog:', err);
-      });
+      .catch(() => {});
+
+    // 4. Fetch Relationship-Authorized Posts
+    fetch('/api/posts', {
+      headers: { Authorization: `Bearer ${sessionToken}` },
+    })
+      .then(async (res) => {
+        if (!isMounted || walletAddress !== targetWallet) return;
+        if (res.status === 200) {
+          const data = await res.json();
+          if (Array.isArray(data.posts)) {
+            setPosts(data.posts);
+          }
+        } else if (res.status === 401) {
+          await logoutSession();
+        }
+      })
+      .catch(() => {});
 
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [connected, walletAddress, sessionToken, isAuthenticated, authStatus, isAdultContentUnlocked, unshieldedMode, logoutSession]);
 
-  // Sync wallet address with authoritative server profile space when connected & authenticated
+  // Deep linking URL query parameters (?u=..., ?wallet=...) for authenticated members
   useEffect(() => {
-    if (connected && walletAddress && isAuthenticated && sessionToken) {
-      let isMounted = true;
-      const targetWallet = walletAddress;
+    if (!isAuthenticated || authStatus !== 'authenticated' || !sessionToken || typeof window === 'undefined') {
+      return;
+    }
 
-      // 1. Fetch Authoritative Server Profile with wallet race protection
-      fetch(`/api/profile?wallet=${encodeURIComponent(targetWallet)}`)
-        .then(async (res) => {
-          if (!isMounted || walletAddress !== targetWallet) return;
+    const searchParams = new URLSearchParams(window.location.search);
+    const targetParam =
+      searchParams.get('u') ||
+      searchParams.get('user') ||
+      searchParams.get('creator') ||
+      searchParams.get('profile') ||
+      searchParams.get('wallet');
 
-          if (res.status === 200) {
-            const data = await res.json();
-            if (data?.success && data.profile) {
-              const canonicalProfile: User = data.profile;
-              setUserProfile(canonicalProfile);
-              try {
-                localStorage.setItem(`social_wtf_profile_${targetWallet}`, JSON.stringify(canonicalProfile));
-                localStorage.setItem('social_wtf_user_profile', JSON.stringify(canonicalProfile));
-              } catch (e) {}
-            }
-          } else if (res.status === 404) {
-            // Genuine 404: Fresh wallet with no profile yet
-            // Provide editable fresh-wallet defaults in React state (not saved until user submits)
-            const freshDefaults = buildDefaultProfileForWallet(targetWallet);
-            setUserProfile(freshDefaults);
-          } else {
-            // 500 / 503 / Authority outage: display cached profile if available as unconfirmed cache
-            try {
-              const cached = localStorage.getItem(`social_wtf_profile_${targetWallet}`);
-              if (cached) {
-                const parsed = JSON.parse(cached);
-                parsed.walletAddress = targetWallet;
-                setUserProfile(parsed);
-                return;
-              }
-            } catch (e) {}
-            setUserProfile(buildDefaultProfileForWallet(targetWallet));
+    if (targetParam) {
+      const cleanParam = targetParam.trim().replace(/^@+/, '').toLowerCase();
+      const found = creators.find(
+        (c) => c.handle.toLowerCase() === cleanParam || c.walletAddress.toLowerCase() === cleanParam
+      );
+
+      if (found) {
+        setSelectedCreator(found);
+        setActiveView('creator');
+        return;
+      }
+
+      const queryParam = cleanParam.length > 30 ? `wallet=${cleanParam}` : `handle=${cleanParam}`;
+      fetch(`/api/profile?${queryParam}`, {
+        headers: { Authorization: `Bearer ${sessionToken}` },
+      })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (data?.success && data.profile) {
+            setSelectedCreator(data.profile);
+            setCreators((prev) => [data.profile, ...prev.filter((c) => c.handle !== data.profile.handle)]);
+            setActiveView('creator');
           }
         })
-        .catch(() => {
-          if (!isMounted || walletAddress !== targetWallet) return;
-          // Authority outage / network error
-          try {
-            const cached = localStorage.getItem(`social_wtf_profile_${targetWallet}`);
-            if (cached) {
-              const parsed = JSON.parse(cached);
-              parsed.walletAddress = targetWallet;
-              setUserProfile(parsed);
-              return;
-            }
-          } catch (e) {}
-          setUserProfile(buildDefaultProfileForWallet(targetWallet));
-        });
-
-      return () => {
-        isMounted = false;
-      };
-    } else if (!connected) {
-      setUserProfile(DEFAULT_USER_PROFILE);
+        .catch(() => {});
     }
-  }, [connected, walletAddress, sessionToken, isAuthenticated]);
+  }, [isAuthenticated, authStatus, sessionToken, creators]);
 
   const handlePostCreated = (newPost: Post) => {
-    setPosts([newPost, ...posts]);
+    setPosts((prev) => [newPost, ...prev.filter((p) => p.id !== newPost.id)]);
   };
 
   const handlePostUpdated = (updatedPost: Post, meta?: { tipAmount?: number; signature?: string }) => {
     setPosts((prev) => prev.map((p) => (p.id === updatedPost.id ? updatedPost : p)));
 
+    if (!meta?.signature || !walletAddress) {
+      return;
+    }
+
     const tipAmount = meta?.tipAmount ?? 2.0;
-    const split = calculateFeeSplit(tipAmount, 500); // 5% protocol fee
+    const split = calculateFeeSplit(tipAmount, 500);
     const newTx: TransactionRecord = {
       id: `tx-${Date.now()}`,
-      signature: meta?.signature || `5${Math.random().toString(36).substring(2, 15)}${Math.random().toString(36).substring(2, 15)}`,
-      fromAddress: walletAddress || 'CookYourWallet11111111111111111111111111',
+      signature: meta.signature,
+      fromAddress: walletAddress,
       toAddress: updatedPost.author.walletAddress,
       treasuryAddress: 'HMnySuX1CdBfqysiLtU4brPawufcHxFTFZu97jrKQwT9',
       totalAmountCook: tipAmount,
@@ -303,9 +286,7 @@ export default function Home() {
   };
 
   const handleProductPurchased = (product: Product, txSig: string) => {
-    // Production Authenticity Invariant: Never manufacture synthetic addresses or fake receipts
     if (!product || !product.creatorWallet || !walletAddress || !txSig || typeof txSig !== 'string' || !txSig.trim()) {
-      console.warn('[Storefront] Cannot record purchase transaction: missing required wallet or transaction signature');
       return;
     }
 
@@ -364,10 +345,12 @@ export default function Home() {
   };
 
   const handleOpenMyPage = () => {
-    setSelectedCreator(userProfile);
-    setActiveView('creator');
-    if (typeof window !== 'undefined' && window.history) {
-      window.history.replaceState(null, '', `/?u=${userProfile.handle}`);
+    if (userProfile) {
+      setSelectedCreator(userProfile);
+      setActiveView('creator');
+      if (typeof window !== 'undefined' && window.history) {
+        window.history.replaceState(null, '', `/?u=${userProfile.handle}`);
+      }
     }
   };
 
@@ -383,17 +366,15 @@ export default function Home() {
   };
 
   const handleUpdateCreator = async (updated: User): Promise<{ success: boolean; error?: string }> => {
-    if (!connected || !walletAddress) {
-      return { success: false, error: 'Please connect your wallet to update profile.' };
+    if (!connected || !walletAddress || !sessionToken) {
+      return { success: false, error: 'Please sign in to update your profile.' };
     }
 
     try {
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
+        Authorization: `Bearer ${sessionToken}`,
       };
-      if (sessionToken) {
-        headers['Authorization'] = `Bearer ${sessionToken}`;
-      }
 
       const payload = {
         handle: updated.handle,
@@ -415,54 +396,57 @@ export default function Home() {
       });
 
       const data = await res.json();
-      if (!res.ok || !data.success || !data.profile) {
-        return {
-          success: false,
-          error: data?.error || 'Failed to save profile on authoritative server. Please retry.',
-        };
+      if (!res.ok || !data.success) {
+        return { success: false, error: data.error || 'Failed to update profile' };
       }
 
-      const canonicalProfile: User = data.profile;
-
-      setSelectedCreator(canonicalProfile);
-      setUserProfile(canonicalProfile);
-      setCreators((prev) => {
-        const idx = prev.findIndex((c) => c.handle === canonicalProfile.handle || c.walletAddress === canonicalProfile.walletAddress);
-        if (idx >= 0) {
-          const next = [...prev];
-          next[idx] = canonicalProfile;
-          return next;
-        }
-        return [canonicalProfile, ...prev];
-      });
-
-      try {
-        localStorage.setItem('social_wtf_user_profile', JSON.stringify(canonicalProfile));
-        localStorage.setItem(`social_wtf_profile_${canonicalProfile.walletAddress}`, JSON.stringify(canonicalProfile));
-      } catch (e) {}
-
+      const saved: User = data.profile;
+      setUserProfile(saved);
+      if (selectedCreator?.walletAddress === saved.walletAddress) {
+        setSelectedCreator(saved);
+      }
+      setCreators((prev) => prev.map((c) => (c.walletAddress === saved.walletAddress ? saved : c)));
       return { success: true };
     } catch (err: any) {
-      return {
-        success: false,
-        error: err?.message || 'Network error communicating with profile authority. Please retry.',
-      };
+      return { success: false, error: err.message || 'Failed to update profile' };
     }
   };
-
-  const myPersonalLink = typeof window !== 'undefined'
-    ? `${window.location.origin}/?u=${userProfile.handle}`
-    : `https://socialwtf.vercel.app/?u=${userProfile.handle}`;
 
   const handleCopyMyPersonalUrl = async () => {
+    if (!userProfile) return;
+    const url = typeof window !== 'undefined'
+      ? `${window.location.origin}/?u=${userProfile.handle}`
+      : `https://socialwtf.vercel.app/?u=${userProfile.handle}`;
     try {
-      await navigator.clipboard.writeText(myPersonalLink);
+      await navigator.clipboard.writeText(url);
       setCopiedPersonalUrl(true);
       setTimeout(() => setCopiedPersonalUrl(false), 2500);
-    } catch (err) {
-      console.error(err);
-    }
+    } catch (e) {}
   };
+
+  // Phase 1: UNKNOWN session state (Security Loading Surface)
+  if (authStatus === 'unknown') {
+    return (
+      <div className="min-h-screen bg-[#070b14] text-slate-100 flex flex-col items-center justify-center space-y-4">
+        <div className="w-14 h-14 rounded-3xl bg-gradient-to-br from-amber-500 via-amber-600 to-yellow-600 flex items-center justify-center shadow-2xl shadow-amber-500/30 animate-pulse">
+          <ShieldCheck className="w-7 h-7 text-slate-950" />
+        </div>
+        <div className="text-center space-y-1">
+          <div className="text-base font-extrabold text-white tracking-tight">Social.wtf</div>
+          <div className="text-xs text-slate-400 font-medium">Verifying cryptographic session...</div>
+        </div>
+      </div>
+    );
+  }
+
+  // Phase 2: UNAUTHENTICATED session state (Platform Login Gate)
+  if (!connected || !isAuthenticated || authStatus !== 'authenticated') {
+    return <LoginGate onAuthenticated={() => {}} />;
+  }
+
+  // Phase 3: AUTHENTICATED session state (Social.wtf Protected Application Shell)
+  const activeUser = userProfile || buildDefaultProfileForWallet(walletAddress || '');
+  const activeSelected = selectedCreator || activeUser;
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-[#070b14] text-slate-900 dark:text-slate-100 transition-colors duration-200">
@@ -479,7 +463,7 @@ export default function Home() {
           setEcosystemModalOpen(true);
         }}
         onOpenAiAgent={() => setAiAgentOpen(true)}
-        userProfile={userProfile}
+        userProfile={activeUser}
         onOpenMyPage={handleOpenMyPage}
       />
 
@@ -493,10 +477,10 @@ export default function Home() {
             </div>
             <div>
               <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2 flex-wrap">
-                <span>Social.wtf — Decentralized Social &amp; Creator Storefronts</span>
+                <span>Social.wtf — Relationship-Scoped Social Network &amp; Storefronts</span>
               </h2>
               <p className="text-[11px] sm:text-xs text-slate-600 dark:text-slate-300 mt-0.5">
-                Connect your Nightly wallet to publish posts, customize your storefront, and share your personal profile URL.
+                Authenticated with Cookie Chain SVM. Your profile and storefront are visible strictly to verified friends.
               </p>
             </div>
           </div>
@@ -518,42 +502,25 @@ export default function Home() {
               <span>AI Assistant</span>
             </button>
 
-            {!isAdultContentUnlocked ? (
-              <button
-                onClick={() => {
-                  setVerifyTab('card_auth');
-                  setVerifyModalOpen(true);
-                }}
-                className="flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 sm:py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-emerald-300 dark:border-emerald-500/40 text-emerald-800 dark:text-emerald-300 text-xs font-semibold transition-all shadow-sm"
-              >
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                <span>Verify 18+</span>
-              </button>
-            ) : (
-              <span className="px-3 py-1.5 rounded-xl bg-purple-500/10 border border-purple-500/30 text-purple-700 dark:text-purple-300 text-xs font-semibold flex items-center gap-1.5">
-                <ShieldCheck className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-                <span>18+ Verified</span>
-              </span>
-            )}
           </div>
         </div>
 
-        {/* 3-Column Responsive Layout: Left Nav (Desktop/Tablet) / Center Content (All) / Right Stats (Desktop) */}
+        {/* 3-Column Responsive Layout */}
         <div className="grid grid-cols-1 md:grid-cols-12 gap-5 lg:gap-6">
-          {/* Left Sidebar: Navigation & Quick Shortcuts (Tablet & Desktop) */}
+          {/* Left Sidebar */}
           <aside className="hidden md:block md:col-span-4 lg:col-span-3 space-y-5">
             {/* My Personal Profile Quick Card */}
             <div className="p-4 rounded-3xl bg-white dark:bg-[#0d1527] border border-amber-500/30 shadow-sm dark:shadow-xl space-y-3 transition-colors">
               <div className="flex items-center gap-3">
                 <img
-                  src={userProfile.avatar}
-                  alt={userProfile.name}
+                  src={activeUser.avatar}
+                  alt={activeUser.name}
                   className="w-12 h-12 rounded-2xl object-cover border-2 border-amber-500 dark:border-amber-400 shrink-0"
                 />
                 <div className="overflow-hidden">
-                  <div className="font-bold text-slate-900 dark:text-slate-100 text-xs truncate">{userProfile.name}</div>
-                  <div className="text-[11px] text-amber-600 dark:text-amber-400 font-mono">@{userProfile.handle}</div>
-                  <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate mt-0.5">{userProfile.walletAddress.slice(0, 4)}...{userProfile.walletAddress.slice(-4)}</div>
+                  <div className="font-bold text-slate-900 dark:text-slate-100 text-xs truncate">{activeUser.name}</div>
+                  <div className="text-[11px] text-amber-600 dark:text-amber-400 font-mono">@{activeUser.handle}</div>
+                  <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate mt-0.5 font-mono">{activeUser.walletAddress ? `${activeUser.walletAddress.slice(0, 4)}...${activeUser.walletAddress.slice(-4)}` : ''}</div>
                 </div>
               </div>
 
@@ -596,7 +563,7 @@ export default function Home() {
                 }`}
               >
                 <MessageSquare className="w-4 h-4" />
-                <span>Social Feed</span>
+                <span>Friend Feed</span>
               </button>
 
               <button
@@ -612,15 +579,15 @@ export default function Home() {
               </button>
 
               <button
-                onClick={handleOpenMyPage}
+                onClick={() => setActiveView('creator')}
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl transition-all ${
                   activeView === 'creator'
                     ? 'bg-amber-500 text-slate-950 font-bold shadow-md'
                     : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'
                 }`}
               >
-                <Globe className="w-4 h-4" />
-                <span>Creator Profiles</span>
+                <UserIcon className="w-4 h-4" />
+                <span>Creator Profile</span>
               </button>
 
               <button
@@ -631,8 +598,8 @@ export default function Home() {
                     : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'
                 }`}
               >
-                <BookOpen className="w-4 h-4" />
-                <span>Community &amp; Wiki</span>
+                <Globe className="w-4 h-4" />
+                <span>Community Hub</span>
               </button>
 
               <button
@@ -644,137 +611,21 @@ export default function Home() {
                 }`}
               >
                 <TrendingUp className="w-4 h-4" />
-                <span>Platform Activity</span>
+                <span>Creator Dashboard</span>
               </button>
-
-              <button
-                onClick={() => setAiAgentOpen(true)}
-                className="w-full flex items-center justify-between px-3 py-2.5 rounded-2xl bg-amber-50/80 dark:bg-gradient-to-r dark:from-amber-500/15 dark:to-yellow-500/15 border border-amber-300 dark:border-amber-500/30 text-amber-800 dark:text-amber-300 hover:brightness-105 dark:hover:brightness-125 transition-all font-semibold"
-              >
-                <div className="flex items-center gap-2.5">
-                  <Bot className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-                  <span>AI Creator Assistant</span>
-                </div>
-              </button>
-            </div>
-
-            {/* Featured Creators & Social Gathering */}
-            <div className="p-4 rounded-3xl bg-white dark:bg-[#0d1527] border border-slate-200 dark:border-slate-700/70 shadow-sm dark:shadow-xl space-y-3 transition-colors">
-              <div className="flex items-center justify-between px-1">
-                <h3 className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider">
-                  Community Creators
-                </h3>
-                <span className="text-[10px] text-amber-600 dark:text-amber-400 font-mono font-bold">
-                  {creators.length} {creators.length === 1 ? 'Creator' : 'Creators'}
-                </span>
-              </div>
-
-              <div className="space-y-2">
-                {creators.length === 0 ? (
-                  <div className="p-3 text-center text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800">
-                    No creators yet. Connect your wallet to become the first creator on Social.wtf.
-                  </div>
-                ) : (
-                  creators.map((c) => (
-                    <div
-                      key={c.id}
-                      onClick={() => {
-                        setSelectedCreator(c);
-                        setActiveView('creator');
-                        if (typeof window !== 'undefined' && window.history) {
-                          window.history.replaceState(null, '', `/?u=${c.handle}`);
-                        }
-                      }}
-                      className={`flex items-center justify-between p-2 rounded-2xl cursor-pointer transition-all ${
-                        selectedCreator.id === c.id && activeView === 'creator'
-                          ? 'bg-amber-500/15 border border-amber-500/40 text-amber-800 dark:text-amber-300'
-                          : 'hover:bg-slate-100 dark:hover:bg-slate-800/60 text-slate-700 dark:text-slate-300'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2.5">
-                        <img
-                          src={c.avatar}
-                          alt={c.name}
-                          className="w-8 h-8 rounded-xl object-cover border border-slate-200 dark:border-slate-700"
-                        />
-                        <div>
-                          <div className="font-bold text-xs line-clamp-1">{c.name}</div>
-                          <div className="text-[10px] text-slate-500 font-mono">@{c.handle}</div>
-                        </div>
-                      </div>
-                      <span className="text-[10px] text-amber-600 dark:text-amber-400 font-mono">
-                        {c.widgets?.length ? 'Profile' : 'Store'}
-                      </span>
-                    </div>
-                  ))
-                )}
-              </div>
             </div>
           </aside>
 
-          {/* Center Main Stage (View Router - Mobile/Tablet/Desktop Adaptive) */}
-          <section className="col-span-1 md:col-span-8 lg:col-span-6 space-y-5 sm:space-y-6">
-            {/* Mobile Creator Stories & Quick Switcher (Phones) */}
-            <div className="block md:hidden p-3 rounded-2xl bg-white dark:bg-[#0d1527] border border-slate-200 dark:border-slate-800 shadow-sm transition-colors">
-              <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-100 dark:border-slate-800 text-xs">
-                <span className="font-bold text-slate-800 dark:text-slate-200">Creators &amp; Gathering</span>
-                <span className="text-[10px] text-amber-600 dark:text-amber-400 font-mono font-semibold">
-                  {creators.length} Online
-                </span>
-              </div>
-              <div className="flex items-center gap-3 overflow-x-auto pb-1">
-                {creators.length === 0 ? (
-                  <div className="text-xs text-slate-500 dark:text-slate-400 py-1">
-                    No creators yet. Connect your wallet to become the first creator.
-                  </div>
-                ) : (
-                  creators.map((c) => (
-                    <div
-                      key={c.id}
-                      onClick={() => {
-                        setSelectedCreator(c);
-                        setActiveView('creator');
-                        if (typeof window !== 'undefined' && window.history) {
-                          window.history.replaceState(null, '', `/?u=${c.handle}`);
-                        }
-                      }}
-                      className={`flex flex-col items-center gap-1 shrink-0 cursor-pointer p-1 rounded-xl transition-all ${
-                        selectedCreator.id === c.id && activeView === 'creator'
-                          ? 'opacity-100 scale-105'
-                          : 'opacity-80 hover:opacity-100'
-                      }`}
-                    >
-                      <div className={`relative p-0.5 rounded-2xl ${
-                        selectedCreator.id === c.id && activeView === 'creator'
-                          ? 'bg-gradient-to-tr from-amber-500 to-yellow-400'
-                          : 'bg-slate-200 dark:bg-slate-700'
-                      }`}>
-                        <img
-                          src={c.avatar}
-                          alt={c.name}
-                          className="w-11 h-11 rounded-2xl object-cover"
-                        />
-                      </div>
-                      <span className="text-[10px] font-medium text-slate-700 dark:text-slate-300 truncate max-w-[60px]">
-                        {c.name.split(' ')[0]}
-                      </span>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-
+          {/* Center Main View Area */}
+          <section className="col-span-1 md:col-span-8 lg:col-span-6 space-y-6">
             {activeView === 'feed' && (
               <Feed
                 posts={posts}
-                currentUser={userProfile}
-                followingHandles={followingHandles}
-                onToggleFollow={handleToggleFollow}
-                onOpenStore={handleOpenStore}
                 onPostCreated={handlePostCreated}
                 onPostUpdated={handlePostUpdated}
-                onOpenVerifyModal={() => {
-                  setVerifyTab('card_auth');
+                onOpenStore={handleOpenStore}
+                onOpenVerifyModal={(tab) => {
+                  setVerifyTab(tab || 'video_liveness');
                   setVerifyModalOpen(true);
                 }}
               />
@@ -785,12 +636,16 @@ export default function Home() {
                 products={products}
                 onAddProduct={handleAddProduct}
                 onPurchaseCompleted={handleProductPurchased}
+                onOpenVerifyModal={(tab) => {
+                  setVerifyTab(tab || 'card_auth');
+                  setVerifyModalOpen(true);
+                }}
               />
             )}
 
             {activeView === 'creator' && (
               <CreatorProfile
-                creator={selectedCreator}
+                creator={activeSelected}
                 posts={posts}
                 products={products}
                 onAddProduct={handleAddProduct}
@@ -801,17 +656,23 @@ export default function Home() {
                 }}
                 onTransactionRecorded={handleTransactionRecorded}
                 onUpdateCreator={handleUpdateCreator}
-                onSelectCreator={handleOpenStore}
+                onSelectCreator={(handle) => {
+                  const clean = handle.toLowerCase().replace(/^@+/, '');
+                  const found = creators.find((c) => c.handle.toLowerCase() === clean);
+                  if (found) {
+                    setSelectedCreator(found);
+                  }
+                }}
               />
             )}
 
             {activeView === 'community' && (
               <CommunityHub
-                onOpenStore={handleOpenStore}
                 onOpenVerifyModal={(tab) => {
                   setVerifyTab(tab || 'card_auth');
                   setVerifyModalOpen(true);
                 }}
+                onOpenAiAgent={() => setAiAgentOpen(true)}
               />
             )}
 
@@ -823,124 +684,68 @@ export default function Home() {
             )}
           </section>
 
-          {/* Right Sidebar: Protocol Metrics & Ecosystem (Wide Desktop) */}
+          {/* Right Sidebar: Treasury Metrics & Platform Security */}
           <aside className="hidden lg:block lg:col-span-3 space-y-5">
-            {/* Quick Financial Snapshot */}
-            <div className="p-5 rounded-3xl bg-white dark:bg-[#0d1527] border border-slate-200 dark:border-slate-700/70 shadow-sm dark:shadow-xl space-y-3 transition-colors">
-              <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
-                <span className="text-xs font-bold text-slate-800 dark:text-slate-200">Platform Activity</span>
-                <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 font-semibold">Live</span>
+            <div className="p-4 rounded-3xl bg-white dark:bg-[#0d1527] border border-slate-200 dark:border-slate-700/70 shadow-sm dark:shadow-xl space-y-3 transition-colors">
+              <div className="flex items-center gap-2 text-xs font-bold text-amber-600 dark:text-amber-400">
+                <Coins className="w-4 h-4" />
+                <span>Cookie Chain Treasury</span>
               </div>
-
-              <div className="space-y-2.5 text-xs">
-                <div className="flex justify-between items-center">
-                  <span className="text-slate-500 dark:text-slate-400">Total Volume:</span>
-                  <span className="font-bold font-mono text-amber-600 dark:text-amber-300">
+              <div className="space-y-2 text-xs">
+                <div className="flex justify-between py-1 border-b border-slate-100 dark:border-slate-800">
+                  <span className="text-slate-500">Volume</span>
+                  <span className="font-mono font-bold text-slate-900 dark:text-white">
                     {metrics.totalPlatformVolumeCook.toLocaleString()} COOK
                   </span>
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-slate-500 dark:text-slate-400">Treasury Support (5%):</span>
-                  <span className="font-bold font-mono text-blue-600 dark:text-blue-400">
-                    {metrics.totalTreasuryCollectedCook.toFixed(2)} COOK
+                <div className="flex justify-between py-1 border-b border-slate-100 dark:border-slate-800">
+                  <span className="text-slate-500">Treasury (5%)</span>
+                  <span className="font-mono font-bold text-amber-600 dark:text-amber-400">
+                    {metrics.totalTreasuryCollectedCook.toLocaleString()} COOK
                   </span>
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-slate-500 dark:text-slate-400">Active Creators:</span>
-                  <span className="font-bold font-mono text-slate-800 dark:text-slate-200">
-                    {metrics.activeCreatorsCount}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-slate-500 dark:text-slate-400">Transactions:</span>
-                  <span className="font-bold font-mono text-slate-800 dark:text-slate-200">
+                <div className="flex justify-between py-1">
+                  <span className="text-slate-500">Transactions</span>
+                  <span className="font-mono font-bold text-slate-900 dark:text-white">
                     {metrics.totalTransactionsCount}
                   </span>
                 </div>
               </div>
             </div>
 
-            {/* Official Ecosystem Links */}
-            <div className="p-5 rounded-3xl bg-white dark:bg-[#0d1527] border border-slate-200 dark:border-slate-700/70 shadow-sm dark:shadow-xl space-y-2.5 text-xs transition-colors">
-              <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-slate-800">
-                <span className="font-bold text-slate-800 dark:text-slate-200">Cookie Chain Ecosystem</span>
-                <span className="text-[10px] font-mono text-amber-600 dark:text-amber-400 font-semibold">Web3</span>
+            <div className="p-4 rounded-3xl bg-white dark:bg-[#0d1527] border border-slate-200 dark:border-slate-700/70 shadow-sm dark:shadow-xl space-y-2 text-xs transition-colors">
+              <div className="flex items-center gap-2 font-bold text-emerald-600 dark:text-emerald-400">
+                <ShieldCheck className="w-4 h-4" />
+                <span>Relationship Security</span>
               </div>
-
-              <button
-                onClick={() => {
-                  setEcosystemTab('bridge');
-                  setEcosystemModalOpen(true);
-                }}
-                className="w-full flex items-center justify-between p-2 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 transition-colors text-left group"
-              >
-                <div>
-                  <div className="font-semibold text-slate-800 dark:text-slate-200 group-hover:text-amber-600 dark:group-hover:text-amber-300">Warp Bridge</div>
-                  <div className="text-[10px] text-slate-500">Bridge assets to Cookie Chain</div>
-                </div>
-                <ExternalLink className="w-3.5 h-3.5 text-slate-400 group-hover:text-amber-600 dark:group-hover:text-amber-400" />
-              </button>
-
-              <button
-                onClick={() => {
-                  setEcosystemTab('cookieswap');
-                  setEcosystemModalOpen(true);
-                }}
-                className="w-full flex items-center justify-between p-2 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 transition-colors text-left group"
-              >
-                <div>
-                  <div className="font-semibold text-slate-800 dark:text-slate-200 group-hover:text-amber-600 dark:group-hover:text-amber-300">CookieSwap DEX</div>
-                  <div className="text-[10px] text-slate-500">Token swapping &amp; liquidity</div>
-                </div>
-                <ExternalLink className="w-3.5 h-3.5 text-slate-400 group-hover:text-amber-600 dark:group-hover:text-amber-400" />
-              </button>
-
-              <button
-                onClick={() => {
-                  setEcosystemTab('cookiebox');
-                  setEcosystemModalOpen(true);
-                }}
-                className="w-full flex items-center justify-between p-2 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 transition-colors text-left group"
-              >
-                <div>
-                  <div className="font-semibold text-slate-800 dark:text-slate-200 group-hover:text-amber-600 dark:group-hover:text-amber-300">Cookiebox Launchpad</div>
-                  <div className="text-[10px] text-slate-500">Creator token launches</div>
-                </div>
-                <ExternalLink className="w-3.5 h-3.5 text-slate-400 group-hover:text-amber-600 dark:group-hover:text-amber-400" />
-              </button>
-
-              <a
-                href="https://cookiescan.io"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-full flex items-center justify-between p-2 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 transition-colors text-left group"
-              >
-                <div>
-                  <div className="font-semibold text-slate-800 dark:text-slate-200 group-hover:text-amber-600 dark:group-hover:text-amber-300">CookieScan Explorer</div>
-                  <div className="text-[10px] text-slate-500">Official blockchain explorer</div>
-                </div>
-                <ExternalLink className="w-3.5 h-3.5 text-slate-400 group-hover:text-amber-600 dark:group-hover:text-amber-400" />
-              </a>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                Posts and storefront items are strictly visible to accepted friends. Unrelated accounts receive generic 404 responses with zero metadata leakage.
+              </p>
             </div>
           </aside>
         </div>
       </main>
 
-      {/* Verification Modal */}
+      {/* Mobile Bottom Navigation */}
+      <MobileBottomNav
+        activeView={activeView}
+        onSelectView={setActiveView}
+        onOpenMyPage={handleOpenMyPage}
+      />
+
+      {/* Modals */}
       <AgeVerificationModal
         isOpen={verifyModalOpen}
-        initialTab={verifyTab}
         onClose={() => setVerifyModalOpen(false)}
+        initialTab={verifyTab}
       />
 
-      {/* Ecosystem Hub Modal */}
       <EcosystemHubModal
         isOpen={ecosystemModalOpen}
-        defaultTab={ecosystemTab}
         onClose={() => setEcosystemModalOpen(false)}
+        initialTab={ecosystemTab}
       />
 
-      {/* Autonomous AI Agent Modal */}
       <AiAgentModal
         isOpen={aiAgentOpen}
         onClose={() => setAiAgentOpen(false)}
@@ -950,14 +755,6 @@ export default function Home() {
         }}
         onOpenStore={handleOpenStore}
         onSelectView={setActiveView}
-      />
-
-      {/* Dedicated Mobile Bottom Navigation (Phones) */}
-      <MobileBottomNav
-        activeView={activeView}
-        onSelectView={setActiveView}
-        onOpenAiAgent={() => setAiAgentOpen(true)}
-        userProfile={userProfile}
       />
     </div>
   );

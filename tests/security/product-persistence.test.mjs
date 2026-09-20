@@ -88,8 +88,9 @@ async function runTests() {
     bio: 'Premium synth presets and audio stems',
   });
 
-  // Create valid SIWS session token for Alice
+  // Create valid SIWS session token for Alice & Bob
   const aliceToken = createSession(aliceWallet, 'user');
+  const bobToken = createSession(bobWallet, 'user');
 
   // --------------------------------------------------------------------------
   // TEST 1: Fresh Authenticated Wallet Product Creation
@@ -246,24 +247,34 @@ async function runTests() {
   console.log('  PASS: Authoritative store returns exact persisted record.\n');
 
   // --------------------------------------------------------------------------
-  // TEST 9: REAL Route Public Unauthenticated Global Catalog Discovery
+  // TEST 9: REAL Route Platform Gate: Unauthenticated returns 401, Authenticated returns 200
   // --------------------------------------------------------------------------
-  console.log('[TEST 9] REAL Route Public Unauthenticated Global Catalog Discovery');
-  const publicReq = new Request('http://localhost:3000/api/products', { method: 'GET' });
+  console.log('[TEST 9] REAL Route Platform Gate: Unauthenticated returns 401, Authenticated returns 200');
+  const unauthGetReq = new Request('http://localhost:3000/api/products', { method: 'GET' });
+  const unauthGetRes = await GET(unauthGetReq);
+  assert.strictEqual(unauthGetRes.status, 401, 'Unauthenticated products access must return 401');
+
+  const publicReq = new Request('http://localhost:3000/api/products', {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${aliceToken}` },
+  });
   const publicRes = await GET(publicReq);
   assert.strictEqual(publicRes.status, 200);
   const publicData = await publicRes.json();
   assert.strictEqual(publicData.success, true);
   assert.ok(Array.isArray(publicData.products));
   const foundAliceProd = publicData.products.find((p) => p.id === aliceProdId);
-  assert.ok(foundAliceProd, 'Global catalog must contain Alice product');
-  console.log('  PASS: Genuine GET /api/products export returns public catalog.\n');
+  assert.ok(foundAliceProd, 'Relationship-scoped catalog must contain Alice self product');
+  console.log('  PASS: Genuine GET /api/products enforces SIWS platform gate and returns authorized products.\n');
 
   // --------------------------------------------------------------------------
   // TEST 10: REAL Route Creator Catalog Filtering: ?creator=<wallet>
   // --------------------------------------------------------------------------
   console.log('[TEST 10] REAL Route Creator Catalog Filtering');
-  const creatorReq = new Request(`http://localhost:3000/api/products?creator=${aliceWallet}`, { method: 'GET' });
+  const creatorReq = new Request(`http://localhost:3000/api/products?creator=${aliceWallet}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${aliceToken}` },
+  });
   const creatorRes = await GET(creatorReq);
   assert.strictEqual(creatorRes.status, 200);
   const creatorData = await creatorRes.json();
@@ -274,7 +285,10 @@ async function runTests() {
   }
 
   // Bob has no products yet -> should return 200 []
-  const bobReq = new Request(`http://localhost:3000/api/products?creator=${bobWallet}`, { method: 'GET' });
+  const bobReq = new Request(`http://localhost:3000/api/products?creator=${bobWallet}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${bobToken}` },
+  });
   const bobRes = await GET(bobReq);
   assert.strictEqual(bobRes.status, 200);
   const bobData = await bobRes.json();
@@ -412,7 +426,10 @@ async function runTests() {
   process.env.NODE_ENV = 'production';
   distributedStore.isConfigured = () => false;
 
-  const prodGlobalGetReq = new Request('http://localhost:3000/api/products', { method: 'GET' });
+  const prodGlobalGetReq = new Request('http://localhost:3000/api/products', {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${aliceToken}` },
+  });
   const prodGlobalGetRes = await GET(prodGlobalGetReq);
   assert.strictEqual(prodGlobalGetRes.status, 503, 'Global GET must return 503 when KV unconfigured in production');
   const prodGlobalData = await prodGlobalGetRes.json();
@@ -430,7 +447,10 @@ async function runTests() {
   process.env.NODE_ENV = 'production';
   distributedStore.isConfigured = () => false;
 
-  const prodCreatorGetReq = new Request(`http://localhost:3000/api/products?creator=${aliceWallet}`, { method: 'GET' });
+  const prodCreatorGetReq = new Request(`http://localhost:3000/api/products?creator=${aliceWallet}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${aliceToken}` },
+  });
   const prodCreatorGetRes = await GET(prodCreatorGetReq);
   assert.strictEqual(prodCreatorGetRes.status, 503, 'Creator GET must return 503 when KV unconfigured in production');
   const prodCreatorData = await prodCreatorGetRes.json();
@@ -798,7 +818,10 @@ async function runTests() {
   const postData = await postRes.json();
   const createdId = postData.product.id;
 
-  const getReq = new Request(`http://localhost:3000/api/products?creator=${aliceWallet}`, { method: 'GET' });
+  const getReq = new Request(`http://localhost:3000/api/products?creator=${aliceWallet}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${lifecycleToken}` },
+  });
   const getRes = await GET(getReq);
   assert.strictEqual(getRes.status, 200);
   const getData = await getRes.json();

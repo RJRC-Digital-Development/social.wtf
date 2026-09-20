@@ -209,6 +209,25 @@ export class DistributedStore {
   }
 
   /**
+   * Checks if a member exists in a set (SISMEMBER)
+   */
+  public async sismember(key: string, member: string): Promise<boolean> {
+    if (this.isEnabled) {
+      const res = await this.executeCommand<number>(['SISMEMBER', key, member]);
+      return typeof res === 'number' && res === 1;
+    }
+
+    const raw = this.fallbackMemory.get(key);
+    if (!raw || Date.now() > raw.expiresAt) return false;
+    try {
+      const set = new Set<string>(JSON.parse(raw.value));
+      return set.has(member);
+    } catch {
+      return false;
+    }
+  }
+
+  /**
    * Removes a member from a set (SREM)
    */
   public async srem(key: string, member: string): Promise<boolean> {

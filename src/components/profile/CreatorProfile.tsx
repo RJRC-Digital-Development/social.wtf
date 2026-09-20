@@ -74,7 +74,7 @@ export const CreatorProfile: React.FC<CreatorProfileProps> = ({
   const [studioOpen, setStudioOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [friendsModalOpen, setFriendsModalOpen] = useState(false);
-  const [friendsModalTab, setFriendsModalTab] = useState<'followers' | 'following' | 'friends'>('followers');
+  const [friendsModalTab, setFriendsModalTab] = useState<'friends' | 'inbound' | 'outbound' | 'blocked'>('friends');
   const [copiedUrl, setCopiedUrl] = useState(false);
 
   // Social Following & Friends State
@@ -447,17 +447,7 @@ setInterval(() => {
                     <Camera className="w-3 h-3 text-purple-400" />
                     <span>AI Sentinel Video Verified (Adult Entertainment Unlocked)</span>
                   </span>
-                ) : (
-                  onOpenVerifyModal && (
-                    <button
-                      onClick={() => onOpenVerifyModal('card_auth')}
-                      className="px-2 py-0.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-[10px] font-semibold text-amber-300 flex items-center gap-1 transition-colors"
-                    >
-                      <Camera className="w-3 h-3 text-amber-400" />
-                      <span>Verify 18+ Adult Entertainment Access</span>
-                    </button>
-                  )
-                )}
+                ) : null}
               </div>
             </div>
           </div>
@@ -466,7 +456,7 @@ setInterval(() => {
           <div className="flex items-center gap-3 text-xs">
             <button
               onClick={() => {
-                setFriendsModalTab('followers');
+                setFriendsModalTab('friends');
                 setFriendsModalOpen(true);
               }}
               className="px-3 py-1.5 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-slate-800 text-center transition-colors cursor-pointer group"
@@ -479,7 +469,7 @@ setInterval(() => {
 
             <button
               onClick={() => {
-                setFriendsModalTab('following');
+                setFriendsModalTab('friends');
                 setFriendsModalOpen(true);
               }}
               className="px-3 py-1.5 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-slate-800 text-center transition-colors cursor-pointer group"
@@ -653,36 +643,7 @@ setInterval(() => {
         </div>
       </div>
 
-      {/* Parental & Guardian Safeguard Alert for Mature Profiles */}
-      {!isAdultContentUnlocked && creator.isAdultContentCreator && (
-        <div className="p-4 rounded-3xl bg-amber-950/40 border border-amber-500/40 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs shadow-xl animate-fade-in">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-2xl bg-amber-500/20 text-amber-400 border border-amber-500/30 shrink-0">
-              <ShieldCheck className="w-5 h-5" />
-            </div>
-            <div>
-              <strong className="text-amber-300 block text-sm font-bold">
-                18+ Adult Entertainment Verification Required
-              </strong>
-              <p className="text-slate-300 text-[11px] mt-0.5">
-                Must be 18 years old or over to access. Requires a debit or credit card ($0 authorization age check) with AI video verification.
-                Anyone determined to be under 25 will be required to produce a valid Driver&apos;s License or Government ID card to continue.
-                <span className="text-emerald-300 font-semibold block sm:inline sm:ml-1">
-                  Verified strictly by autonomous AI agents with zero human review for viewer privacy unless flagged for review.
-                </span>
-              </p>
-            </div>
-          </div>
-          {onOpenVerifyModal && (
-            <button
-              onClick={() => onOpenVerifyModal('card_auth')}
-              className="shrink-0 px-4 py-2.5 rounded-2xl bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 font-bold text-xs hover:brightness-110 active:scale-95 transition-all shadow-md"
-            >
-              Verify Age (18+)
-            </button>
-          )}
-        </div>
-      )}
+
 
       {/* Tab 1: Creator Storefront */}
       {activeTab === 'store' && (

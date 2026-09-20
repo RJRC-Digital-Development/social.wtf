@@ -1,4 +1,4 @@
-import { distributedStore } from './distributedStore';
+import { distributedStore } from './distributedStore.ts';
 import { PublicKey } from '@solana/web3.js';
 import { ed25519 } from '@noble/curves/ed25519';
 import bs58 from 'bs58';

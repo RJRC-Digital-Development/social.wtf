@@ -1,9 +1,9 @@
-import { NextResponse } from 'next/server';
-import { verifyWalletChallengeAsync } from '@/lib/security/walletAuth';
-import { globalRateLimiter } from '@/lib/security/rateLimiter';
-import { createSession, verifySessionToken, createSessionCookie } from '@/lib/security/session';
-import { getClientIp } from '@/lib/security/ipHelper';
-import { isPlatformOwner } from '@/lib/security/ownerAuth';
+import { NextResponse } from 'next/server.js';
+import { verifyWalletChallengeAsync } from '../../../../lib/security/walletAuth.ts';
+import { globalRateLimiter } from '../../../../lib/security/rateLimiter.ts';
+import { createSession, verifySessionToken, createSessionCookie } from '../../../../lib/security/session.ts';
+import { getClientIp } from '../../../../lib/security/ipHelper.ts';
+import { isPlatformOwner } from '../../../../lib/security/ownerAuth.ts';
 
 export async function POST(req: Request) {
   try {

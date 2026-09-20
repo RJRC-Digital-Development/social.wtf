@@ -21,18 +21,20 @@ interface EcosystemHubModalProps {
   isOpen: boolean;
   onClose: () => void;
   defaultTab?: 'bridge' | 'cookieswap' | 'cookiebox' | 'das' | 'mcp';
+  initialTab?: 'bridge' | 'cookieswap' | 'cookiebox' | 'das' | 'mcp';
   onTransactionRecorded?: (tx: TransactionRecord) => void;
 }
 
 export const EcosystemHubModal: React.FC<EcosystemHubModalProps> = ({
   isOpen,
   onClose,
-  defaultTab = 'bridge',
+  defaultTab,
+  initialTab,
   onTransactionRecorded,
 }) => {
   const { connected, connect, signAndSendTransaction, walletAddress } = useWallet();
   const [activeTab, setActiveTab] = useState<'bridge' | 'cookieswap' | 'cookiebox' | 'das' | 'mcp'>(
-    defaultTab
+    initialTab || defaultTab || 'bridge'
   );
 
   // Quick swap state

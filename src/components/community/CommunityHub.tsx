@@ -34,11 +34,13 @@ import {
 interface CommunityHubProps {
   onOpenStore?: (handle: string) => void;
   onOpenVerifyModal?: (tab?: 'card_auth' | 'video_liveness' | 'id_upload') => void;
+  onOpenAiAgent?: () => void;
 }
 
 export const CommunityHub: React.FC<CommunityHubProps> = ({
   onOpenStore,
   onOpenVerifyModal,
+  onOpenAiAgent,
 }) => {
   const [activeMainTab, setActiveMainTab] = useState<'discussions' | 'wiki'>('discussions');
 

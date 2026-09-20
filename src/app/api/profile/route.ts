@@ -1,40 +1,73 @@
-import { NextResponse } from 'next/server';
+import { NextResponse } from 'next/server.js';
 import {
   getProfileByWalletAsync,
   getProfileByHandleAsync,
   saveOnboardedProfileAsync,
-} from '@/lib/data/profileStore';
-import { validateRequestSessionAsync } from '@/lib/security/session';
-import { globalRateLimiter } from '@/lib/security/rateLimiter';
-import { getClientIp } from '@/lib/security/ipHelper';
+} from '../../../lib/data/profileStore.ts';
+import {
+  areFriendsAsync,
+  isAnyBlockedAsync,
+  RelationshipStoreUnavailableError,
+} from '../../../lib/data/relationshipStore.ts';
+import { validateRequestSessionAsync } from '../../../lib/security/session.ts';
+import { globalRateLimiter } from '../../../lib/security/rateLimiter.ts';
+import { getClientIp } from '../../../lib/security/ipHelper.ts';
 
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
-    const wallet = searchParams.get('wallet');
-    const handle = searchParams.get('handle');
+    const targetWallet = searchParams.get('wallet');
+    const targetHandle = searchParams.get('handle');
 
-    if (wallet) {
-      const profile = await getProfileByWalletAsync(wallet);
-      if (!profile) {
-        return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
-      }
-      return NextResponse.json({ success: true, profile });
+    // Authenticate caller via SIWS session
+    const auth = await validateRequestSessionAsync(req);
+    if (!auth.authenticated || !auth.payload?.walletAddress) {
+      return NextResponse.json(
+        { error: 'Authentication required to view profile records', code: 'AUTH_REQUIRED' },
+        { status: 401 }
+      );
     }
 
-    if (handle) {
-      const profile = await getProfileByHandleAsync(handle);
-      if (!profile) {
-        return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
-      }
-      return NextResponse.json({ success: true, profile });
+    const callerWallet = auth.payload.walletAddress;
+
+    let targetProfile = null;
+    if (targetWallet) {
+      targetProfile = await getProfileByWalletAsync(targetWallet);
+    } else if (targetHandle) {
+      targetProfile = await getProfileByHandleAsync(targetHandle);
+    } else {
+      // Default to caller's own profile
+      targetProfile = await getProfileByWalletAsync(callerWallet);
     }
 
-    return NextResponse.json(
-      { error: 'Provide either ?wallet=<address> or ?handle=<handle>' },
-      { status: 400 }
-    );
-  } catch {
+    if (!targetProfile) {
+      return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
+    }
+
+    const resolvedWallet = targetProfile.walletAddress;
+
+    // Relationship privacy boundary:
+    // Only self or accepted friends can view full profile details.
+    const isSelf = callerWallet === resolvedWallet;
+    const isFriend = !isSelf && (await areFriendsAsync(callerWallet, resolvedWallet));
+
+    if (!isSelf && !isFriend) {
+      // Generic 404 to avoid existence oracle leaks
+      return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
+    }
+
+    if (!isSelf && (await isAnyBlockedAsync(callerWallet, resolvedWallet))) {
+      return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
+    }
+
+    return NextResponse.json({ success: true, profile: targetProfile });
+  } catch (err: any) {
+    if (err instanceof RelationshipStoreUnavailableError || err?.code === 'RELATIONSHIP_STORE_UNAVAILABLE') {
+      return NextResponse.json(
+        { error: 'Relationship service temporarily unavailable', code: 'RELATIONSHIP_STORE_UNAVAILABLE' },
+        { status: 503 }
+      );
+    }
     return NextResponse.json(
       { error: 'Internal server error retrieving profile' },
       { status: 500 }

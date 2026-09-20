@@ -1,7 +1,7 @@
-import { NextResponse } from 'next/server';
-import { generateAuthChallengeAsync, formatChallengeMessage } from '@/lib/security/walletAuth';
-import { globalRateLimiter } from '@/lib/security/rateLimiter';
-import { getClientIp } from '@/lib/security/ipHelper';
+import { NextResponse } from 'next/server.js';
+import { generateAuthChallengeAsync, formatChallengeMessage } from '../../../../lib/security/walletAuth.ts';
+import { globalRateLimiter } from '../../../../lib/security/rateLimiter.ts';
+import { getClientIp } from '../../../../lib/security/ipHelper.ts';
 import { PublicKey } from '@solana/web3.js';
 
 async function handleNonceRequest(walletAddress: string | null, ip: string) {

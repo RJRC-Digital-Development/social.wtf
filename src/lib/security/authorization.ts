@@ -1,14 +1,16 @@
 import crypto from 'crypto';
-import { distributedStore } from './distributedStore';
+import { distributedStore } from './distributedStore.ts';
 import {
-  SessionPayload,
-  SessionScope,
+  type SessionPayload,
+  type SessionScope,
   getSessionSecret,
   validateRequestSessionAsync,
   extractSessionToken,
-} from './session';
+} from './session.ts';
 
-import { FACTOR_TTL_MS, VerificationRecord } from './verificationRecord';
+import { FACTOR_TTL_MS, type VerificationRecord } from './verificationRecord.ts';
+
+
 
 export interface AuthorizationClaims {
   walletAddress: string;

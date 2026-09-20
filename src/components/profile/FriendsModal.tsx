@@ -1,77 +1,144 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { User } from '@/types';
 import {
   X,
   Users,
-  UserPlus,
-  UserCheck,
-  Search,
-  ExternalLink,
-  ShieldCheck,
-  Sparkles,
-  Heart,
+  Clock,
 } from 'lucide-react';
 
 interface FriendsModalProps {
   isOpen: boolean;
   onClose: () => void;
   creator: User;
-  initialTab?: 'followers' | 'following' | 'friends';
+  initialTab?: 'friends' | 'inbound' | 'outbound' | 'blocked';
   onSelectCreator?: (handle: string) => void;
+  onRelationshipChanged?: () => void;
 }
 
-interface SocialConnection {
-  id: string;
+interface FriendProfile {
+  walletAddress: string;
   handle: string;
   name: string;
   avatar: string;
   bio: string;
-  isFollowing: boolean;
-  isFriend: boolean;
   verified: boolean;
-  followersCount: number;
+  isCreator: boolean;
 }
-
-const INITIAL_CONNECTIONS: SocialConnection[] = [];
 
 export const FriendsModal: React.FC<FriendsModalProps> = ({
   isOpen,
   onClose,
   creator,
-  initialTab = 'followers',
+  initialTab = 'friends',
   onSelectCreator,
+  onRelationshipChanged,
 }) => {
-  const [activeTab, setActiveTab] = useState<'followers' | 'following' | 'friends'>(initialTab);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [connections, setConnections] = useState<SocialConnection[]>(INITIAL_CONNECTIONS);
+  const [activeTab, setActiveTab] = useState<'friends' | 'inbound' | 'outbound' | 'blocked'>(initialTab);
+  const [friends, setFriends] = useState<FriendProfile[]>([]);
+  const [inbound, setInbound] = useState<string[]>([]);
+  const [outbound, setOutbound] = useState<string[]>([]);
+  const [blocked, setBlocked] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  const token = typeof window !== 'undefined' ? localStorage.getItem('social_wtf_session_token') : null;
+
+  const loadRelationships = async () => {
+    if (!token) return;
+    setLoading(true);
+    setActionError(null);
+    try {
+      const res = await fetch('/api/friends', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setFriends(data.friends || []);
+        setInbound(data.inboundRequests || []);
+        setOutbound(data.outboundRequests || []);
+        setBlocked(data.blockedWallets || []);
+      }
+    } catch {
+      setActionError('Failed to load relationships.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isOpen) {
+      loadRelationships();
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
-  const toggleFollow = (id: string) => {
-    setConnections((prev) =>
-      prev.map((c) => (c.id === id ? { ...c, isFollowing: !c.isFollowing } : c))
-    );
+  const handleAccept = async (senderWallet: string) => {
+    if (!token) return;
+    try {
+      const res = await fetch('/api/friends/accept', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ senderWallet }),
+      });
+      if (res.ok) {
+        await loadRelationships();
+        if (onRelationshipChanged) onRelationshipChanged();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        setActionError(err.error || 'Failed to accept request.');
+      }
+    } catch {
+      setActionError('Network error accepting request.');
+    }
   };
 
-  const toggleFriend = (id: string) => {
-    setConnections((prev) =>
-      prev.map((c) => (c.id === id ? { ...c, isFriend: !c.isFriend } : c))
-    );
+  const handleReject = async (senderWallet: string) => {
+    if (!token) return;
+    try {
+      const res = await fetch('/api/friends/reject', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ senderWallet }),
+      });
+      if (res.ok) {
+        await loadRelationships();
+        if (onRelationshipChanged) onRelationshipChanged();
+      }
+    } catch {}
   };
 
-  const filteredList = connections.filter((c) => {
-    const matchesSearch =
-      c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.handle.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.bio.toLowerCase().includes(searchQuery.toLowerCase());
+  const handleUnfriend = async (targetWallet: string) => {
+    if (!token) return;
+    try {
+      const res = await fetch('/api/friends/remove', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ targetWallet }),
+      });
+      if (res.ok) {
+        await loadRelationships();
+        if (onRelationshipChanged) onRelationshipChanged();
+      }
+    } catch {}
+  };
 
-    if (!matchesSearch) return false;
-    if (activeTab === 'following') return c.isFollowing;
-    if (activeTab === 'friends') return c.isFriend;
-    return true; // followers tab shows all community followers
-  });
+  const handleUnblock = async (targetWallet: string) => {
+    if (!token) return;
+    try {
+      const res = await fetch('/api/friends/block', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ targetWallet, action: 'unblock' }),
+      });
+      if (res.ok) {
+        await loadRelationships();
+        if (onRelationshipChanged) onRelationshipChanged();
+      }
+    } catch {}
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
@@ -84,10 +151,10 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
             </div>
             <div>
               <h2 className="text-base font-bold text-slate-100">
-                {creator.name} Social Network
+                Authoritative Friend Graph
               </h2>
               <p className="text-[11px] text-slate-400 font-mono">
-                @{creator.handle} &bull; Followers, Following &amp; Friends
+                Relationship-Scoped Social Network
               </p>
             </div>
           </div>
@@ -100,139 +167,160 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex border-b border-slate-800 bg-slate-900/40 shrink-0 px-4">
-          <button
-            onClick={() => setActiveTab('followers')}
-            className={`flex-1 py-3 text-xs font-semibold text-center border-b-2 transition-all ${
-              activeTab === 'followers'
-                ? 'border-amber-400 text-amber-300 font-bold'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <span>Followers ({creator.followersCount.toLocaleString()})</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('following')}
-            className={`flex-1 py-3 text-xs font-semibold text-center border-b-2 transition-all ${
-              activeTab === 'following'
-                ? 'border-amber-400 text-amber-300 font-bold'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <span>Following ({creator.followingCount.toLocaleString()})</span>
-          </button>
-
+        <div className="grid grid-cols-4 p-2 bg-slate-950/60 border-b border-slate-800 text-xs shrink-0 font-semibold text-center">
           <button
             onClick={() => setActiveTab('friends')}
-            className={`flex-1 py-3 text-xs font-semibold text-center border-b-2 transition-all ${
+            className={`py-2 rounded-xl transition-all ${
               activeTab === 'friends'
-                ? 'border-amber-400 text-amber-300 font-bold'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
+                ? 'bg-amber-500 text-slate-950 font-bold shadow-sm'
+                : 'text-slate-400 hover:text-slate-200'
             }`}
           >
-            <span>Friends ({connections.filter((c) => c.isFriend).length})</span>
+            Friends ({friends.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('inbound')}
+            className={`py-2 rounded-xl transition-all ${
+              activeTab === 'inbound'
+                ? 'bg-amber-500 text-slate-950 font-bold shadow-sm'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            Requests ({inbound.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('outbound')}
+            className={`py-2 rounded-xl transition-all ${
+              activeTab === 'outbound'
+                ? 'bg-amber-500 text-slate-950 font-bold shadow-sm'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            Sent ({outbound.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('blocked')}
+            className={`py-2 rounded-xl transition-all ${
+              activeTab === 'blocked'
+                ? 'bg-amber-500 text-slate-950 font-bold shadow-sm'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            Blocked ({blocked.length})
           </button>
         </div>
 
-        {/* Search Input */}
-        <div className="p-3.5 border-b border-slate-800/80 shrink-0">
-          <div className="relative">
-            <Search className="absolute left-3.5 top-2.5 w-4 h-4 text-slate-500" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search followers, following, or friends..."
-              className="w-full pl-9 pr-3.5 py-2 rounded-xl bg-slate-900 border border-slate-700 text-slate-100 text-xs focus:outline-none focus:border-amber-400 placeholder-slate-500"
-            />
+        {actionError && (
+          <div className="p-3 mx-4 mt-3 rounded-xl bg-rose-500/20 border border-rose-500/40 text-rose-300 text-xs">
+            {actionError}
           </div>
-        </div>
+        )}
 
-        {/* Connections List */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-3">
-          {filteredList.length === 0 ? (
-            <div className="py-12 text-center text-slate-400 text-xs space-y-2">
-              <Users className="w-8 h-8 mx-auto text-slate-600 mb-1" />
-              <p className="font-semibold text-slate-300">No {activeTab} to display yet</p>
-              <p className="text-[11px] text-slate-500 max-w-xs mx-auto">
-                When creators follow @{creator.handle} or connect on Cookie Chain, they will appear here in real time.
-              </p>
-            </div>
-          ) : (
-            filteredList.map((c) => (
-              <div
-                key={c.id}
-                className="p-3 rounded-2xl bg-slate-900/80 border border-slate-800 flex items-center justify-between gap-3 hover:border-slate-700 transition-all"
-              >
+        {/* List Content */}
+        <div className="p-4 overflow-y-auto space-y-3 flex-1">
+          {loading && (
+            <div className="text-center py-8 text-xs text-slate-400">Loading relationship graph...</div>
+          )}
+
+          {!loading && activeTab === 'friends' && (
+            friends.length === 0 ? (
+              <div className="text-center py-10 text-xs text-slate-500">No accepted friends yet.</div>
+            ) : (
+              friends.map((f) => (
                 <div
-                  onClick={() => {
-                    if (onSelectCreator) {
-                      onSelectCreator(c.handle);
-                      onClose();
-                    }
-                  }}
-                  className="flex items-center gap-3 cursor-pointer group flex-1 overflow-hidden"
+                  key={f.walletAddress}
+                  className="p-3 rounded-2xl bg-slate-900/70 border border-slate-800 flex items-center justify-between"
                 >
-                  <img
-                    src={c.avatar}
-                    alt={c.name}
-                    className="w-10 h-10 rounded-2xl object-cover border border-slate-700 group-hover:border-amber-400 transition-colors shrink-0"
-                  />
-                  <div className="overflow-hidden">
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-bold text-slate-100 text-xs group-hover:text-amber-300 transition-colors truncate">
-                        {c.name}
-                      </span>
-                      {c.verified && (
-                        <ShieldCheck className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-                      )}
-                    </div>
-                    <div className="text-[10px] text-slate-400 font-mono">@{c.handle}</div>
-                    <div className="text-[11px] text-slate-300 line-clamp-1 mt-0.5">
-                      {c.bio}
+                  <div className="flex items-center gap-3">
+                    <img src={f.avatar} alt={f.name} className="w-10 h-10 rounded-xl object-cover" />
+                    <div>
+                      <div className="font-bold text-slate-200 text-xs">{f.name}</div>
+                      <div className="text-[11px] text-amber-400 font-mono">@{f.handle}</div>
                     </div>
                   </div>
-                </div>
-
-                <div className="flex items-center gap-2 shrink-0">
                   <button
-                    onClick={() => toggleFriend(c.id)}
-                    className={`px-2.5 py-1.5 rounded-xl text-xs font-semibold border transition-all flex items-center gap-1 ${
-                      c.isFriend
-                        ? 'bg-amber-500/20 border-amber-500/40 text-amber-300'
-                        : 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-300'
-                    }`}
+                    onClick={() => handleUnfriend(f.walletAddress)}
+                    className="px-3 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-300 text-xs font-semibold"
                   >
-                    <Heart className={`w-3 h-3 ${c.isFriend ? 'fill-amber-400 text-amber-400' : ''}`} />
-                    <span className="hidden sm:inline">
-                      {c.isFriend ? 'Friend' : 'Add Friend'}
-                    </span>
-                  </button>
-
-                  <button
-                    onClick={() => toggleFollow(c.id)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1 ${
-                      c.isFollowing
-                        ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700'
-                        : 'bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-md'
-                    }`}
-                  >
-                    {c.isFollowing ? (
-                      <>
-                        <UserCheck className="w-3 h-3 text-emerald-400" />
-                        <span>Following</span>
-                      </>
-                    ) : (
-                      <>
-                        <UserPlus className="w-3 h-3" />
-                        <span>Follow</span>
-                      </>
-                    )}
+                    Unfriend
                   </button>
                 </div>
-              </div>
-            ))
+              ))
+            )
+          )}
+
+          {!loading && activeTab === 'inbound' && (
+            inbound.length === 0 ? (
+              <div className="text-center py-10 text-xs text-slate-500">No pending inbound requests.</div>
+            ) : (
+              inbound.map((sender) => (
+                <div
+                  key={sender}
+                  className="p-3 rounded-2xl bg-slate-900/70 border border-slate-800 flex items-center justify-between"
+                >
+                  <div className="font-mono text-xs text-slate-300">
+                    {sender.slice(0, 6)}...{sender.slice(-6)}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleAccept(sender)}
+                      className="px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-slate-950 text-xs font-bold"
+                    >
+                      Accept
+                    </button>
+                    <button
+                      onClick={() => handleReject(sender)}
+                      className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold"
+                    >
+                      Decline
+                    </button>
+                  </div>
+                </div>
+              ))
+            )
+          )}
+
+          {!loading && activeTab === 'outbound' && (
+            outbound.length === 0 ? (
+              <div className="text-center py-10 text-xs text-slate-500">No sent requests pending.</div>
+            ) : (
+              outbound.map((recip) => (
+                <div
+                  key={recip}
+                  className="p-3 rounded-2xl bg-slate-900/70 border border-slate-800 flex items-center justify-between"
+                >
+                  <div className="font-mono text-xs text-slate-300">
+                    {recip.slice(0, 6)}...{recip.slice(-6)}
+                  </div>
+                  <span className="text-[11px] text-amber-400 font-semibold flex items-center gap-1">
+                    <Clock className="w-3.5 h-3.5" /> Pending
+                  </span>
+                </div>
+              ))
+            )
+          )}
+
+          {!loading && activeTab === 'blocked' && (
+            blocked.length === 0 ? (
+              <div className="text-center py-10 text-xs text-slate-500">No blocked wallets.</div>
+            ) : (
+              blocked.map((bWallet) => (
+                <div
+                  key={bWallet}
+                  className="p-3 rounded-2xl bg-slate-900/70 border border-slate-800 flex items-center justify-between"
+                >
+                  <div className="font-mono text-xs text-rose-300">
+                    {bWallet.slice(0, 6)}...{bWallet.slice(-6)}
+                  </div>
+                  <button
+                    onClick={() => handleUnblock(bWallet)}
+                    className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold"
+                  >
+                    Unblock
+                  </button>
+                </div>
+              ))
+            )
           )}
         </div>
       </div>

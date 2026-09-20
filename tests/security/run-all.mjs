@@ -24,6 +24,11 @@ const testFiles = [
   'profile-persistence.test.mjs',
   'product-persistence.test.mjs',
   'wallet-connection-resilience.test.mjs',
+  'post-persistence.test.mjs',
+  'relationship-access.test.mjs',
+  'platform-login-gate.test.mjs',
+  'secret-club-authorization.test.mjs',
+  'text-first-release.test.mjs',
 ];
 
 let totalPassed = 0;
