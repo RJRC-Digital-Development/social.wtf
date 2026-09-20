@@ -143,6 +143,36 @@ export function clearProductsCacheForTests(): void {
 }
 
 /**
+ * Validates whether a URL uses allowed protocols (HTTPS or IPFS, with optional HTTP in dev)
+ */
+export function isValidProductUrl(urlStr: string): boolean {
+  if (typeof urlStr !== 'string') return false;
+  const trimmed = urlStr.trim().toLowerCase();
+
+  // Explicitly reject dangerous schemes
+  if (
+    trimmed.startsWith('javascript:') ||
+    trimmed.startsWith('data:') ||
+    trimmed.startsWith('vbscript:') ||
+    trimmed.startsWith('file:')
+  ) {
+    return false;
+  }
+
+  // Allowed production schemes
+  if (trimmed.startsWith('https://') || trimmed.startsWith('ipfs://')) {
+    return true;
+  }
+
+  // HTTP allowed ONLY in development
+  if (process.env.NODE_ENV !== 'production' && trimmed.startsWith('http://')) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
  * Validate product creation payload
  */
 export function validateProductPayload(input: CreateProductInput): {
@@ -199,18 +229,30 @@ export function validateProductPayload(input: CreateProductInput): {
   const rawDesc = typeof input.description === 'string' ? input.description.trim() : '';
   const sanitizedDesc = sanitizeString(rawDesc, 2000) || 'Exclusive creator digital item.';
 
-  // 5. Preview URL sanitization
-  const rawPreview = typeof input.previewUrl === 'string' ? input.previewUrl.trim() : '';
-  const sanitizedPreview =
-    rawPreview.startsWith('http://') || rawPreview.startsWith('https://') || rawPreview.startsWith('ipfs://')
-      ? rawPreview.slice(0, 500)
-      : 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80';
+  // 5. Preview URL validation & sanitization
+  let sanitizedPreview = 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80';
+  if (typeof input.previewUrl === 'string' && input.previewUrl.trim().length > 0) {
+    const rawPreview = input.previewUrl.trim();
+    if (!isValidProductUrl(rawPreview)) {
+      return { valid: false, error: 'Preview URL must use HTTPS or IPFS protocol' };
+    }
+    sanitizedPreview = rawPreview.slice(0, 500);
+  }
 
-  // 6. Optional metadata
+  // 6. Download URL validation & sanitization
+  let sanitizedDownload: string | undefined = undefined;
+  if (typeof input.downloadUrl === 'string' && input.downloadUrl.trim().length > 0) {
+    const rawDownload = input.downloadUrl.trim();
+    if (!isValidProductUrl(rawDownload)) {
+      return { valid: false, error: 'Download URL must use HTTPS or IPFS protocol' };
+    }
+    sanitizedDownload = rawDownload.slice(0, 500);
+  }
+
+  // 7. Optional metadata
   const fileSize = typeof input.fileSize === 'string' ? sanitizePlainText(input.fileSize, 50) : 'Instant DL';
   const fileFormat = typeof input.fileFormat === 'string' ? sanitizePlainText(input.fileFormat, 50) : 'Digital';
   const codeSnippet = typeof input.codeSnippet === 'string' ? sanitizeString(input.codeSnippet, 4000) : undefined;
-  const downloadUrl = typeof input.downloadUrl === 'string' ? input.downloadUrl.trim().slice(0, 500) : undefined;
   const featured = Boolean(input.featured);
 
   return {
@@ -221,7 +263,7 @@ export function validateProductPayload(input: CreateProductInput): {
       priceCook,
       category,
       previewUrl: sanitizedPreview,
-      downloadUrl,
+      downloadUrl: sanitizedDownload,
       fileSize,
       fileFormat,
       codeSnippet,
@@ -232,7 +274,7 @@ export function validateProductPayload(input: CreateProductInput): {
 
 /**
  * Authoritative Asynchronous Product Creation
- * Enforces server-derived identity, server UUID, and multi-key write with compensating rollback.
+ * Enforces server-derived identity, crypto.randomUUID(), and multi-key write with compensating rollback.
  */
 export async function saveProductAsync(
   authenticatedWallet: string,
@@ -248,7 +290,7 @@ export async function saveProductAsync(
   }
 
   const clean = validation.sanitized;
-  const productId = `prod_${Date.now()}_${crypto.randomBytes(8).toString('hex')}`;
+  const productId = `prod_${crypto.randomUUID()}`;
 
   // Resolve creator display info from profileStore (Handle change does NOT orphan product ownership)
   let creatorHandle = `user_${authenticatedWallet.slice(0, 4).toLowerCase()}${authenticatedWallet.slice(-4).toLowerCase()}`;
@@ -348,6 +390,16 @@ export async function saveProductAsync(
   }
 
   // -------------------------------------------------------------
+  // Production Invariant: If KV unconfigured in production -> FAIL CLOSED
+  // -------------------------------------------------------------
+  if (process.env.NODE_ENV === 'production') {
+    return {
+      success: false,
+      error: 'Authoritative product store is unavailable',
+    };
+  }
+
+  // -------------------------------------------------------------
   // Path B: Local Development / Testing Fallback
   // -------------------------------------------------------------
   return acquireLocalLock(async () => {
@@ -429,6 +481,16 @@ export async function getAllProductsAsync(): Promise<{
   }
 
   // -------------------------------------------------------------
+  // Production Invariant: If KV unconfigured in production -> FAIL CLOSED
+  // -------------------------------------------------------------
+  if (process.env.NODE_ENV === 'production') {
+    return {
+      success: false,
+      error: 'Authoritative product store is unavailable',
+    };
+  }
+
+  // -------------------------------------------------------------
   // Path B: Local Development / Testing Fallback
   // -------------------------------------------------------------
   ensureLocalInitialized();
@@ -502,6 +564,16 @@ export async function getProductsByCreatorAsync(
   }
 
   // -------------------------------------------------------------
+  // Production Invariant: If KV unconfigured in production -> FAIL CLOSED
+  // -------------------------------------------------------------
+  if (process.env.NODE_ENV === 'production') {
+    return {
+      success: false,
+      error: 'Authoritative product store is unavailable',
+    };
+  }
+
+  // -------------------------------------------------------------
   // Path B: Local Development / Testing Fallback
   // -------------------------------------------------------------
   ensureLocalInitialized();
@@ -548,6 +620,16 @@ export async function getProductByIdAsync(
   }
 
   // -------------------------------------------------------------
+  // Production Invariant: If KV unconfigured in production -> FAIL CLOSED
+  // -------------------------------------------------------------
+  if (process.env.NODE_ENV === 'production') {
+    return {
+      success: false,
+      error: 'Authoritative product store is unavailable',
+    };
+  }
+
+  // -------------------------------------------------------------
   // Path B: Local Development / Testing Fallback
   // -------------------------------------------------------------
   ensureLocalInitialized();
@@ -573,7 +655,7 @@ export function saveProduct(
   }
 
   const clean = validation.sanitized;
-  const productId = `prod_${Date.now()}_${crypto.randomBytes(8).toString('hex')}`;
+  const productId = `prod_${crypto.randomUUID()}`;
 
   let creatorHandle = `user_${authenticatedWallet.slice(0, 4).toLowerCase()}${authenticatedWallet.slice(-4).toLowerCase()}`;
   let creatorName = `@${authenticatedWallet.slice(0, 4)}...${authenticatedWallet.slice(-4)}`;

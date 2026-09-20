@@ -1,12 +1,12 @@
-import { NextResponse } from 'next/server';
+import { NextResponse } from 'next/server.js';
 import {
   getAllProductsAsync,
   getProductsByCreatorAsync,
   saveProductAsync,
-} from '@/lib/data/productsStore';
-import { validateRequestSessionAsync } from '@/lib/security/session';
-import { globalRateLimiter } from '@/lib/security/rateLimiter';
-import { getClientIp } from '@/lib/security/ipHelper';
+} from '../../../lib/data/productsStore.ts';
+import { validateRequestSessionAsync } from '../../../lib/security/session.ts';
+import { globalRateLimiter } from '../../../lib/security/rateLimiter.ts';
+import { getClientIp } from '../../../lib/security/ipHelper.ts';
 
 export async function GET(req: Request) {
   try {

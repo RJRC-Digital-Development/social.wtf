@@ -1,4 +1,4 @@
-import { distributedStore } from './distributedStore';
+import { distributedStore } from './distributedStore.ts';
 /**
  * Sliding Window Rate Limiter with Distributed Coordination Support
  * Protects API routes, AI endpoints, and verification services against DoS and brute-force abuse.
