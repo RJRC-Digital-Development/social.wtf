@@ -1,12 +1,11 @@
-import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { PublicKey } from '@solana/web3.js';
 import { ed25519 } from '@noble/curves/ed25519';
 import bs58 from 'bs58';
-import { validateRequestSessionAsync, createAccountSession, createSessionCookie } from '@/lib/security/session';
-import { bindVerifiedWalletAsync, getAccountByIdAsync, getAccountRolesAsync } from '@/lib/data/accountStore';
-import { recordAuditLogAsync } from '@/lib/data/auditStore';
-import { distributedStore } from '@/lib/security/distributedStore';
+import { validateRequestSessionAsync, createAccountSession, createSessionCookie } from '../../../../../lib/security/session.ts';
+import { bindVerifiedWalletAsync, getAccountByIdAsync, getAccountRolesAsync } from '../../../../../lib/data/accountStore.ts';
+import { recordAuditLogAsync } from '../../../../../lib/data/auditStore.ts';
+import { distributedStore } from '../../../../../lib/security/distributedStore.ts';
 
 const WALLET_CHALLENGE_PREFIX = 'auth:wallet_challenge:';
 
@@ -14,7 +13,7 @@ export async function POST(req: Request) {
   try {
     const sessionResult = await validateRequestSessionAsync(req);
     if (!sessionResult.authenticated) {
-      return NextResponse.json({ error: 'UNAUTHORIZED', message: 'Authentication required.' }, { status: 401 });
+      return Response.json({ error: 'UNAUTHORIZED', message: 'Authentication required.' }, { status: 401 });
     }
 
     const { accountId } = sessionResult.payload;
@@ -23,12 +22,12 @@ export async function POST(req: Request) {
     try {
       body = await req.json();
     } catch {
-      return NextResponse.json({ error: 'INVALID_JSON', message: 'Invalid JSON body.' }, { status: 400 });
+      return Response.json({ error: 'INVALID_JSON', message: 'Invalid JSON body.' }, { status: 400 });
     }
 
     const { walletAddress, nonce, signatureBase58 } = body || {};
     if (!walletAddress || !nonce || !signatureBase58) {
-      return NextResponse.json(
+      return Response.json(
         { error: 'MISSING_FIELDS', message: 'walletAddress, nonce, and signatureBase58 are required.' },
         { status: 400 }
       );
@@ -39,7 +38,7 @@ export async function POST(req: Request) {
     try {
       pubKeyBytes = new PublicKey(walletAddress).toBytes();
     } catch {
-      return NextResponse.json({ error: 'INVALID_WALLET', message: 'Invalid Solana wallet address.' }, { status: 400 });
+      return Response.json({ error: 'INVALID_WALLET', message: 'Invalid Solana wallet address.' }, { status: 400 });
     }
 
     // Decode signature
@@ -47,46 +46,72 @@ export async function POST(req: Request) {
     try {
       sigBytes = bs58.decode(signatureBase58);
       if (sigBytes.length !== 64) {
-        return NextResponse.json({ error: 'INVALID_SIGNATURE', message: 'Invalid signature length.' }, { status: 400 });
+        return Response.json({ error: 'INVALID_SIGNATURE', message: 'Invalid signature length.' }, { status: 400 });
       }
     } catch {
-      return NextResponse.json({ error: 'INVALID_SIGNATURE', message: 'Failed to decode base58 signature.' }, { status: 400 });
+      return Response.json({ error: 'INVALID_SIGNATURE', message: 'Failed to decode base58 signature.' }, { status: 400 });
     }
 
-    // Verify challenge nonce matches
-    let challengeData: { accountId: string; walletAddress: string } | null = null;
-    if (distributedStore.isConfigured()) {
-      const raw = await distributedStore.getdel(`${WALLET_CHALLENGE_PREFIX}${nonce}`);
-      if (raw) {
-        try { challengeData = JSON.parse(raw); } catch {}
-      }
+    // Atomically consume challenge nonce (single-use anti-replay)
+    const raw = await distributedStore.getdel(`${WALLET_CHALLENGE_PREFIX}${nonce}`);
+    if (!raw) {
+      return Response.json(
+        { error: 'INVALID_CHALLENGE', message: 'Challenge nonce not found, already consumed, or expired.' },
+        { status: 400 }
+      );
     }
 
-    // Construct canonical verification message
-    const message = `Sign this message to bind wallet ${walletAddress} to Social.wtf account ${accountId}.\n\nNonce: ${nonce}\nIssued At:`;
-    // Verify signature
-    const messageBytes = new TextEncoder().encode(
-      `Sign this message to bind wallet ${walletAddress} to Social.wtf account ${accountId}.\n\nNonce: ${nonce}`
-    );
+    let challengeData: {
+      accountId: string;
+      walletAddress: string;
+      nonce: string;
+      message: string;
+      issuedAt: string;
+      expiresAt: number;
+    } | null = null;
 
-    // Check ed25519 signature
+    try {
+      challengeData = JSON.parse(raw);
+    } catch {
+      return Response.json({ error: 'INVALID_CHALLENGE', message: 'Malformed challenge data.' }, { status: 400 });
+    }
+
+    if (!challengeData || !challengeData.message || !challengeData.accountId || !challengeData.walletAddress) {
+      return Response.json({ error: 'INVALID_CHALLENGE', message: 'Invalid challenge data.' }, { status: 400 });
+    }
+
+    // 1. Enforce challenge expiration
+    if (Date.now() > challengeData.expiresAt) {
+      return Response.json({ error: 'CHALLENGE_EXPIRED', message: 'Challenge nonce has expired.' }, { status: 400 });
+    }
+
+    // 2. Enforce account ownership of challenge
+    if (challengeData.accountId !== accountId) {
+      return Response.json(
+        { error: 'ACCOUNT_MISMATCH', message: 'Challenge was issued for a different account.' },
+        { status: 403 }
+      );
+    }
+
+    // 3. Enforce wallet matching challenge
+    if (challengeData.walletAddress !== walletAddress) {
+      return Response.json(
+        { error: 'WALLET_MISMATCH', message: 'Challenge was issued for a different wallet.' },
+        { status: 400 }
+      );
+    }
+
+    // 4. Verify signature strictly against server-reconstructed canonical message
+    const messageBytes = new TextEncoder().encode(challengeData.message);
     let isValid = false;
     try {
-      // Allow verification against prefix match
       isValid = ed25519.verify(sigBytes, messageBytes, pubKeyBytes);
-      if (!isValid) {
-        // Also test with full message format
-        const fullMessageBytes = new TextEncoder().encode(body.message || '');
-        if (fullMessageBytes.length > 0) {
-          isValid = ed25519.verify(sigBytes, fullMessageBytes, pubKeyBytes);
-        }
-      }
     } catch {
       isValid = false;
     }
 
     if (!isValid) {
-      return NextResponse.json(
+      return Response.json(
         { error: 'SIGNATURE_VERIFICATION_FAILED', message: 'Cryptographic proof of wallet control failed.' },
         { status: 400 }
       );
@@ -98,7 +123,7 @@ export async function POST(req: Request) {
 
     const bindResult = await bindVerifiedWalletAsync(accountId, walletAddress, challengeDigest, verificationAuditId);
     if (!bindResult.success || !bindResult.binding) {
-      return NextResponse.json(
+      return Response.json(
         { error: 'BIND_FAILED', message: bindResult.error || 'Failed to bind wallet to account.' },
         { status: 400 }
       );
@@ -131,7 +156,7 @@ export async function POST(req: Request) {
     );
     const sessionCookie = createSessionCookie(updatedToken, Date.now() + 24 * 60 * 60 * 1000);
 
-    const response = NextResponse.json({
+    const response = Response.json({
       success: true,
       binding: {
         walletAddress: bindResult.binding.walletAddress,
@@ -146,6 +171,6 @@ export async function POST(req: Request) {
     return response;
   } catch (err: any) {
     console.error('[Wallet Bind API Error]:', err);
-    return NextResponse.json({ error: 'INTERNAL_ERROR', message: 'Internal server error' }, { status: 500 });
+    return Response.json({ error: 'INTERNAL_ERROR', message: 'Internal server error' }, { status: 500 });
   }
 }
