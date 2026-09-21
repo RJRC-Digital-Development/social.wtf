@@ -3,7 +3,7 @@ import './globals.css';
 import { ThemeProvider } from '@/lib/theme/themeContext';
 import { WalletProvider } from '@/lib/wallet/walletContext';
 import { ShieldProvider } from '@/lib/shield/shieldContext';
-import { Analytics } from '@vercel/analytics/react';
+import { Analytics } from '@vercel/analytics/next';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 
 export const metadata: Metadata = {
