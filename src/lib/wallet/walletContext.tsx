@@ -15,6 +15,16 @@ import {
   getCookieConnection,
 } from '../solana/cookieChain';
 
+export interface AuthenticatedAccount {
+  accountId: string;
+  username: string;
+  status: string;
+  createdAt?: number;
+  primaryWalletAddress?: string;
+  recoveryEmail?: string;
+  recoveryEmailVerifiedAt?: number;
+}
+
 export function getTrustWalletProvider() {
   if (typeof window === 'undefined') return null;
   const win = window as any;
@@ -102,6 +112,10 @@ export interface WalletContextType {
   isAuthenticated: boolean;
   authenticating: boolean;
   authStatus: 'unknown' | 'authenticated' | 'unauthenticated';
+  account: AuthenticatedAccount | null;
+  roles: string[];
+  capabilities: string[];
+  refreshAccountAuth: () => Promise<boolean>;
   connect: (type?: 'trust' | 'nightly' | 'solana' | 'demo') => Promise<void>;
   disconnect: () => Promise<void>;
   refreshBalance: () => Promise<void>;
@@ -139,6 +153,9 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authenticating, setAuthenticating] = useState(false);
   const [authStatus, setAuthStatus] = useState<'unknown' | 'authenticated' | 'unauthenticated'>('unknown');
+  const [account, setAccount] = useState<AuthenticatedAccount | null>(null);
+  const [roles, setRoles] = useState<string[]>([]);
+  const [capabilities, setCapabilities] = useState<string[]>([]);
 
   const isOwner = sessionScope === 'admin';
 
@@ -169,55 +186,53 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   }, []);
 
+  // Synchronize authoritative account authentication from server using cookies
+  const refreshAccountAuth = useCallback(async (): Promise<boolean> => {
+    try {
+      const res = await fetch('/api/auth/me', {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.authenticated && data.account) {
+          setAccount(data.account);
+          const accountRoles = data.roles || ['ROLE_USER'];
+          setRoles(accountRoles);
+          setCapabilities(data.capabilities || []);
+          const isAdmin = accountRoles.includes('ROLE_ADMIN') || accountRoles.includes('ROLE_PLATFORM_OWNER');
+          setSessionScope(isAdmin ? 'admin' : 'user');
+          setIsAuthenticated(true);
+          setAuthStatus('authenticated');
+          return true;
+        }
+      }
+
+      setAccount(null);
+      setRoles([]);
+      setCapabilities([]);
+      setIsAuthenticated(false);
+      setSessionScope(null);
+      setAuthStatus('unauthenticated');
+      return false;
+    } catch (err) {
+      console.warn('Session introspection failed:', err);
+      setAccount(null);
+      setRoles([]);
+      setCapabilities([]);
+      setIsAuthenticated(false);
+      setSessionScope(null);
+      setAuthStatus('unauthenticated');
+      return false;
+    }
+  }, []);
+
   // Introspect active session on mount
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const introspectSession = async () => {
-      try {
-        const storedToken = localStorage.getItem(SESSION_TOKEN_STORAGE_KEY);
-        if (!storedToken) {
-          setIsAuthenticated(false);
-          setAuthStatus('unauthenticated');
-          return;
-        }
-
-        const headers: Record<string, string> = {
-          Authorization: `Bearer ${storedToken}`,
-        };
-        const res = await fetch('/api/auth/session', {
-          method: 'GET',
-          headers,
-        });
-
-        if (res.ok) {
-          const data = await res.json();
-          if (data.authenticated && data.walletAddress) {
-            setIsAuthenticated(true);
-            if (data.scope) {
-              setSessionScope(data.scope);
-            }
-            setSessionToken(storedToken);
-            setAuthStatus('authenticated');
-            return;
-          }
-        }
-
-        // Invalid or expired session
-        localStorage.removeItem(SESSION_TOKEN_STORAGE_KEY);
-        setIsAuthenticated(false);
-        setSessionToken(null);
-        setSessionScope(null);
-        setAuthStatus('unauthenticated');
-      } catch {
-        localStorage.removeItem(SESSION_TOKEN_STORAGE_KEY);
-        setIsAuthenticated(false);
-        setSessionToken(null);
-        setSessionScope(null);
-        setAuthStatus('unauthenticated');
-      }
-    };
-    introspectSession();
-  }, []);
+    refreshAccountAuth();
+  }, [refreshAccountAuth]);
 
   // Fetch balance from Cookie Chain RPC
   const refreshBalance = useCallback(async () => {
@@ -248,52 +263,43 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
   const invalidateAuthSessionLocally = useCallback(() => {
     setIsAuthenticated(false);
     setAuthStatus('unauthenticated');
+    setAccount(null);
+    setRoles([]);
+    setCapabilities([]);
     setSessionToken(null);
     setSessionScope(null);
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem(SESSION_TOKEN_STORAGE_KEY);
-    }
   }, []);
 
-  // Local wallet state reset helper
+  // Local wallet state reset helper (clears ONLY wallet, leaves account session intact)
   const clearWalletState = useCallback(() => {
     setConnected(false);
     setWalletAddress(null);
     setPublicKey(null);
     setCookBalance(0);
     setWalletType(null);
-    setAuthStatus('unauthenticated');
     if (typeof window !== 'undefined') {
       localStorage.removeItem(WALLET_CONNECTED_KEY);
     }
   }, []);
 
-  // Revoke session (logout) - calls API and always clears local auth state
+  // Revoke session (logout) - calls API and always clears auth state
   const logoutSession = useCallback(async () => {
     try {
-      const storedToken =
-        sessionToken ||
-        (typeof window !== 'undefined'
-          ? localStorage.getItem(SESSION_TOKEN_STORAGE_KEY)
-          : null);
-      if (storedToken) {
-        await fetch('/api/auth/session', {
-          method: 'DELETE',
-          headers: { Authorization: `Bearer ${storedToken}` },
-        });
-      }
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+      });
     } catch (err) {
       console.warn('Error during session logout:', err);
     } finally {
       invalidateAuthSessionLocally();
+      clearWalletState();
     }
-  }, [sessionToken, invalidateAuthSessionLocally]);
+  }, [invalidateAuthSessionLocally, clearWalletState]);
 
-  // Full disconnect (clears auth session and wallet state)
+  // Wallet disconnect handler (clears wallet connection without logging out the account)
   const disconnect = useCallback(async () => {
-    await logoutSession();
     clearWalletState();
-  }, [logoutSession, clearWalletState]);
+  }, [clearWalletState]);
 
   // Manage provider event listeners (account change, disconnect)
   useEffect(() => {
@@ -310,7 +316,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
 
     const handleAccountChanged = (newAccount: any) => {
       if (!newAccount) {
-        disconnect();
+        clearWalletState();
         return;
       }
 
@@ -320,7 +326,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
           : newAccount?.publicKey?.toString() || newAccount?.toString?.();
 
       if (!newKeyCandidate || newKeyCandidate === '[object Object]') {
-        disconnect();
+        clearWalletState();
         return;
       }
 
@@ -332,20 +338,15 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
           return;
         }
 
-        // Invariant: Account changed from Wallet A to Wallet B
-        // 1. Immediately invalidate Wallet A's authenticated session
-        invalidateAuthSessionLocally();
-
-        // 2. Adopt new wallet address, but require fresh SIWS (isAuthenticated = false)
         setPublicKey(validatedPk);
         setWalletAddress(validatedStr);
       } catch {
-        disconnect();
+        clearWalletState();
       }
     };
 
     const handleDisconnect = () => {
-      disconnect();
+      clearWalletState();
     };
 
     const hasOn = typeof activeProvider.on === 'function';
@@ -376,7 +377,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
         }
       }
     };
-  }, [connected, walletType, walletAddress, disconnect, invalidateAuthSessionLocally]);
+  }, [connected, walletType, walletAddress, clearWalletState]);
 
   // Connect handler supporting Trust Wallet, Nightly, general Solana, and Demo Web3 wallet
   const connect = async (type: 'trust' | 'nightly' | 'solana' | 'demo' = 'trust') => {
@@ -413,10 +414,6 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
 
           const pubkeyStr = pk.toBase58();
 
-          if (walletAddress && walletAddress !== pubkeyStr) {
-            invalidateAuthSessionLocally();
-          }
-
           setPublicKey(pk);
           setWalletAddress(pubkeyStr);
           setWalletType('trust');
@@ -425,7 +422,6 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
           return;
         } catch (providerErr: any) {
           clearWalletState();
-          invalidateAuthSessionLocally();
           throw classifyWalletError(providerErr, 'Trust Wallet');
         }
       } else if (type === 'nightly') {
@@ -454,10 +450,6 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
 
           const pubkeyStr = pk.toBase58();
 
-          if (walletAddress && walletAddress !== pubkeyStr) {
-            invalidateAuthSessionLocally();
-          }
-
           setPublicKey(pk);
           setWalletAddress(pubkeyStr);
           setWalletType('nightly');
@@ -466,7 +458,6 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
           return;
         } catch (providerErr: any) {
           clearWalletState();
-          invalidateAuthSessionLocally();
           throw classifyWalletError(providerErr, 'Nightly Wallet');
         }
       } else if (type === 'solana') {
@@ -475,7 +466,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
           if (typeof window !== 'undefined') {
             window.open('https://phantom.app/', '_blank');
           }
-          throw new Error('No Solana wallet detected. Please install Phantom or Nightly.');
+          throw new Error('Solana Wallet not detected. Please install Phantom, Trust, or Nightly Wallet.');
         }
 
         try {
@@ -483,21 +474,17 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
           const pubkeyCandidate = resp?.publicKey?.toString() || solana.publicKey?.toString();
 
           if (!pubkeyCandidate || typeof pubkeyCandidate !== 'string') {
-            throw new Error('Solana wallet did not return a valid account address.');
+            throw new Error('Solana Wallet did not return a valid account address.');
           }
 
           let pk: PublicKey;
           try {
             pk = new PublicKey(pubkeyCandidate);
           } catch {
-            throw new Error('Solana wallet returned an invalid Solana public key.');
+            throw new Error('Solana Wallet returned an invalid Solana public key.');
           }
 
           const pubkeyStr = pk.toBase58();
-
-          if (walletAddress && walletAddress !== pubkeyStr) {
-            invalidateAuthSessionLocally();
-          }
 
           setPublicKey(pk);
           setWalletAddress(pubkeyStr);
@@ -507,103 +494,102 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
           return;
         } catch (providerErr: any) {
           clearWalletState();
-          invalidateAuthSessionLocally();
           throw classifyWalletError(providerErr, 'Solana Wallet');
         }
       } else if (type === 'demo') {
-        let storedDemo = localStorage.getItem(DEMO_WALLET_STORAGE_KEY);
-        let storedSecret = localStorage.getItem(DEMO_WALLET_SECRET_KEY);
+        let demoPubkeyStr = localStorage.getItem(DEMO_WALLET_STORAGE_KEY);
+        let demoSecretStr = localStorage.getItem(DEMO_WALLET_SECRET_KEY);
 
-        if (!storedDemo || !storedSecret) {
-          const kp = Keypair.generate();
-          storedDemo = kp.publicKey.toBase58();
-          storedSecret = JSON.stringify(Array.from(kp.secretKey));
-          localStorage.setItem(DEMO_WALLET_STORAGE_KEY, storedDemo);
-          localStorage.setItem(DEMO_WALLET_SECRET_KEY, storedSecret);
-          localStorage.setItem('social_wtf_demo_balance', '88.50');
+        let keypair: Keypair;
+        if (demoPubkeyStr && demoSecretStr) {
+          try {
+            const secretBytes = bs58.decode(demoSecretStr);
+            keypair = Keypair.fromSecretKey(secretBytes);
+          } catch {
+            keypair = Keypair.generate();
+            demoPubkeyStr = keypair.publicKey.toBase58();
+            demoSecretStr = bs58.encode(keypair.secretKey);
+            localStorage.setItem(DEMO_WALLET_STORAGE_KEY, demoPubkeyStr);
+            localStorage.setItem(DEMO_WALLET_SECRET_KEY, demoSecretStr);
+          }
+        } else {
+          keypair = Keypair.generate();
+          demoPubkeyStr = keypair.publicKey.toBase58();
+          demoSecretStr = bs58.encode(keypair.secretKey);
+          localStorage.setItem(DEMO_WALLET_STORAGE_KEY, demoPubkeyStr);
+          localStorage.setItem(DEMO_WALLET_SECRET_KEY, demoSecretStr);
         }
 
-        const pk = new PublicKey(storedDemo);
-        if (walletAddress && walletAddress !== storedDemo) {
-          invalidateAuthSessionLocally();
-        }
-        setWalletAddress(storedDemo);
-        setPublicKey(pk);
+        setPublicKey(keypair.publicKey);
+        setWalletAddress(demoPubkeyStr);
         setWalletType('demo');
-        setCookBalance(parseFloat(localStorage.getItem('social_wtf_demo_balance') || '88.50'));
         setConnected(true);
         localStorage.setItem(WALLET_CONNECTED_KEY, 'demo');
+
+        const storedBalance = localStorage.getItem('social_wtf_demo_balance');
+        setCookBalance(storedBalance ? parseFloat(storedBalance) : 88.50);
       }
-    } catch (err: any) {
-      console.error('Wallet connection error:', err);
-      throw err;
     } finally {
       setConnecting(false);
     }
   };
 
-  // Authenticate session via cryptographic challenge (SIWS)
-  const authenticateWallet = useCallback(async (): Promise<boolean> => {
-    if (!walletAddress || !publicKey) {
-      throw new Error('Wallet must be connected before authenticating session');
+  // SIWS wallet binding / challenge authentication
+  const authenticateWallet = async (): Promise<boolean> => {
+    if (!walletAddress) {
+      throw new Error('Please connect your wallet before authenticating.');
     }
 
     setAuthenticating(true);
     try {
-      // 1. Request challenge nonce
-      const nonceRes = await fetch(
-        `/api/auth/nonce?walletAddress=${encodeURIComponent(walletAddress)}`
-      );
-      if (!nonceRes.ok) {
-        throw new Error('Failed to obtain challenge nonce from authentication server');
+      const challengeRes = await fetch('/api/auth/wallet/challenge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ walletAddress }),
+      });
+
+      if (!challengeRes.ok) {
+        throw new Error('Failed to request wallet challenge from server.');
       }
-      const challengeData = await nonceRes.json();
-      const challengeMessage: string = challengeData.message;
-      const nonce: string = challengeData.nonce;
 
-      const messageBytes = new TextEncoder().encode(challengeMessage);
-      let signatureBase58 = '';
+      const challengeData = await challengeRes.json();
+      const { nonce, message } = challengeData;
+      if (!nonce || !message) {
+        throw new Error('Malformed challenge received from server.');
+      }
 
-      // 2. Sign challenge message using wallet
-      if (walletType === 'trust') {
-        const trust = getTrustWalletProvider();
-        if (!trust?.signMessage) {
-          throw new Error('Trust Wallet does not support message signing');
-        }
-        const signed = await (trust.signMessage(messageBytes, 'utf8') || trust.signMessage(messageBytes));
-        const sigBytes: Uint8Array = signed.signature || signed;
-        signatureBase58 = bs58.encode(sigBytes);
-      } else if (walletType === 'nightly') {
-        const nightly = (window as any)?.nightly?.solana || (window as any)?.nightly;
-        if (!nightly?.signMessage) {
-          throw new Error('Nightly wallet does not support message signing');
-        }
-        const signed = await nightly.signMessage(messageBytes);
-        const sigBytes: Uint8Array = signed.signature || signed;
-        signatureBase58 = bs58.encode(sigBytes);
-      } else if (walletType === 'solana') {
-        const solana = (window as any)?.solana;
-        if (!solana?.signMessage) {
-          throw new Error('Solana wallet does not support message signing');
-        }
-        const signed = await solana.signMessage(messageBytes, 'utf8');
-        const sigBytes: Uint8Array = signed.signature || signed;
-        signatureBase58 = bs58.encode(sigBytes);
-      } else if (walletType === 'demo') {
-        // Sign using local demo keypair secret
-        const storedSecret = localStorage.getItem(DEMO_WALLET_SECRET_KEY);
-        if (!storedSecret) {
-          throw new Error('Demo wallet secret key not found in storage');
-        }
-        const secretBytes = new Uint8Array(JSON.parse(storedSecret));
-        const sigBytes = ed25519.sign(messageBytes, secretBytes.slice(0, 32));
-        signatureBase58 = bs58.encode(sigBytes);
+      let signatureBase58: string;
+      const encodedMsg = new TextEncoder().encode(message);
+
+      if (walletType === 'demo') {
+        const secretStr = localStorage.getItem(DEMO_WALLET_SECRET_KEY);
+        if (!secretStr) throw new Error('Demo private key missing from storage.');
+        const secretBytes = bs58.decode(secretStr);
+        const kp = Keypair.fromSecretKey(secretBytes);
+        const sig = ed25519.sign(encodedMsg, kp.secretKey.slice(0, 32));
+        signatureBase58 = bs58.encode(sig);
       } else {
-        throw new Error('Unsupported wallet provider for SIWS authentication');
+        let provider: any = null;
+        if (walletType === 'trust') provider = getTrustWalletProvider();
+        else if (walletType === 'nightly') provider = getNightlyProvider();
+        else if (walletType === 'solana') provider = getSolanaProvider();
+
+        if (!provider || typeof provider.signMessage !== 'function') {
+          throw new Error('Active wallet does not support cryptographic message signing.');
+        }
+
+        const signResult = await provider.signMessage(encodedMsg, 'utf8');
+        const rawSig = signResult?.signature || signResult;
+        if (typeof rawSig === 'string') {
+          signatureBase58 = rawSig;
+        } else if (rawSig instanceof Uint8Array || Array.isArray(rawSig)) {
+          signatureBase58 = bs58.encode(Uint8Array.from(rawSig));
+        } else {
+          throw new Error('Unexpected signature format returned by wallet.');
+        }
       }
 
-      // 3. Post to /api/auth/verify to obtain signed session token & HttpOnly cookie
-      const verifyRes = await fetch('/api/auth/verify', {
+      const bindRes = await fetch('/api/auth/wallet/bind', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -613,137 +599,49 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
         }),
       });
 
-      if (!verifyRes.ok) {
-        const errData = await verifyRes.json().catch(() => ({}));
-        throw new Error(errData.error || 'Cryptographic verification failed');
+      if (!bindRes.ok) {
+        const errData = await bindRes.json().catch(() => ({}));
+        throw new Error(errData.message || 'Server rejected wallet challenge signature.');
       }
 
-      const verifyData = await verifyRes.json();
-      if (verifyData.verified && verifyData.sessionToken) {
-        setSessionToken(verifyData.sessionToken);
-        setSessionScope(verifyData.scope === 'admin' ? 'admin' : 'user');
-        setIsAuthenticated(true);
-        setAuthStatus('authenticated');
-        localStorage.setItem(SESSION_TOKEN_STORAGE_KEY, verifyData.sessionToken);
-        return true;
-      }
-
-      return false;
+      await refreshAccountAuth();
+      return true;
     } finally {
       setAuthenticating(false);
     }
-  }, [walletAddress, publicKey, walletType, invalidateAuthSessionLocally]);
-
-  // Sign and send transaction to Cookie Chain RPC
-  const signAndSendTransaction = async (tx: any): Promise<string> => {
-    if (!connected || !publicKey) {
-      throw new Error('Wallet not connected to Cookie Chain');
-    }
-
-    const trust = getTrustWalletProvider();
-    const nightly = (window as any)?.nightly?.solana || (window as any)?.nightly;
-    const solana = (window as any)?.solana;
-
-    // 1. Trust Wallet native signing and broadcasting
-    if (walletType === 'trust') {
-      if (trust?.signAndSendTransaction) {
-        const response = await trust.signAndSendTransaction(tx);
-        return response.signature || response;
-      } else if (trust?.signTransaction) {
-        const signed = await trust.signTransaction(tx);
-        const raw = signed.serialize
-          ? signed.serialize().toString('base64')
-          : Buffer.from(signed).toString('base64');
-        const storedToken =
-          sessionToken ||
-          (typeof window !== 'undefined'
-            ? localStorage.getItem(SESSION_TOKEN_STORAGE_KEY)
-            : null);
-        const res = await fetch('/api/transactions/execute', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(storedToken ? { Authorization: `Bearer ${storedToken}` } : {}),
-          },
-          body: JSON.stringify({ rawTransaction: raw }),
-        });
-        const data = await res.json();
-        if (data.success && data.signature) {
-          return data.signature;
-        }
-        if (!res.ok || data.error) {
-          throw new Error(data.error || 'Failed to broadcast raw transaction');
-        }
-      }
-    }
-
-    // 2. Nightly Wallet
-    if (walletType === 'nightly' && nightly?.signAndSendTransaction) {
-      const response = await nightly.signAndSendTransaction(tx);
-      return response.signature || response;
-    }
-
-    // 3. Solana / Phantom standard adapter
-    if (walletType === 'solana' && solana?.signAndSendTransaction) {
-      const response = await solana.signAndSendTransaction(tx);
-      return response.signature || response;
-    }
-
-    // 4. Server Signer execution (via PLATFORM_PRIVATE_KEY env var)
-    if (isServerSignerConfiguredState && (tx.to || tx.recipient)) {
-      try {
-        const storedToken = sessionToken || (typeof window !== 'undefined' ? localStorage.getItem(SESSION_TOKEN_STORAGE_KEY) : null);
-        const res = await fetch('/api/transactions/execute', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(storedToken ? { Authorization: `Bearer ${storedToken}` } : {}),
-          },
-          body: JSON.stringify({
-            recipientPublicKey: tx.to || tx.recipient,
-            amountCook: typeof tx.amount === 'number' ? tx.amount : 0.5,
-            action: tx.action || 'tip',
-            memo: tx.memo || '',
-          }),
-        });
-        const data = await res.json();
-        if (data.success && data.signature) {
-          return data.signature;
-        }
-      } catch (err) {
-        console.warn('Server signer transaction execution failed, falling back:', err);
-      }
-    }
-
-    // 5. Demo/Simulated SVM Mode: simulate real on-chain transaction hash
-    await new Promise((resolve) => setTimeout(resolve, 1400));
-    
-    // Deduct simulated balance
-    const currentBal = parseFloat(localStorage.getItem('social_wtf_demo_balance') || '88.50');
-    const deductAmount = typeof tx?.amount === 'number' ? tx.amount : 0.5;
-    const newBal = Math.max(0, currentBal - deductAmount);
-    localStorage.setItem('social_wtf_demo_balance', newBal.toFixed(2));
-    setCookBalance(newBal);
-
-    // Realistic SVM tx signature
-    const chars = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
-    let mockSig = 'cook_tx_';
-    for (let i = 0; i < 64; i++) {
-      mockSig += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return mockSig;
   };
 
-  // Auto-reconnect on mount if previously connected
-  useEffect(() => {
-    const prev = localStorage.getItem(WALLET_CONNECTED_KEY);
-    if (prev === 'trust' || prev === 'nightly' || prev === 'solana' || prev === 'demo') {
-      connect(prev).catch((err) => {
-        console.warn('Auto-reconnect skipped:', err?.message || err);
-        localStorage.removeItem(WALLET_CONNECTED_KEY);
+  // Sign and send transaction helper
+  const signAndSendTransaction = async (transaction: any): Promise<string> => {
+    if (!connected || !publicKey) {
+      throw new Error('Wallet not connected.');
+    }
+
+    if (walletType === 'demo') {
+      const secretStr = localStorage.getItem(DEMO_WALLET_SECRET_KEY);
+      if (!secretStr) throw new Error('Demo wallet secret missing.');
+      const secretBytes = bs58.decode(secretStr);
+      const kp = Keypair.fromSecretKey(secretBytes);
+      transaction.sign([kp]);
+      const connection = getCookieConnection();
+      return await connection.sendRawTransaction(transaction.serialize(), {
+        skipPreflight: false,
+        preflightCommitment: 'confirmed',
       });
     }
-  }, []);
+
+    let provider: any = null;
+    if (walletType === 'trust') provider = getTrustWalletProvider();
+    else if (walletType === 'nightly') provider = getNightlyProvider();
+    else if (walletType === 'solana') provider = getSolanaProvider();
+
+    if (!provider || typeof provider.signAndSendTransaction !== 'function') {
+      throw new Error('Wallet provider does not support signAndSendTransaction.');
+    }
+
+    const res = await provider.signAndSendTransaction(transaction);
+    return res?.signature || res;
+  };
 
   return (
     <WalletContext.Provider
@@ -764,6 +662,10 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
         isAuthenticated,
         authenticating,
         authStatus,
+        account,
+        roles,
+        capabilities,
+        refreshAccountAuth,
         connect,
         disconnect,
         refreshBalance,
@@ -778,7 +680,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 };
 
-export const useWallet = () => {
+export const useWallet = (): WalletContextType => {
   const context = useContext(WalletContext);
   if (!context) {
     throw new Error('useWallet must be used within a WalletProvider');

@@ -5,6 +5,10 @@ export interface Account {
   updatedAt: number;
   status: 'ACTIVE' | 'SUSPENDED' | 'DEACTIVATED';
   primaryWalletAddress?: string;
+  recoveryEmail?: string;
+  recoveryEmailVerifiedAt?: number;
+  securityEpoch?: number;
+  passwordChangedAt?: number;
 }
 
 export interface AccountCredential {

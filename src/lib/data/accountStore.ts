@@ -11,6 +11,7 @@ import type {
 
 const ACCOUNT_PREFIX = 'account:id:';
 const USERNAME_PREFIX = 'account:username:';
+const EMAIL_PREFIX = 'account:email:';
 const CREDENTIAL_PREFIX = 'account:cred:';
 const WALLET_BINDING_PREFIX = 'account:wallet:';
 const ACCOUNT_WALLETS_PREFIX = 'account:wallets:';
@@ -20,6 +21,7 @@ const ALL_ACCOUNTS_SET = 'platform:accounts:all';
 // Memory Caches
 const accountsCache = new Map<string, Account>();
 const usernameToIdCache = new Map<string, string>();
+const emailToIdCache = new Map<string, string>();
 const credentialsCache = new Map<string, AccountCredential>();
 const walletToAccountIdCache = new Map<string, string>();
 const walletBindingsCache = new Map<string, WalletBinding>();
@@ -75,6 +77,8 @@ export async function registerAccountAsync(
     username: cleanUsername,
     createdAt: now,
     updatedAt: now,
+    securityEpoch: now,
+    passwordChangedAt: now,
     status: 'ACTIVE',
   };
 
@@ -92,33 +96,31 @@ export async function registerAccountAsync(
     assignedAt: now,
   };
 
-  if (distributedStore.isConfigured()) {
-    try {
-      const usernameKey = `${USERNAME_PREFIX}${cleanUsername}`;
-      // Atomic username reservation
-      const claimed = await distributedStore.setnx(usernameKey, accountId);
-      if (!claimed) {
-        return { success: false, error: 'Username is already taken.' };
-      }
+  if (process.env.NODE_ENV === 'production' && !distributedStore.isConfigured()) {
+    return { success: false, error: 'PERSISTENCE_SERVICE_UNAVAILABLE' };
+  }
 
-      const accountSaved = await distributedStore.set(`${ACCOUNT_PREFIX}${accountId}`, JSON.stringify(account));
-      const credSaved = await distributedStore.set(`${CREDENTIAL_PREFIX}${accountId}`, JSON.stringify(credential));
-      const roleSaved = await distributedStore.set(`${ROLES_PREFIX}${accountId}`, JSON.stringify(initialRole));
-      await distributedStore.sadd(ALL_ACCOUNTS_SET, accountId);
-
-      if (!accountSaved || !credSaved || !roleSaved) {
-        // Rollback username reservation
-        await distributedStore.del(usernameKey);
-        return { success: false, error: 'Persistence failure during account creation. Please retry.' };
-      }
-    } catch (err) {
-      console.error('[AccountStore] Registration persistence failure:', err);
-      return { success: false, error: 'Persistence service unavailable. Please retry.' };
-    }
-  } else {
-    if (usernameToIdCache.has(cleanUsername)) {
+  try {
+    const usernameKey = `${USERNAME_PREFIX}${cleanUsername}`;
+    // Atomic username reservation
+    const claimed = await distributedStore.setnx(usernameKey, accountId);
+    if (!claimed) {
       return { success: false, error: 'Username is already taken.' };
     }
+
+    const accountSaved = await distributedStore.set(`${ACCOUNT_PREFIX}${accountId}`, JSON.stringify(account));
+    const credSaved = await distributedStore.set(`${CREDENTIAL_PREFIX}${accountId}`, JSON.stringify(credential));
+    const roleSaved = await distributedStore.set(`${ROLES_PREFIX}${accountId}`, JSON.stringify(initialRole));
+    await distributedStore.sadd(ALL_ACCOUNTS_SET, accountId);
+
+    if (!accountSaved || !credSaved || !roleSaved) {
+      // Rollback username reservation
+      await distributedStore.del(usernameKey);
+      return { success: false, error: 'Persistence failure during account creation. Please retry.' };
+    }
+  } catch (err) {
+    console.error('[AccountStore] Registration persistence failure:', err);
+    return { success: false, error: 'Persistence service unavailable. Please retry.' };
   }
 
   // Update memory caches
@@ -149,11 +151,9 @@ export async function authenticateAccountAsync(
 
   let accountId: string | null = usernameToIdCache.get(cleanUsername) || null;
 
-  if (distributedStore.isConfigured()) {
+  if (!accountId) {
     try {
-      if (!accountId) {
-        accountId = await distributedStore.get(`${USERNAME_PREFIX}${cleanUsername}`);
-      }
+      accountId = await distributedStore.get(`${USERNAME_PREFIX}${cleanUsername}`);
     } catch {}
   }
 
@@ -164,18 +164,16 @@ export async function authenticateAccountAsync(
   let account: Account | null = accountsCache.get(accountId) || null;
   let credential: AccountCredential | null = credentialsCache.get(accountId) || null;
 
-  if (distributedStore.isConfigured()) {
-    try {
-      if (!account) {
-        const rawAccount = await distributedStore.get(`${ACCOUNT_PREFIX}${accountId}`);
-        if (rawAccount) account = JSON.parse(rawAccount);
-      }
-      if (!credential) {
-        const rawCred = await distributedStore.get(`${CREDENTIAL_PREFIX}${accountId}`);
-        if (rawCred) credential = JSON.parse(rawCred);
-      }
-    } catch {}
-  }
+  try {
+    if (!account) {
+      const rawAccount = await distributedStore.get(`${ACCOUNT_PREFIX}${accountId}`);
+      if (rawAccount) account = JSON.parse(rawAccount);
+    }
+    if (!credential) {
+      const rawCred = await distributedStore.get(`${CREDENTIAL_PREFIX}${accountId}`);
+      if (rawCred) credential = JSON.parse(rawCred);
+    }
+  } catch {}
 
   if (!account || !credential) {
     return { success: false, error: 'Invalid username or password.' };
@@ -208,17 +206,15 @@ export async function getAccountByIdAsync(accountId: string): Promise<Account | 
   const cached = accountsCache.get(accountId);
   if (cached) return cached;
 
-  if (distributedStore.isConfigured()) {
-    try {
-      const raw = await distributedStore.get(`${ACCOUNT_PREFIX}${accountId}`);
-      if (raw) {
-        const parsed = JSON.parse(raw) as Account;
-        accountsCache.set(accountId, parsed);
-        usernameToIdCache.set(parsed.username, accountId);
-        return parsed;
-      }
-    } catch {}
-  }
+  try {
+    const raw = await distributedStore.get(`${ACCOUNT_PREFIX}${accountId}`);
+    if (raw) {
+      const parsed = JSON.parse(raw) as Account;
+      accountsCache.set(accountId, parsed);
+      usernameToIdCache.set(parsed.username, accountId);
+      return parsed;
+    }
+  } catch {}
 
   return null;
 }
@@ -231,7 +227,7 @@ export async function getAccountByUsernameAsync(username: string): Promise<Accou
   if (!clean) return null;
 
   let accountId = usernameToIdCache.get(clean);
-  if (!accountId && distributedStore.isConfigured()) {
+  if (!accountId) {
     try {
       accountId = await distributedStore.get(`${USERNAME_PREFIX}${clean}`) || undefined;
     } catch {}
@@ -563,9 +559,200 @@ export function bindTestSessionWallet(walletAddress: string, accountId: string):
   walletToAccountIdCache.set(walletAddress, accountId);
 }
 
+export function normalizeEmail(email: string): string {
+  if (typeof email !== 'string') return '';
+  return email.trim().toLowerCase();
+}
+
+export function validateEmail(email: string): { valid: boolean; reason?: string } {
+  const normalized = normalizeEmail(email);
+  if (!normalized || normalized.length < 5 || normalized.length > 254) {
+    return { valid: false, reason: 'Invalid email address length.' };
+  }
+  const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
+  if (!emailRegex.test(normalized)) {
+    return { valid: false, reason: 'Invalid email address format.' };
+  }
+  return { valid: true };
+}
+
+export async function setAccountRecoveryEmailAsync(
+  accountId: string,
+  email: string
+): Promise<{ success: boolean; account?: Account; error?: string }> {
+  const validation = validateEmail(email);
+  if (!validation.valid) {
+    return { success: false, error: validation.reason };
+  }
+  const cleanEmail = normalizeEmail(email);
+  const account = await getAccountByIdAsync(accountId);
+  if (!account) {
+    return { success: false, error: 'Account not found.' };
+  }
+
+  // Check in-memory cache for duplicate claim by a different account
+  const cachedOwner = emailToIdCache.get(cleanEmail);
+  if (cachedOwner && cachedOwner !== accountId) {
+    return { success: false, error: 'Recovery email is already in use by another account.' };
+  }
+
+  const oldEmail = account.recoveryEmail;
+
+  if (process.env.NODE_ENV === 'production' && !distributedStore.isConfigured()) {
+    return { success: false, error: 'PERSISTENCE_SERVICE_UNAVAILABLE' };
+  }
+
+  const now = Date.now();
+  const updatedAccount: Account = {
+    ...account,
+    recoveryEmail: cleanEmail,
+    recoveryEmailVerifiedAt: undefined, // Invalidate previous verification state!
+    updatedAt: now,
+  };
+
+  const emailKey = `${EMAIL_PREFIX}${cleanEmail}`;
+
+  try {
+    // Atomic reservation of recovery email
+    const claimed = await distributedStore.setnx(emailKey, accountId);
+    if (!claimed) {
+      const existingOwner = await distributedStore.get(emailKey);
+      if (existingOwner && existingOwner !== accountId) {
+        return { success: false, error: 'Recovery email is already in use by another account.' };
+      }
+    }
+
+    const ok1 = await distributedStore.set(`${ACCOUNT_PREFIX}${accountId}`, JSON.stringify(updatedAccount));
+    if (!ok1) {
+      if (claimed) {
+        await distributedStore.del(emailKey).catch(() => {});
+      }
+      return { success: false, error: 'Persistence failure.' };
+    }
+
+    if (oldEmail && oldEmail !== cleanEmail) {
+      await distributedStore.del(`${EMAIL_PREFIX}${oldEmail}`).catch(() => {});
+      emailToIdCache.delete(oldEmail);
+    }
+  } catch (err) {
+    console.error('[AccountStore] setAccountRecoveryEmailAsync failure:', err);
+    return { success: false, error: 'Persistence failure.' };
+  }
+
+  accountsCache.set(accountId, updatedAccount);
+  emailToIdCache.set(cleanEmail, accountId);
+
+  return { success: true, account: updatedAccount };
+}
+
+export async function verifyAccountRecoveryEmailAsync(
+  accountId: string,
+  email: string,
+  verifiedAt: number = Date.now()
+): Promise<{ success: boolean; account?: Account; error?: string }> {
+  const cleanEmail = normalizeEmail(email);
+  const account = await getAccountByIdAsync(accountId);
+  if (!account) {
+    return { success: false, error: 'Account not found.' };
+  }
+
+  if (normalizeEmail(account.recoveryEmail || '') !== cleanEmail) {
+    return { success: false, error: 'Recovery email mismatch.' };
+  }
+
+  const updatedAccount: Account = {
+    ...account,
+    recoveryEmail: cleanEmail,
+    recoveryEmailVerifiedAt: verifiedAt,
+    updatedAt: Date.now(),
+  };
+
+  if (process.env.NODE_ENV === 'production' && !distributedStore.isConfigured()) {
+    return { success: false, error: 'PERSISTENCE_SERVICE_UNAVAILABLE' };
+  }
+
+  try {
+    const ok1 = await distributedStore.set(`${ACCOUNT_PREFIX}${accountId}`, JSON.stringify(updatedAccount));
+    const ok2 = await distributedStore.set(`${EMAIL_PREFIX}${cleanEmail}`, accountId);
+    if (!ok1 || !ok2) {
+      return { success: false, error: 'Persistence failure.' };
+    }
+  } catch (err) {
+    console.error('[AccountStore] verifyAccountRecoveryEmailAsync failure:', err);
+    return { success: false, error: 'Persistence failure.' };
+  }
+
+  accountsCache.set(accountId, updatedAccount);
+  emailToIdCache.set(cleanEmail, accountId);
+
+  return { success: true, account: updatedAccount };
+}
+
+export async function getAccountByRecoveryEmailAsync(email: string): Promise<Account | null> {
+  const cleanEmail = normalizeEmail(email);
+  if (!cleanEmail) return null;
+
+  let accountId = emailToIdCache.get(cleanEmail);
+  if (!accountId) {
+    try {
+      const storedId = await distributedStore.get(`${EMAIL_PREFIX}${cleanEmail}`);
+      if (storedId) accountId = storedId;
+    } catch {}
+  }
+
+  if (!accountId) return null;
+  return getAccountByIdAsync(accountId);
+}
+
+export async function updateAccountPasswordHashAsync(
+  accountId: string,
+  newPasswordHash: string
+): Promise<{ success: boolean; error?: string }> {
+  const account = await getAccountByIdAsync(accountId);
+  if (!account) {
+    return { success: false, error: 'Account not found.' };
+  }
+
+  const now = Date.now();
+  const credential: AccountCredential = {
+    accountId,
+    passwordHash: newPasswordHash,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  const updatedAccount: Account = {
+    ...account,
+    updatedAt: now,
+    securityEpoch: now,
+    passwordChangedAt: now,
+  };
+
+  if (process.env.NODE_ENV === 'production' && !distributedStore.isConfigured()) {
+    return { success: false, error: 'PERSISTENCE_SERVICE_UNAVAILABLE' };
+  }
+
+  try {
+    const ok1 = await distributedStore.set(`${CREDENTIAL_PREFIX}${accountId}`, JSON.stringify(credential));
+    const ok2 = await distributedStore.set(`${ACCOUNT_PREFIX}${accountId}`, JSON.stringify(updatedAccount));
+    if (!ok1 || !ok2) {
+      return { success: false, error: 'Persistence failure.' };
+    }
+  } catch (err) {
+    console.error('[AccountStore] updateAccountPasswordHashAsync failure:', err);
+    return { success: false, error: 'Persistence failure.' };
+  }
+
+  accountsCache.set(accountId, updatedAccount);
+  credentialsCache.set(accountId, credential);
+
+  return { success: true };
+}
+
 export function resetAccountStoreForTests(): void {
   accountsCache.clear();
   usernameToIdCache.clear();
+  emailToIdCache.clear();
   credentialsCache.clear();
   walletToAccountIdCache.clear();
   walletBindingsCache.clear();

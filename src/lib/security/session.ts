@@ -121,6 +121,7 @@ function safeEqual(a: string, b: string): boolean {
 export class SessionRegistry {
   private readonly activeSessions = new Map<string, SessionRecord>();
   private readonly revokedSessions = new Map<string, number>();
+  private readonly accountRevocationCutoffs = new Map<string, number>();
 
   register(record: SessionRecord): void {
     this.activeSessions.set(record.sessionId, record);
@@ -145,12 +146,29 @@ export class SessionRegistry {
     return true;
   }
 
+  isAccountSessionRevoked(accountId: string, issuedAt: number): boolean {
+    const cutoff = this.accountRevocationCutoffs.get(accountId);
+    if (cutoff !== undefined && issuedAt <= cutoff) {
+      return true;
+    }
+    return false;
+  }
+
   revoke(sessionId: string, expiresAt: number): void {
     this.revokedSessions.set(sessionId, expiresAt);
 
     const record = this.activeSessions.get(sessionId);
     if (record) {
       record.revoked = true;
+    }
+  }
+
+  revokeAllAccountSessions(accountId: string, cutoff: number = Date.now()): void {
+    this.accountRevocationCutoffs.set(accountId, cutoff);
+    for (const record of this.activeSessions.values()) {
+      if (record.accountId === accountId && record.createdAt <= cutoff) {
+        record.revoked = true;
+      }
     }
   }
 
@@ -165,6 +183,7 @@ export class SessionRegistry {
   clearAll(): void {
     this.activeSessions.clear();
     this.revokedSessions.clear();
+    this.accountRevocationCutoffs.clear();
   }
 }
 
@@ -210,7 +229,7 @@ export function createAccountSession(
   return `${TOKEN_VERSION}.${encodedPayload}.${signature}`;
 }
 
-import { bindTestSessionWallet } from '../data/accountStore.ts';
+import { bindTestSessionWallet, getAccountByIdAsync } from '../data/accountStore.ts';
 
 /**
  * Legacy/Bridge Session Creator (for tests and SIWS bridge)
@@ -341,6 +360,13 @@ export function verifySessionToken(
     }
 
     if (sessionRegistry.isRevoked(parsedPayload.sessionId)) {
+      return {
+        valid: false,
+        reason: 'Session revoked.',
+      };
+    }
+
+    if (sessionRegistry.isAccountSessionRevoked(parsedPayload.accountId, parsedPayload.issuedAt)) {
       return {
         valid: false,
         reason: 'Session revoked.',
@@ -492,12 +518,87 @@ export async function revokeSessionAsync(token: string): Promise<boolean> {
   if (!localSuccess) return false;
 
   const verification = verifySessionToken(token);
-  if (verification.valid && distributedStore.isConfigured()) {
+  if (verification.valid) {
     const ttlSeconds = Math.max(0, Math.ceil((verification.payload.expiresAt - Date.now()) / 1000));
     await distributedStore.set(`revoked_session:${verification.payload.sessionId}`, '1', ttlSeconds);
   }
 
   return true;
+}
+
+export async function revokeAllAccountSessionsAsync(
+  accountId: string,
+  cutoff: number = Date.now()
+): Promise<boolean> {
+  sessionRegistry.revokeAllAccountSessions(accountId, cutoff);
+
+  const ttlSeconds = Math.ceil(DEFAULT_SESSION_DURATION_MS / 1000);
+  const ok = await distributedStore.set(`account:revoked_before:${accountId}`, cutoff.toString(), ttlSeconds);
+  if (!ok) {
+    throw new Error('Failed to persist account revocation cutoff to distributed store.');
+  }
+
+  return true;
+}
+
+export async function validateSessionTokenAsync(
+  token: string
+): Promise<
+  | {
+      valid: true;
+      payload: SessionPayload;
+    }
+  | {
+      valid: false;
+      reason: string;
+    }
+> {
+  const syncResult = verifySessionToken(token);
+  if (!syncResult.valid) {
+    return syncResult;
+  }
+
+  // Account security epoch check: ensure session was issued AFTER the latest password/security update
+  const account = await getAccountByIdAsync(syncResult.payload.accountId);
+  if (account) {
+    if (account.status === 'SUSPENDED' || account.status === 'DEACTIVATED') {
+      return {
+        valid: false,
+        reason: 'Account is not active.',
+      };
+    }
+    const epoch = account.securityEpoch || account.passwordChangedAt;
+    if (epoch && syncResult.payload.issuedAt < epoch) {
+      sessionRegistry.revoke(syncResult.payload.sessionId, syncResult.payload.expiresAt);
+      return {
+        valid: false,
+        reason: 'Session revoked due to credential update.',
+      };
+    }
+  }
+
+  const isRevoked = await distributedStore.get(`revoked_session:${syncResult.payload.sessionId}`);
+  if (isRevoked) {
+    sessionRegistry.revoke(syncResult.payload.sessionId, syncResult.payload.expiresAt);
+    return {
+      valid: false,
+      reason: 'Session revoked.',
+    };
+  }
+
+  const cutoffStr = await distributedStore.get(`account:revoked_before:${syncResult.payload.accountId}`);
+  if (cutoffStr) {
+    const cutoff = parseInt(cutoffStr, 10);
+    if (!isNaN(cutoff) && syncResult.payload.issuedAt <= cutoff) {
+      sessionRegistry.revokeAllAccountSessions(syncResult.payload.accountId, cutoff);
+      return {
+        valid: false,
+        reason: 'Session revoked.',
+      };
+    }
+  }
+
+  return syncResult;
 }
 
 export async function validateRequestSessionAsync(request: Request): Promise<
@@ -510,21 +611,25 @@ export async function validateRequestSessionAsync(request: Request): Promise<
       reason: string;
     }
 > {
-  const syncResult = validateRequestSession(request);
-  if (!syncResult.authenticated) {
-    return syncResult;
+  const token = extractSessionToken(request);
+
+  if (!token) {
+    return {
+      authenticated: false,
+      reason: 'Authentication required.',
+    };
   }
 
-  if (distributedStore.isConfigured()) {
-    const isRevoked = await distributedStore.get(`revoked_session:${syncResult.payload.sessionId}`);
-    if (isRevoked) {
-      sessionRegistry.revoke(syncResult.payload.sessionId, syncResult.payload.expiresAt);
-      return {
-        authenticated: false,
-        reason: 'Session revoked.',
-      };
-    }
+  const tokenValidation = await validateSessionTokenAsync(token);
+  if (!tokenValidation.valid) {
+    return {
+      authenticated: false,
+      reason: tokenValidation.reason,
+    };
   }
 
-  return syncResult;
+  return {
+    authenticated: true,
+    payload: tokenValidation.payload,
+  };
 }

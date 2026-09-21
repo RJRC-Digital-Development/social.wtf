@@ -87,15 +87,17 @@ export default function Home() {
   const {
     connected,
     walletAddress,
+    account,
     sessionToken,
     isAuthenticated,
     authStatus,
+    refreshAccountAuth,
     logoutSession,
   } = useWallet();
 
-  // Clear protected client state if unauthenticated or on wallet switch
+  // Clear protected client state if unauthenticated
   useEffect(() => {
-    if (!connected || !isAuthenticated || authStatus !== 'authenticated') {
+    if (!isAuthenticated || authStatus !== 'authenticated') {
       setPosts([]);
       setProducts([]);
       setCreators([]);
@@ -104,23 +106,21 @@ export default function Home() {
       setTransactions([]);
       setFollowingHandles([]);
     }
-  }, [connected, isAuthenticated, authStatus, walletAddress]);
+  }, [isAuthenticated, authStatus]);
 
-  // Sync wallet address with authoritative server profile space when connected & authenticated
+  // Sync profile & content when authenticated
   useEffect(() => {
-    if (!connected || !walletAddress || !isAuthenticated || !sessionToken || authStatus !== 'authenticated') {
+    if (!isAuthenticated || authStatus !== 'authenticated') {
       return;
     }
 
     let isMounted = true;
-    const targetWallet = walletAddress;
+    const activeIdentity = account?.primaryWalletAddress || walletAddress || account?.accountId || 'user';
 
     // 1. Fetch Authoritative Server Profile
-    fetch(`/api/profile?wallet=${encodeURIComponent(targetWallet)}`, {
-      headers: { Authorization: `Bearer ${sessionToken}` },
-    })
+    fetch('/api/profile')
       .then(async (res) => {
-        if (!isMounted || walletAddress !== targetWallet) return;
+        if (!isMounted) return;
 
         if (res.status === 200) {
           const data = await res.json();
@@ -132,30 +132,26 @@ export default function Home() {
             }
           }
         } else if (res.status === 404) {
-          // Fresh wallet with no profile yet
-          const freshDefaults = buildDefaultProfileForWallet(targetWallet);
+          const freshDefaults = buildDefaultProfileForWallet(activeIdentity);
           setUserProfile(freshDefaults);
           if (!selectedCreator) {
             setSelectedCreator(freshDefaults);
           }
         } else if (res.status === 401) {
-          // Session expired or revoked
           await logoutSession();
         } else {
-          setUserProfile(buildDefaultProfileForWallet(targetWallet));
+          setUserProfile(buildDefaultProfileForWallet(activeIdentity));
         }
       })
       .catch(() => {
-        if (!isMounted || walletAddress !== targetWallet) return;
-        setUserProfile(buildDefaultProfileForWallet(targetWallet));
+        if (!isMounted) return;
+        setUserProfile(buildDefaultProfileForWallet(activeIdentity));
       });
 
     // 2. Fetch Directory of Self + Accepted Friends
-    fetch('/api/profiles', {
-      headers: { Authorization: `Bearer ${sessionToken}` },
-    })
+    fetch('/api/profiles')
       .then(async (res) => {
-        if (!isMounted || walletAddress !== targetWallet) return;
+        if (!isMounted) return;
         if (res.status === 200) {
           const data = await res.json();
           if (data?.success && Array.isArray(data.profiles)) {
@@ -168,11 +164,9 @@ export default function Home() {
       .catch(() => {});
 
     // 3. Fetch Relationship-Authorized Products
-    fetch('/api/products', {
-      headers: { Authorization: `Bearer ${sessionToken}` },
-    })
+    fetch('/api/products')
       .then(async (res) => {
-        if (!isMounted || walletAddress !== targetWallet) return;
+        if (!isMounted) return;
         if (res.status === 200) {
           const data = await res.json();
           if (data?.success && Array.isArray(data.products)) {
@@ -185,11 +179,9 @@ export default function Home() {
       .catch(() => {});
 
     // 4. Fetch Relationship-Authorized Posts
-    fetch('/api/posts', {
-      headers: { Authorization: `Bearer ${sessionToken}` },
-    })
+    fetch('/api/posts')
       .then(async (res) => {
-        if (!isMounted || walletAddress !== targetWallet) return;
+        if (!isMounted) return;
         if (res.status === 200) {
           const data = await res.json();
           if (Array.isArray(data.posts)) {
@@ -204,7 +196,7 @@ export default function Home() {
     return () => {
       isMounted = false;
     };
-  }, [connected, walletAddress, sessionToken, isAuthenticated, authStatus, isAdultContentUnlocked, unshieldedMode, logoutSession]);
+  }, [isAuthenticated, authStatus, account, walletAddress, isAdultContentUnlocked, unshieldedMode, logoutSession]);
 
   // Deep linking URL query parameters (?u=..., ?wallet=...) for authenticated members
   useEffect(() => {
@@ -440,12 +432,13 @@ export default function Home() {
   }
 
   // Phase 2: UNAUTHENTICATED session state (Platform Login Gate)
-  if (!connected || !isAuthenticated || authStatus !== 'authenticated') {
-    return <LoginGate onAuthenticated={() => {}} />;
+  if (!isAuthenticated || authStatus !== 'authenticated') {
+    return <LoginGate onAuthenticated={refreshAccountAuth} />;
   }
 
   // Phase 3: AUTHENTICATED session state (Social.wtf Protected Application Shell)
-  const activeUser = userProfile || buildDefaultProfileForWallet(walletAddress || '');
+  const activeIdentity = account?.primaryWalletAddress || walletAddress || account?.accountId || 'user';
+  const activeUser = userProfile || buildDefaultProfileForWallet(activeIdentity);
   const activeSelected = selectedCreator || activeUser;
 
   return (
