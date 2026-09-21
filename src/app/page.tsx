@@ -416,22 +416,7 @@ export default function Home() {
     } catch (e) {}
   };
 
-  // Phase 1: UNKNOWN session state (Security Loading Surface)
-  if (authStatus === 'unknown') {
-    return (
-      <div className="min-h-screen bg-[#070b14] text-slate-100 flex flex-col items-center justify-center space-y-4">
-        <div className="w-14 h-14 rounded-3xl bg-gradient-to-br from-amber-500 via-amber-600 to-yellow-600 flex items-center justify-center shadow-2xl shadow-amber-500/30 animate-pulse">
-          <ShieldCheck className="w-7 h-7 text-slate-950" />
-        </div>
-        <div className="text-center space-y-1">
-          <div className="text-base font-extrabold text-white tracking-tight">Social.wtf</div>
-          <div className="text-xs text-slate-400 font-medium">Verifying cryptographic session...</div>
-        </div>
-      </div>
-    );
-  }
-
-  // Phase 2: UNAUTHENTICATED session state (Platform Login Gate)
+  // Admission Gate: UNAUTHENTICATED session state (Platform Login & Registration Gate)
   if (!isAuthenticated || authStatus !== 'authenticated') {
     return <LoginGate onAuthenticated={refreshAccountAuth} />;
   }
