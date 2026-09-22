@@ -195,8 +195,8 @@ setInterval(() => {
           toAddress: creator.walletAddress,
           treasuryAddress: 'HMnySuX1CdBfqysiLtU4brPawufcHxFTFZu97jrKQwT9',
           totalAmountCook: amount,
-          creatorAmountCook: +(amount * 0.95).toFixed(3),
-          treasuryAmountCook: +(amount * 0.05).toFixed(3),
+          creatorAmountCook: +(amount * 0.9995).toFixed(4),
+          treasuryAmountCook: +(amount * 0.0005).toFixed(4),
           actionType: 'tip',
           itemTitle: `Direct Tip & Super-Chat to ${creator.name}`,
           timestamp: 'Just now',
@@ -243,8 +243,8 @@ setInterval(() => {
           toAddress: creator.walletAddress,
           treasuryAddress: 'HMnySuX1CdBfqysiLtU4brPawufcHxFTFZu97jrKQwT9',
           totalAmountCook: 5.0,
-          creatorAmountCook: 4.75,
-          treasuryAmountCook: 0.25,
+          creatorAmountCook: +(5.0 * 0.9995).toFixed(4),
+          treasuryAmountCook: +(5.0 * 0.0005).toFixed(4),
           actionType: 'crowdfund',
           itemTitle: `Crowdfund Goal Support for ${creator.name}`,
           timestamp: 'Just now',
@@ -328,9 +328,9 @@ setInterval(() => {
         </div>
 
         {/* Creator Info Overlay */}
-        <div className="relative px-6 pb-6 pt-0 flex flex-col md:flex-row md:items-end justify-between gap-4 -mt-16">
-          <div className="flex items-end gap-4">
-            <div className="relative group shrink-0">
+        <div className="relative px-4 sm:px-6 pb-6 pt-0 flex flex-col lg:flex-row lg:items-end justify-between gap-5 -mt-16">
+          <div className="flex flex-col sm:flex-row sm:items-end gap-4 min-w-0">
+            <div className="relative group shrink-0 self-start sm:self-auto">
               <img
                 src={creator.avatar}
                 alt={creator.name}
@@ -345,41 +345,41 @@ setInterval(() => {
               </button>
             </div>
 
-            <div className="mb-2">
+            <div className="mb-1 min-w-0 space-y-2">
               <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="text-xl md:text-2xl font-bold text-slate-100">
+                <h1 className="text-xl md:text-2xl font-bold text-slate-100 truncate">
                   {creator.name}
                 </h1>
                 {creator.verified && (
-                  <span className="w-5 h-5 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center text-xs font-bold">
+                  <span className="w-5 h-5 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center text-xs font-bold shrink-0">
                     <CheckCircle className="w-4 h-4 text-blue-400" />
                   </span>
                 )}
                 {creator.isAdmin ? (
-                  <span className="px-2 py-0.5 rounded-lg bg-blue-500/20 border border-blue-500/40 text-[10px] font-bold text-blue-300 flex items-center gap-1">
+                  <span className="px-2 py-0.5 rounded-lg bg-blue-500/20 border border-blue-500/40 text-[10px] font-bold text-blue-300 flex items-center gap-1 shrink-0">
                     <ShieldCheck className="w-3 h-3 text-blue-400" />
                     <span>PROTOCOL OWNER</span>
                   </span>
                 ) : (
-                  <span className="px-2 py-0.5 rounded-lg bg-amber-500/15 border border-amber-500/30 text-[10px] font-bold text-amber-300">
+                  <span className="px-2 py-0.5 rounded-lg bg-amber-500/15 border border-amber-500/30 text-[10px] font-bold text-amber-300 shrink-0">
                     CREATOR MINI-APP
                   </span>
                 )}
 
                 <button
                   onClick={() => setEditModalOpen(true)}
-                  className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-[11px] font-semibold text-slate-300 flex items-center gap-1.5 transition-colors ml-1"
+                  className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-[11px] font-semibold text-slate-300 flex items-center gap-1.5 transition-colors shrink-0"
                 >
                   <Edit3 className="w-3 h-3 text-amber-400" />
                   <span>Edit Profile</span>
                 </button>
               </div>
 
-              <div className="flex items-center gap-3 mt-1 flex-wrap">
+              <div className="flex items-center gap-3 flex-wrap">
                 <p className="text-xs text-slate-400 font-mono">@{creator.handle}</p>
 
-                {/* Social Gathering Follow & Friend Actions */}
-                <div className="flex items-center gap-2">
+                {/* Social Actions */}
+                <div className="flex items-center gap-2 flex-wrap">
                   <button
                     onClick={handleToggleFollow}
                     className={`px-3 py-1 rounded-xl text-xs font-bold transition-all flex items-center gap-1 ${
@@ -423,12 +423,12 @@ setInterval(() => {
                 </div>
               </div>
 
-              {/* Account Profile Verification & Sentinel AI Badges */}
-              <div className="flex flex-wrap items-center gap-1.5 mt-2">
+              {/* Account Profile Verification & Sentinel Badges */}
+              <div className="flex flex-wrap items-center gap-1.5 pt-1">
                 {isIdVerified ? (
                   <span className="px-2 py-0.5 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-[10px] font-bold text-emerald-300 flex items-center gap-1">
                     <UserCheck className="w-3 h-3 text-emerald-400" />
-                    <span>ID Verified Account (Front &amp; Back on Profile)</span>
+                    <span>ID Verified Account</span>
                   </span>
                 ) : (
                   onOpenVerifyModal && (
@@ -437,23 +437,23 @@ setInterval(() => {
                       className="px-2 py-0.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-[10px] font-semibold text-slate-300 flex items-center gap-1 transition-colors"
                     >
                       <Upload className="w-3 h-3 text-blue-400" />
-                      <span>Upload ID Front &amp; Back to Profile</span>
+                      <span>Verify ID</span>
                     </button>
                   )
                 )}
 
-                {isVideoVerified ? (
+                {isVideoVerified && (
                   <span className="px-2 py-0.5 rounded-lg bg-purple-500/15 border border-purple-500/30 text-[10px] font-bold text-purple-300 flex items-center gap-1">
                     <Camera className="w-3 h-3 text-purple-400" />
-                    <span>AI Sentinel Video Verified (Adult Entertainment Unlocked)</span>
+                    <span>AI Sentinel Video Verified</span>
                   </span>
-                ) : null}
+                )}
               </div>
             </div>
           </div>
 
           {/* Social Counts & Friends Quick Access */}
-          <div className="flex items-center gap-3 text-xs">
+          <div className="grid grid-cols-4 sm:flex sm:items-center gap-2 sm:gap-3 text-xs shrink-0 mt-2 lg:mt-0">
             <button
               onClick={() => {
                 setFriendsModalTab('friends');
@@ -495,9 +495,9 @@ setInterval(() => {
 
             <div className="px-3 py-1.5 rounded-xl bg-slate-900/80 border border-slate-800 text-center">
               <span className="font-bold text-emerald-400 block text-sm font-mono">
-                95%
+                99.95%
               </span>
-              <span className="text-[10px] text-slate-400">Proceeds Cut</span>
+              <span className="text-[10px] text-slate-400">Creator Split</span>
             </div>
           </div>
         </div>
@@ -584,7 +584,9 @@ setInterval(() => {
           )}
 
           <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 font-mono text-[11px] text-slate-400 max-w-full overflow-hidden">
-            <span className="text-amber-400 shrink-0">SVM Address:</span>
+            <span className="text-amber-400 shrink-0">
+              {creator.walletAddress?.startsWith('acc_') ? 'Account ID:' : 'SVM Wallet:'}
+            </span>
             <span className="bg-slate-900/80 px-2.5 py-1 rounded-xl border border-slate-800 text-[10px] sm:text-[11px] text-slate-300 break-all select-all inline-block max-w-full">
               {creator.walletAddress}
             </span>
@@ -667,7 +669,7 @@ setInterval(() => {
               <div className="text-xl font-bold text-amber-300 font-mono">
                 {creatorTotalRevenue.toFixed(1)} COOK
               </div>
-              <div className="text-[10px] text-emerald-400 font-semibold">95% Creator Split</div>
+              <div className="text-[10px] text-emerald-400 font-semibold">99.95% Creator Split</div>
             </div>
 
             <div className="p-5 rounded-3xl bg-[#0d1527] border border-slate-700/80 shadow-xl space-y-1">
@@ -710,7 +712,7 @@ setInterval(() => {
             <div className="p-5 rounded-3xl bg-[#0d1527] border border-slate-700/80 shadow-xl space-y-3">
               <div className="flex items-center gap-2.5 text-xs font-bold text-slate-200 pb-2 border-b border-slate-800">
                 <ShoppingBag className="w-4 h-4 text-amber-400" />
-                <span>Creator Store Drops (95% Proceeds)</span>
+                <span>Creator Store Drops (99.95% Proceeds)</span>
               </div>
               <p className="text-xs text-slate-300 leading-relaxed">
                 List your digital artwork, sound stems, 3D assets, VIP access passes, or code scripts for sale on Cookie Chain with sub-second finality.
@@ -839,7 +841,7 @@ setInterval(() => {
               </div>
 
               <p className="text-[11px] text-slate-400 leading-relaxed">
-                Every tip automatically triggers a 5% split to the Social.wtf treasury to fund upcoming platform features and validator grants.
+                Every tip automatically triggers a 0.05% split to the Social.wtf treasury to fund upcoming platform features and validator grants.
               </p>
 
               <button
@@ -940,8 +942,8 @@ setInterval(() => {
         signature={txSig}
         errorMessage={txError}
         totalAmountCook={5.0}
-        creatorAmountCook={4.75}
-        treasuryAmountCook={0.25}
+        creatorAmountCook={+(5.0 * 0.9995).toFixed(4)}
+        treasuryAmountCook={+(5.0 * 0.0005).toFixed(4)}
         recipientName={creator.name}
         onClose={() => setTxModalOpen(false)}
         onRetry={handleContributeCrowdfund}

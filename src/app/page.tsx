@@ -451,9 +451,9 @@ export default function Home() {
       {/* Main Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 pb-24 md:pb-8">
         {/* Top Highlight Banner */}
-        <div className="mb-5 sm:mb-6 p-3.5 sm:p-4 md:p-5 rounded-3xl bg-gradient-to-r from-amber-500/10 via-white to-blue-500/10 dark:from-amber-500/10 dark:via-[#0d1527] dark:to-blue-500/10 border border-slate-200 dark:border-slate-700/80 shadow-sm dark:shadow-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-3 sm:gap-4 transition-colors">
+        <div className="mb-5 sm:mb-6 p-3.5 sm:p-4 md:p-5 rounded-3xl bg-white dark:bg-[#0d1527] border border-slate-200 dark:border-slate-700/80 shadow-sm dark:shadow-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-3 sm:gap-4 transition-colors">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-amber-500/10 dark:bg-amber-500/20 border border-amber-500/30 dark:border-amber-500/40 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0">
               <Sparkles className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
             <div>
@@ -477,7 +477,7 @@ export default function Home() {
 
             <button
               onClick={() => setAiAgentOpen(true)}
-              className="flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 sm:py-2 rounded-xl bg-amber-50 dark:bg-gradient-to-r dark:from-amber-500/20 dark:to-yellow-500/20 hover:bg-amber-100 dark:hover:from-amber-500/30 dark:hover:to-yellow-500/30 border border-amber-300 dark:border-amber-500/40 text-amber-800 dark:text-amber-300 text-xs font-semibold transition-all shadow-sm"
+              className="flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 sm:py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 text-xs font-bold transition-all shadow-sm"
             >
               <Bot className="w-4 h-4 text-amber-600 dark:text-amber-400" />
               <span>AI Assistant</span>

@@ -13,6 +13,7 @@ import {
   Zap,
   Shield,
   ShieldCheck,
+  X,
 } from 'lucide-react';
 
 export const NightlyWalletButton: React.FC = () => {
@@ -93,9 +94,10 @@ export const NightlyWalletButton: React.FC = () => {
                 </div>
                 <button
                   onClick={() => setShowSelectModal(false)}
-                  className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"
+                  className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                  aria-label="Close modal"
                 >
-                  
+                  <X className="w-5 h-5" />
                 </button>
               </div>
 

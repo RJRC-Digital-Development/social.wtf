@@ -136,15 +136,15 @@ export const TxStatusModal: React.FC<TxStatusModalProps> = ({
                 </span>
               </div>
               <div className="flex justify-between items-center pl-2 text-slate-400 text-[11px]">
-                <span>↳ Creator Proceeds (95%):</span>
+                <span>↳ Creator Proceeds (99.95%):</span>
                 <span className="font-mono text-emerald-400">
-                  +{creatorAmountCook?.toFixed(3)} COOK
+                  +{creatorAmountCook?.toFixed(4)} COOK
                 </span>
               </div>
               <div className="flex justify-between items-center pl-2 text-slate-400 text-[11px]">
-                <span>↳ Social.wtf Treasury (5%):</span>
+                <span>↳ Social.wtf Treasury (0.05%):</span>
                 <span className="font-mono text-blue-400">
-                  +{treasuryAmountCook?.toFixed(3)} COOK
+                  +{treasuryAmountCook?.toFixed(4)} COOK
                 </span>
               </div>
             </div>

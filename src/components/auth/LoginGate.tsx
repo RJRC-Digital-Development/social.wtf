@@ -36,7 +36,7 @@ export const LoginGate: React.FC<LoginGateProps> = ({ onAuthenticated }) => {
     refreshAccountAuth,
   } = useWallet();
 
-  const [mode, setMode] = useState<'login' | 'register' | 'forgot_password' | 'reset_password' | 'wallet'>('wallet');
+  const [mode, setMode] = useState<'login' | 'register' | 'forgot_password' | 'reset_password' | 'wallet'>('login');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [resetIdentifier, setResetIdentifier] = useState('');

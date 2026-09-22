@@ -51,24 +51,24 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({
           </p>
         </div>
 
-        {/* Net Creator Earnings (95%) */}
+        {/* Net Creator Earnings (99.95%) */}
         <div className="p-5 rounded-3xl bg-white dark:bg-[#0d1527] border border-slate-200 dark:border-slate-700/80 shadow-sm dark:shadow-xl transition-colors">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">Net Creator Earnings (95%)</span>
+            <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">Net Creator Earnings (99.95%)</span>
             <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
               <TrendingUp className="w-4 h-4" />
             </div>
           </div>
           <div className="text-2xl font-bold font-mono text-emerald-600 dark:text-emerald-400">
-            {(metrics.totalPlatformVolumeCook * 0.95).toFixed(1)} COOK
+            {(metrics.totalPlatformVolumeCook * 0.9995).toFixed(1)} COOK
           </div>
           <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Direct to creator wallets</p>
         </div>
 
-        {/* Platform Treasury Cut (5%) */}
+        {/* Platform Treasury Cut (0.05%) */}
         <div className="p-5 rounded-3xl bg-white dark:bg-[#0d1527] border border-slate-200 dark:border-slate-700/80 shadow-sm dark:shadow-xl transition-colors">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">Treasury Protocol Cut (5%)</span>
+            <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">Treasury Protocol Cut (0.05%)</span>
             <div className="p-2 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400">
               <Landmark className="w-4 h-4" />
             </div>
@@ -76,7 +76,7 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({
           <div className="text-2xl font-bold font-mono text-blue-600 dark:text-blue-300">
             {metrics.totalTreasuryCollectedCook.toFixed(2)} COOK
           </div>
-          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Funds ecosystem R&D</p>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Funds ecosystem R&amp;D</p>
         </div>
 
         {/* Total Interactions */}
@@ -95,17 +95,17 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({
       </div>
 
       {/* Treasury Protocol Fee Transparency Card */}
-      <div className="p-5 rounded-3xl bg-gradient-to-r from-blue-50 via-white to-amber-50 dark:from-blue-950/40 dark:via-[#0d1527] dark:to-amber-950/30 border border-blue-200 dark:border-blue-500/30 shadow-sm dark:shadow-xl flex flex-col md:flex-row items-center justify-between gap-4 transition-colors">
+      <div className="p-5 rounded-3xl bg-white dark:bg-[#0d1527] border border-blue-200 dark:border-blue-500/30 shadow-sm dark:shadow-xl flex flex-col md:flex-row items-center justify-between gap-4 transition-colors">
         <div className="flex items-center gap-3">
-          <div className="p-3 rounded-2xl bg-blue-500/15 text-blue-600 dark:text-blue-400">
+          <div className="p-3 rounded-2xl bg-blue-50 dark:bg-blue-500/15 text-blue-600 dark:text-blue-400 shrink-0">
             <Landmark className="w-6 h-6" />
           </div>
           <div>
             <h3 className="font-bold text-slate-900 dark:text-slate-100 text-sm">
-              Automated 5% Platform Treasury Split Mechanism
+              Automated 0.05% Platform Treasury Split Mechanism
             </h3>
             <p className="text-xs text-slate-600 dark:text-slate-300 mt-0.5 leading-relaxed">
-              Every economic interaction (tips, digital goods, subscriptions) splits funds automatically at the smart contract level: 95% proceeds to creator, 5% to the Cookie Chain treasury wallet.
+              Every economic interaction (tips, digital goods, subscriptions) splits funds automatically at the smart contract level: 99.95% proceeds to creator, 0.05% to the Cookie Chain treasury wallet.
             </p>
           </div>
         </div>
@@ -136,7 +136,7 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({
                 <th className="pb-2.5">Item / Memo</th>
                 <th className="pb-2.5">Total ($COOK)</th>
                 <th className="pb-2.5">Creator Proceeds</th>
-                <th className="pb-2.5">Treasury (5%)</th>
+                <th className="pb-2.5">Treasury (0.05%)</th>
                 <th className="pb-2.5">Time</th>
                 <th className="pb-2.5 text-right">CookieScan</th>
               </tr>

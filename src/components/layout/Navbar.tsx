@@ -49,40 +49,12 @@ export const Navbar: React.FC<NavbarProps> = ({
   const { isAdultContentUnlocked, unshieldedMode, toggleUnshieldedMode } = useShield();
   const { connected, walletAddress } = useWallet();
   const { theme, isNight, isDay, toggleTheme } = useTheme();
-  const [currentSlot, setCurrentSlot] = useState<number | null>(null);
-
-  // Poll Cookie Chain slot for live status
-  useEffect(() => {
-    let mounted = true;
-    const fetchSlot = async () => {
-      try {
-        const res = await fetch(COOKIE_CHAIN_CONFIG.rpcUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'getSlot' }),
-        });
-        const data = await res.json();
-        if (mounted && data?.result) {
-          setCurrentSlot(data.result);
-        }
-      } catch (e) {
-        // quiet fallback
-      }
-    };
-
-    fetchSlot();
-    const interval = setInterval(fetchSlot, 6000);
-    return () => {
-      mounted = false;
-      clearInterval(interval);
-    };
-  }, []);
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-slate-200/80 bg-white/95 dark:border-slate-800/90 dark:bg-[#070b14]/90 backdrop-blur-xl transition-colors duration-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
         {/* Logo & Brand */}
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-6 shrink-0">
           <div
             onClick={() => onSelectView('feed')}
             className="flex items-center gap-2.5 cursor-pointer group"
@@ -91,35 +63,20 @@ export const Navbar: React.FC<NavbarProps> = ({
               <Cookie className="w-5 h-5 text-slate-950 fill-slate-950" />
             </div>
             <div>
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center">
                 <span className="font-extrabold text-base tracking-tight text-slate-900 dark:text-white font-sans">
                   Social<span className="text-amber-600 dark:text-amber-400">.wtf</span>
-                </span>
-                <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/25">
-                  COOKIE CHAIN
                 </span>
               </div>
             </div>
           </div>
-
-          {/* Cookie Chain Live Status Indicator */}
-          <div className="hidden lg:flex items-center gap-2 px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 text-[11px] font-mono text-slate-600 dark:text-slate-400">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-ping"></span>
-            <span className="text-slate-700 dark:text-slate-300 font-medium">Cookie Chain SVM</span>
-            {currentSlot && (
-              <>
-                <span className="text-slate-400 dark:text-slate-600">•</span>
-                <span className="text-amber-600 dark:text-amber-400">Slot #{currentSlot.toLocaleString()}</span>
-              </>
-            )}
-          </div>
         </div>
 
         {/* Center Main Nav Tabs */}
-        <nav className="hidden md:flex items-center gap-1 bg-slate-100/90 dark:bg-slate-900/70 p-1 rounded-2xl border border-slate-200 dark:border-slate-800/80">
+        <nav className="hidden md:flex items-center gap-1 bg-slate-100/90 dark:bg-slate-900/70 p-1 rounded-2xl border border-slate-200 dark:border-slate-800/80 shrink-0">
           <button
             onClick={() => onSelectView('feed')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap shrink-0 transition-all ${
               activeView === 'feed'
                 ? 'bg-amber-500 text-slate-950 shadow-sm font-bold'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
@@ -130,7 +87,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           <button
             onClick={() => onSelectView('store')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap shrink-0 transition-all ${
               activeView === 'store'
                 ? 'bg-amber-500 text-slate-950 shadow-sm font-bold'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
@@ -141,7 +98,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           <button
             onClick={() => onSelectView('creator')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap shrink-0 transition-all ${
               activeView === 'creator'
                 ? 'bg-amber-500 text-slate-950 shadow-sm font-bold'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
@@ -152,7 +109,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           <button
             onClick={() => onSelectView('community')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap shrink-0 transition-all ${
               activeView === 'community'
                 ? 'bg-amber-500 text-slate-950 shadow-sm font-bold'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
@@ -163,7 +120,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           <button
             onClick={() => onSelectView('analytics')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap shrink-0 transition-all ${
               activeView === 'analytics'
                 ? 'bg-amber-500 text-slate-950 shadow-sm font-bold'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
@@ -174,23 +131,23 @@ export const Navbar: React.FC<NavbarProps> = ({
         </nav>
 
         {/* Right Header Action Items */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           {/* Day / Night Theme Switcher */}
           <button
             onClick={toggleTheme}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700/80 text-slate-700 dark:text-slate-300 text-xs font-medium transition-all shadow-sm"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 text-xs font-medium transition-all shadow-sm shrink-0 whitespace-nowrap"
             title={isNight ? 'Switch to Day Mode (Dawn Clarity)' : 'Switch to Night Mode (Midnight Focus)'}
             aria-label="Toggle Night and Day Theme"
           >
             {isNight ? (
               <>
-                <Sun className="w-3.5 h-3.5 text-amber-400" />
-                <span className="hidden xl:inline text-[11px] font-semibold">Day</span>
+                <Sun className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                <span className="hidden xl:inline text-[11px] font-bold text-slate-900 dark:text-slate-100 whitespace-nowrap">Day</span>
               </>
             ) : (
               <>
-                <Moon className="w-3.5 h-3.5 text-slate-700" />
-                <span className="hidden xl:inline text-[11px] font-semibold">Night</span>
+                <Moon className="w-3.5 h-3.5 text-slate-800 dark:text-slate-200 shrink-0" />
+                <span className="hidden xl:inline text-[11px] font-bold text-slate-900 dark:text-slate-100 whitespace-nowrap">Night</span>
               </>
             )}
           </button>
@@ -199,19 +156,19 @@ export const Navbar: React.FC<NavbarProps> = ({
           {onOpenMyPage && (
             <button
               onClick={onOpenMyPage}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 dark:bg-slate-900 dark:hover:bg-slate-800 border border-amber-400/50 dark:border-amber-500/40 text-amber-800 dark:text-amber-300 text-xs font-semibold transition-all shadow-sm"
+              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 text-xs font-bold transition-all shadow-sm shrink-0 whitespace-nowrap"
               title="Open and customize your personal creator page"
             >
               {userProfile?.avatar ? (
                 <img
                   src={userProfile.avatar}
                   alt={userProfile.name}
-                  className="w-4 h-4 rounded-full object-cover border border-amber-500"
+                  className="w-4 h-4 rounded-full object-cover border border-amber-500 shrink-0"
                 />
               ) : (
-                <UserIcon className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                <UserIcon className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
               )}
-              <span className="hidden sm:inline">My Page</span>
+              <span className="whitespace-nowrap text-slate-900 dark:text-slate-100">My Page</span>
             </button>
           )}
 
@@ -219,23 +176,20 @@ export const Navbar: React.FC<NavbarProps> = ({
           {onOpenAiAgent && (
             <button
               onClick={onOpenAiAgent}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50/80 dark:bg-gradient-to-r dark:from-amber-500/15 dark:to-yellow-500/15 border border-amber-300 dark:border-amber-500/35 text-amber-800 dark:text-amber-300 hover:brightness-105 dark:hover:brightness-125 text-xs font-semibold transition-all shadow-sm group"
+              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 text-xs font-bold transition-all shadow-sm group shrink-0 whitespace-nowrap"
             >
-              <Bot className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 group-hover:scale-110 transition-transform" />
-              <span>AI Agent</span>
+              <Bot className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 group-hover:scale-110 transition-transform shrink-0" />
+              <span className="whitespace-nowrap text-slate-900 dark:text-slate-100">AI Agent</span>
             </button>
           )}
-
-          {/* Privacy Verification Status & Toggle */}
-
 
           {/* Bridge & Swap Ecosystem Quick Launcher */}
           {onOpenEcosystemModal && (
             <button
               onClick={() => onOpenEcosystemModal('bridge')}
-              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-gradient-to-r dark:from-amber-500/10 dark:to-blue-500/10 border border-slate-200 dark:border-amber-500/30 text-slate-700 dark:text-amber-300 hover:brightness-105 dark:hover:brightness-125 text-xs font-semibold transition-all shadow-sm"
+              className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 text-xs font-bold transition-all shadow-sm shrink-0 whitespace-nowrap"
             >
-              <span>Bridge &amp; Swap</span>
+              <span className="whitespace-nowrap text-slate-900 dark:text-slate-100">Bridge &amp; Swap</span>
             </button>
           )}
 

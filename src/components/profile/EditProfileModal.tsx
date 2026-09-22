@@ -313,13 +313,13 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
               <Wallet className="w-3.5 h-3.5 text-amber-400" />
-              <span>Cookie Chain SVM Wallet Address</span>
+              <span>{creator.walletAddress?.startsWith('acc_') ? 'Attached SVM Wallet Address (Optional)' : 'Cookie Chain SVM Wallet Address'}</span>
             </label>
             <input
               type="text"
-              value={walletAddress}
+              value={walletAddress.startsWith('acc_') ? '' : walletAddress}
               onChange={(e) => setWalletAddress(e.target.value)}
-              placeholder="e.g. Cook... or Solana Base58 Address"
+              placeholder="e.g. Solana / Cookie Chain Base58 Wallet Address"
               className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900/90 border border-slate-700 text-slate-100 text-xs font-mono focus:outline-none focus:border-amber-400"
             />
           </div>

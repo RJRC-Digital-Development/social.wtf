@@ -40,15 +40,15 @@ export default function MyCreatorPage() {
 The platform's proprietary multimodal AI vision screening, ephemeral biometric RAM zeroing, and Sentinel AI neural weights operate safely on the platform tier. Creators do not need to manage complicated backend neural scanners or zero-knowledge proof circuits—they simply consume the clean, security-conscious public SDK to design their storefronts!
 
 ### 3. Monetization & Proceeds
-- **95%** of all post tips and digital goods sales route directly to your connected Nightly SVM wallet.
-- **5%** routes automatically to the platform treasury to fund validator grants, sub-second block finality, and open-source tooling.`,
+- **99.95%** of all post tips and digital goods sales route directly to your connected Nightly SVM wallet.
+- **0.05%** routes automatically to the platform treasury to fund validator grants, sub-second block finality, and open-source tooling.`,
   },
   {
     id: 'wiki-2',
     slug: 'automated-treasury-split-protocol',
-    title: 'Automated 5% Treasury Split Protocol Specification',
+    title: 'Automated 0.05% Treasury Split Protocol Specification',
     category: 'tokenomics',
-    summary: 'The technical mechanism behind the atomic 95% creator / 5% treasury split executed on Cookie Chain SVM.',
+    summary: 'The technical mechanism behind the atomic 99.95% creator / 0.05% treasury split executed on Cookie Chain SVM.',
     lastUpdated: 'Updated today',
     author: 'Social.wtf Core Protocol',
     readTime: '5 min read',
@@ -57,13 +57,13 @@ The platform's proprietary multimodal AI vision screening, ephemeral biometric R
 Traditional creator platforms take 30% to 50% cuts and delay payouts by 30 days. Social.wtf eliminates middlemen by utilizing Cookie Chain's 1-second SVM finality to split proceeds **in the exact same block**:
 
 \`\`\`math
-\\text{Total Amount} = \\text{Creator Amount} (95\\%) + \\text{Treasury Amount} (5\\%)
+\\text{Total Amount} = \\text{Creator Amount} (99.95\\%) + \\text{Treasury Amount} (0.05\\%)
 \`\`\`
 
 ### SVM Atomic Instruction Structure
 Each transaction packages dual SystemProgram transfer instructions:
-1. **Instruction 0:** \`transfer(from, creatorWallet, 0.95 * amount)\`
-2. **Instruction 1:** \`transfer(from, treasuryWallet, 0.05 * amount)\`
+1. **Instruction 0:** \`transfer(from, creatorWallet, 0.9995 * amount)\`
+2. **Instruction 1:** \`transfer(from, treasuryWallet, 0.0005 * amount)\`
 3. **Instruction 2:** \`MemoProgram.memo("social.wtf:tip:{postId}")\`
 
 If either transfer fails, the entire transaction atomically reverts. Funds never touch a centralized escrow account.`,
@@ -73,30 +73,18 @@ If either transfer fails, the entire transaction atomically reverts. Funds never
     slug: 'sentinel-ai-zero-trace-safeguards',
     title: 'Sentinel AI Zero-Trace Shielding & Guardian Device Safeguards',
     category: 'privacy_ai',
-    summary: 'Why live video verification is required upon access for adult content, and how ID is kept for account profiles.',
+    summary: 'Biometric hashing, instant RAM zeroing, and ephemeral vision models that power Social.wtf privacy.',
     lastUpdated: 'Updated today',
     author: 'Privacy Sentinel Team',
-    readTime: '6 min read',
-    tags: ['ZeroTrace', 'Biometrics', 'ParentalGuard', 'Privacy'],
+    readTime: '4 min read',
+    tags: ['ZeroTrace', 'Biometrics', 'AI', 'Privacy'],
     content: `## The Core Privacy Architecture
 
-### 1. The Zero-Trace Rule
-Unlike platforms that tease users with blurred cards or "unlock sensitive content" buttons, Social.wtf enforces **Zero-Trace Shielding**:
-- Unverified feeds show **not a single hint** that restricted content exists.
-- No blurred placeholders, no locked buttons.
-- The "Adult Entertainment (18+)" filter tab is strictly rendered **only** when an active user has completed 18+ age verification.
+### 1. Ephemeral Memory Zeroing
+All neural classification inferences run inside isolated memory enclaves. Raw video frames and verification buffers exist solely in ephemeral client RAM and are purged instantly with a cryptographic wipe receipt.
 
-### 2. Parental & Guardian Device Safeguard
-Why is live video verification required *upon access*?
-> **The Problem:** If age verification relied merely on a saved browser cookie or uploaded static ID on file, an underage child picking up their parent or guardian's unlocked smartphone or laptop could freely browse mature content.
-> **The Solution:** Live video liveness verification checks the *immediate human holding the screen right now*. This guarantees that an underage child is not accessing adult entertainment through a parent's device.
-
-### 3. Adult Entertainment Access & Verification Policy
-- **18+ Requirement:** 18 years old and over is strictly required to access Adult Entertainment.
-- **Payment Card + Video Check:** Users must provide a valid debit or credit card ($0 authorization age verification check) accompanied by live AI video verification to confirm adulthood.
-- **Under-25 Safeguard:** Anyone determined by the AI agent to be under 25 years old is required to produce a valid Driver's License or Government ID card front & back to continue.
-- **Zero Shortcuts & 100% AI Privacy:** There is no shortcut: our verification is conducted strictly by autonomous AI agents and will not be reviewed by humans for viewer privacy reasons unless flagged for compliance review.
-- Raw video frames and card buffers exist solely in ephemeral client RAM and are purged instantly with a cryptographic wipe receipt.`,
+### 2. Edge Device Attestation
+Liveness detection leverages client hardware cryptography so raw camera streams never leave the user's local device without cryptographic consent.`,
   },
   {
     id: 'wiki-4',
