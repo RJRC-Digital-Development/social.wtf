@@ -48,7 +48,7 @@ export interface CreatorStoreSettings {
   storeName: string;
   storeDescription: string;
   customBannerUrl?: string;
-  supportCookTreasuryPct: number; // default 5%
+  supportCookTreasuryPct: number; // default 0.05%
   featuredProductId?: string;
 }
 

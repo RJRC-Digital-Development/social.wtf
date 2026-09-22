@@ -59,7 +59,7 @@ function buildDefaultProfileForWallet(address: string): User {
     storeSettings: {
       storeName: `${shortAddr}'s Storefront`,
       storeDescription: 'Digital products, presets, and community assets on Cookie Chain SVM.',
-      supportCookTreasuryPct: 5,
+      supportCookTreasuryPct: 0.05,
     },
   };
 }
@@ -677,7 +677,7 @@ export default function Home() {
                   </span>
                 </div>
                 <div className="flex justify-between py-1 border-b border-slate-100 dark:border-slate-800">
-                  <span className="text-slate-500">Treasury (5%)</span>
+                  <span className="text-slate-500">Treasury (0.05%)</span>
                   <span className="font-mono font-bold text-amber-600 dark:text-amber-400">
                     {metrics.totalTreasuryCollectedCook.toLocaleString()} COOK
                   </span>

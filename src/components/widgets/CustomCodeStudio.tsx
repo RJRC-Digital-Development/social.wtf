@@ -158,19 +158,19 @@ canvas.addEventListener('click', (e) => {
   },
   {
     id: 'tip_calculator',
-    name: ' Interactive 5% Treasury Split Calculator',
+    name: 'Interactive Protocol Split Calculator',
     description: 'Dynamic visual fee calculator showing real-time creator proceeds and platform cuts.',
     html: `<div class="calc-card">
-  <h3> Cookie Chain Fee Splitter</h3>
+  <h3>Cookie Chain Fee Splitter</h3>
   <input type="range" id="cookRange" min="1" max="100" value="25" />
   <div class="amt-display"><span id="totalCook">25</span> COOK</div>
   <div class="split-row creator">
-    <span>Creator Proceeds (95%):</span>
-    <strong id="creatorCut">23.75 COOK</strong>
+    <span>Creator Proceeds (99.95%):</span>
+    <strong id="creatorCut">24.9875 COOK</strong>
   </div>
   <div class="split-row treasury">
-    <span>Social.wtf Treasury (5%):</span>
-    <strong id="treasuryCut">1.25 COOK</strong>
+    <span>Social.wtf Treasury (0.05%):</span>
+    <strong id="treasuryCut">0.0125 COOK</strong>
   </div>
 </div>`,
     css: `.calc-card { max-width: 320px; width: 100%; background: #070b14; padding: 16px; border-radius: 16px; border: 1px solid #1e293b; text-align: center; }
@@ -187,11 +187,11 @@ const treasuryEl = document.getElementById('treasuryCut');
 
 function update() {
   const val = parseFloat(range.value);
-  const treasury = val * 0.05;
+  const treasury = val * 0.0005;
   const creator = val - treasury;
   totalEl.textContent = val;
-  creatorEl.textContent = creator.toFixed(2) + ' COOK';
-  treasuryEl.textContent = treasury.toFixed(2) + ' COOK';
+  creatorEl.textContent = creator.toFixed(4) + ' COOK';
+  treasuryEl.textContent = treasury.toFixed(4) + ' COOK';
 }
 range.addEventListener('input', update);
 update();`,

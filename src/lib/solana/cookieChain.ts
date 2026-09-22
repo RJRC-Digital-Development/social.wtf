@@ -21,7 +21,7 @@ export const COOKIE_CHAIN_CONFIG = {
   },
   // Social.wtf Dedicated Protocol Treasury Wallet on Cookie Chain
   treasuryPublicKey: 'HMnySuX1CdBfqysiLtU4brPawufcHxFTFZu97jrKQwT9',
-  protocolFeePercent: 5, // 5% automated protocol fee
+  protocolFeePercent: 0.05, // 0.05% automated protocol fee
 };
 
 // Fallback valid Base58 public key for Cookie Chain Treasury
@@ -64,7 +64,7 @@ export interface FeeSplitResult {
  */
 export function calculateFeeSplit(
   totalCook: number,
-  feeBpsNum: number = 500 // Default 500 BPS (5.00%)
+  feeBpsNum: number = 5 // Default 5 BPS (0.05%)
 ): FeeSplitResult {
   if (totalCook <= 0) {
     throw new Error('Transaction amount must be strictly greater than 0');

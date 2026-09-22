@@ -49,7 +49,7 @@ export const AiAgentModal: React.FC<AiAgentModalProps> = ({
       id: 'welcome-1',
       sender: 'agent',
       timestamp: 'Just now',
-      content: ` **Welcome! I am the Sentinel AI Agent for Social.wtf.**\n\nI can fulfill tasks, search the Cookie Chain ecosystem, guide your 18+ Adult Entertainment verification (debit/credit card age check + AI video verification, with Driver's License or ID if determined under 25, 100% verified by autonomous AI agents with zero human review for viewer privacy), and inspect on-chain transactions with automated 5% fee splitting.`,
+      content: `Welcome! I am the Sentinel AI Agent for Social.wtf.\n\nI can fulfill tasks, search the Cookie Chain ecosystem, guide your 18+ Adult Entertainment verification (debit/credit card age check + AI video verification, with Driver's License or ID if determined under 25, 100% verified by autonomous AI agents with zero human review for viewer privacy), and inspect on-chain transactions with automated protocol fee splitting.`,
       actions: [
         {
           label: ' Verify Age (18+ Adult Entertainment)',
@@ -268,7 +268,7 @@ export const AiAgentModal: React.FC<AiAgentModalProps> = ({
           {[
             ' Check my verification status',
             ' Search audio stems & 3D art',
-            ' Calculate 5% fee split',
+            ' Calculate fee split',
             ' Live Cookie Chain stats',
             ' Generate mini-app code',
           ].map((prompt, i) => (

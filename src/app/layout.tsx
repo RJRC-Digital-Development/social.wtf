@@ -9,7 +9,7 @@ import { SpeedInsights } from '@vercel/speed-insights/next';
 export const metadata: Metadata = {
   title: 'Social.wtf | Decentralized Social Ecosystem & Storefronts on Cookie Chain (SVM)',
   description:
-    'Unified decentralized Web3 social ecosystem built on Cookie Chain featuring multi-format feeds, creator storefront mini-apps, automated 5% platform treasury fee splits, real-time AI multimodal content shielding, and privacy-first ephemeral age verification.',
+    'Unified decentralized Web3 social ecosystem built on Cookie Chain featuring multi-format feeds, creator storefront mini-apps, automated 0.05% platform treasury fee splits, real-time AI multimodal content shielding, and privacy-first ephemeral age verification.',
   keywords: [
     'Social.wtf',
     'Cookie Chain',

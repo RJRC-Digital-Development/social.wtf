@@ -40,6 +40,7 @@ export const Storefront: React.FC<StorefrontProps> = ({
 
   // Checkout modal
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [showFeeBreakdown, setShowFeeBreakdown] = useState(false);
   const [txStep, setTxStep] = useState<TxStep>('idle');
   const [txModalOpen, setTxModalOpen] = useState(false);
   const [txSig, setTxSig] = useState('');
@@ -353,20 +354,29 @@ export const Storefront: React.FC<StorefrontProps> = ({
                   {selectedProduct.priceCook} COOK
                 </span>
               </div>
-              <div className="pt-2 border-t border-slate-200 dark:border-slate-800 space-y-1 text-[11px]">
-                <div className="flex justify-between text-slate-600 dark:text-slate-400">
-                  <span>↳ Creator Cut (95%):</span>
-                  <span className="font-mono text-emerald-600 dark:text-emerald-400">
-                    +{split.creatorAmount.toFixed(3)} COOK
-                  </span>
+              <button
+                type="button"
+                onClick={() => setShowFeeBreakdown(!showFeeBreakdown)}
+                className="text-[10px] text-slate-400 hover:text-slate-300 flex items-center gap-1 pt-1 font-medium transition-colors"
+              >
+                <span>{showFeeBreakdown ? 'Hide' : 'View'} Settlement Details (0.05% fee)</span>
+              </button>
+              {showFeeBreakdown && (
+                <div className="pt-2 border-t border-slate-200 dark:border-slate-800 space-y-1 text-[11px] animate-fade-in">
+                  <div className="flex justify-between text-slate-600 dark:text-slate-400">
+                    <span>↳ Creator Proceeds (99.95%):</span>
+                    <span className="font-mono text-emerald-600 dark:text-emerald-400">
+                      +{split.creatorAmount.toFixed(4)} COOK
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-slate-600 dark:text-slate-400">
+                    <span>↳ Protocol Fee (0.05%):</span>
+                    <span className="font-mono text-blue-600 dark:text-blue-400">
+                      +{split.treasuryAmount.toFixed(4)} COOK
+                    </span>
+                  </div>
                 </div>
-                <div className="flex justify-between text-slate-600 dark:text-slate-400">
-                  <span>↳ Social.wtf Treasury (5%):</span>
-                  <span className="font-mono text-blue-600 dark:text-blue-400">
-                    +{split.treasuryAmount.toFixed(3)} COOK
-                  </span>
-                </div>
-              </div>
+              )}
             </div>
 
             <button
@@ -394,7 +404,7 @@ export const Storefront: React.FC<StorefrontProps> = ({
                 </div>
                 <div>
                   <h3 className="font-bold text-slate-900 dark:text-slate-100 text-sm">List New Digital Asset</h3>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400">Set price in $COOK with 5% treasury split</p>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">Set price in $COOK with automated settlement</p>
                 </div>
               </div>
               <button

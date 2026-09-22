@@ -41,6 +41,7 @@ export const PostCard: React.FC<PostCardProps> = ({
 
   // Tip Modal State
   const [showTipModal, setShowTipModal] = useState(false);
+  const [showFeeBreakdown, setShowFeeBreakdown] = useState(false);
   const [tipAmount, setTipAmount] = useState<number>(2.0);
 
   // Transaction Status State
@@ -251,7 +252,7 @@ export const PostCard: React.FC<PostCardProps> = ({
             </span>
           </div>
           <div className="font-mono text-amber-700 dark:text-amber-400 text-[10px]">
-            Cookie Chain SVM • 5% Protocol Fee Protected
+            Cookie Chain SVM Verified
           </div>
         </div>
 
@@ -399,22 +400,33 @@ export const PostCard: React.FC<PostCardProps> = ({
             </div>
 
             {/* Automated Split Transparency */}
-            <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 text-[11px] space-y-1.5 mb-5">
-              <div className="flex justify-between text-slate-700 dark:text-slate-300 font-medium">
-                <span>Creator Proceeds (95%):</span>
-                <span className="font-mono text-emerald-600 dark:text-emerald-400">
-                  +{split.creatorAmount.toFixed(3)} COOK
-                </span>
-              </div>
-              <div className="flex justify-between text-slate-500 dark:text-slate-400">
-                <span>Social.wtf Treasury (5%):</span>
-                <span className="font-mono text-blue-600 dark:text-blue-400">
-                  +{split.treasuryAmount.toFixed(3)} COOK
-                </span>
-              </div>
-              <p className="text-[10px] text-slate-400 dark:text-slate-500 pt-1 border-t border-slate-200 dark:border-slate-800">
-                Automated protocol fee split executed atomically on Cookie Chain SVM.
-              </p>
+            <div className="mb-5">
+              <button
+                type="button"
+                onClick={() => setShowFeeBreakdown(!showFeeBreakdown)}
+                className="text-[11px] text-slate-400 hover:text-slate-300 flex items-center gap-1 mb-2 font-medium transition-colors"
+              >
+                <span>{showFeeBreakdown ? 'Hide' : 'View'} Settlement Details (0.05% fee)</span>
+              </button>
+              {showFeeBreakdown && (
+                <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 text-[11px] space-y-1.5 animate-fade-in">
+                  <div className="flex justify-between text-slate-700 dark:text-slate-300 font-medium">
+                    <span>Creator Proceeds (99.95%):</span>
+                    <span className="font-mono text-emerald-600 dark:text-emerald-400">
+                      +{split.creatorAmount.toFixed(4)} COOK
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-slate-500 dark:text-slate-400">
+                    <span>Social.wtf Treasury (0.05%):</span>
+                    <span className="font-mono text-blue-600 dark:text-blue-400">
+                      +{split.treasuryAmount.toFixed(4)} COOK
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-slate-400 dark:text-slate-500 pt-1 border-t border-slate-200 dark:border-slate-800">
+                    Automated protocol fee split executed atomically on Cookie Chain SVM.
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Submit */}
