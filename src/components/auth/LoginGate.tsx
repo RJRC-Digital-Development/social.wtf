@@ -30,14 +30,13 @@ export const LoginGate: React.FC<LoginGateProps> = ({ onAuthenticated }) => {
     walletType,
     isNightlyInstalled,
     isTrustWalletInstalled,
-    isAuthenticated,
     authenticating,
     connect,
     authenticateWallet,
     refreshAccountAuth,
   } = useWallet();
 
-  const [mode, setMode] = useState<'login' | 'register' | 'forgot_password' | 'reset_password' | 'wallet'>('login');
+  const [mode, setMode] = useState<'login' | 'register' | 'forgot_password' | 'reset_password' | 'wallet'>('wallet');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [resetIdentifier, setResetIdentifier] = useState('');
@@ -246,6 +245,22 @@ export const LoginGate: React.FC<LoginGateProps> = ({ onAuthenticated }) => {
           <button
             type="button"
             onClick={() => {
+              setMode('wallet');
+              setErrorMessage(null);
+              setSuccessMessage(null);
+            }}
+            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold transition-all ${
+              mode === 'wallet'
+                ? 'bg-amber-500 text-slate-950 shadow-md'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
+            }`}
+          >
+            <Wallet className="w-3.5 h-3.5" />
+            <span>Web3 Wallet</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
               setMode('login');
               setErrorMessage(null);
               setSuccessMessage(null);
@@ -274,22 +289,6 @@ export const LoginGate: React.FC<LoginGateProps> = ({ onAuthenticated }) => {
           >
             <UserPlus className="w-3.5 h-3.5" />
             <span>Register</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setMode('wallet');
-              setErrorMessage(null);
-              setSuccessMessage(null);
-            }}
-            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold transition-all ${
-              mode === 'wallet'
-                ? 'bg-amber-500 text-slate-950 shadow-md'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
-            }`}
-          >
-            <Wallet className="w-3.5 h-3.5" />
-            <span>Wallet</span>
           </button>
         </div>
 
@@ -493,6 +492,24 @@ export const LoginGate: React.FC<LoginGateProps> = ({ onAuthenticated }) => {
           {/* Form 4: Wallet Connect */}
           {mode === 'wallet' && (
             <div className="space-y-3">
+              <button
+                type="button"
+                disabled={isBusy}
+                onClick={() => handleConnectAndAuth('solana')}
+                className="w-full flex items-center justify-between p-4 rounded-2xl bg-slate-900/80 border border-slate-700/80 hover:border-amber-500/50 hover:bg-slate-800/80 transition-all text-left group"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-xl bg-purple-500/20 flex items-center justify-center text-purple-400">
+                    <Wallet className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="font-bold text-sm text-white">Phantom / Solana Wallet</div>
+                    <div className="text-xs text-slate-400">Standard Solana SVM Extension</div>
+                  </div>
+                </div>
+                <ArrowRight className="w-4 h-4 text-slate-500 group-hover:text-amber-400 transition-colors" />
+              </button>
+
               <button
                 type="button"
                 disabled={isBusy}
