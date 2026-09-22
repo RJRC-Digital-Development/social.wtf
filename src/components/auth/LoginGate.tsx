@@ -45,7 +45,6 @@ export const LoginGate: React.FC<LoginGateProps> = ({ onAuthenticated }) => {
   const [authStep, setAuthStep] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [legalModal, setLegalModal] = useState<'terms' | 'privacy' | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleAccountAuth = async (e: React.FormEvent) => {

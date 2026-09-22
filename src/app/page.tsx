@@ -358,15 +358,18 @@ export default function Home() {
   };
 
   const handleUpdateCreator = async (updated: User): Promise<{ success: boolean; error?: string }> => {
-    if (!connected || !walletAddress || !sessionToken) {
+    if (!isAuthenticated) {
       return { success: false, error: 'Please sign in to update your profile.' };
     }
 
     try {
+      const activeToken = sessionToken || (typeof window !== 'undefined' ? localStorage.getItem('social_wtf_session_token') : null);
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${sessionToken}`,
       };
+      if (activeToken) {
+        headers['Authorization'] = `Bearer ${activeToken}`;
+      }
 
       const payload = {
         handle: updated.handle,
@@ -662,24 +665,24 @@ export default function Home() {
             )}
           </section>
 
-          {/* Right Sidebar: Treasury Metrics & Platform Security */}
+          {/* Right Sidebar: Platform Metrics & Security */}
           <aside className="hidden lg:block lg:col-span-3 space-y-5">
             <div className="p-4 rounded-3xl bg-white dark:bg-[#0d1527] border border-slate-200 dark:border-slate-700/70 shadow-sm dark:shadow-xl space-y-3 transition-colors">
               <div className="flex items-center gap-2 text-xs font-bold text-amber-600 dark:text-amber-400">
                 <Coins className="w-4 h-4" />
-                <span>Cookie Chain Treasury</span>
+                <span>Cookie Chain Network</span>
               </div>
               <div className="space-y-2 text-xs">
                 <div className="flex justify-between py-1 border-b border-slate-100 dark:border-slate-800">
-                  <span className="text-slate-500">Volume</span>
+                  <span className="text-slate-500">Total Volume</span>
                   <span className="font-mono font-bold text-slate-900 dark:text-white">
                     {metrics.totalPlatformVolumeCook.toLocaleString()} COOK
                   </span>
                 </div>
                 <div className="flex justify-between py-1 border-b border-slate-100 dark:border-slate-800">
-                  <span className="text-slate-500">Treasury (0.05%)</span>
-                  <span className="font-mono font-bold text-amber-600 dark:text-amber-400">
-                    {metrics.totalTreasuryCollectedCook.toLocaleString()} COOK
+                  <span className="text-slate-500">SVM Speed</span>
+                  <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                    &lt; 400ms Finality
                   </span>
                 </div>
                 <div className="flex justify-between py-1">

@@ -389,6 +389,10 @@ export const Storefront: React.FC<StorefrontProps> = ({
             >
               Sign & Pay {selectedProduct.priceCook} COOK
             </button>
+
+            <div className="mt-3 text-center text-[10px] text-slate-400 dark:text-slate-500">
+              Digital asset purchase (99.95% to creator, 0.05% protocol sustainability fee).
+            </div>
           </div>
         </div>
       )}

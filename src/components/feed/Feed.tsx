@@ -76,49 +76,27 @@ export const Feed: React.FC<FeedProps> = ({
     e.preventDefault();
     if (!content.trim()) return;
 
-    if (!connected || !walletAddress) {
-      try {
-        setConnectError(null);
-        await connect();
-      } catch (err: any) {
-        console.warn('Feed wallet connect error:', err?.message || err);
-        setConnectError(err?.message || 'Failed to connect wallet');
-      }
+    if (!isAuthenticated) {
+      setConnectError('Please sign in to your account to publish posts.');
       return;
     }
 
-    // Ensure user has an active SIWS session
-    let activeToken = sessionToken || (typeof window !== 'undefined' ? localStorage.getItem('social_wtf_session_token') : null);
-    if (!activeToken || !isAuthenticated) {
-      try {
-        setConnectError(null);
-        const authed = await authenticateWallet();
-        if (!authed) {
-          setConnectError('Sign-In with Solana (SIWS) authentication required to publish posts.');
-          return;
-        }
-        activeToken = sessionToken || (typeof window !== 'undefined' ? localStorage.getItem('social_wtf_session_token') : null);
-      } catch (authErr: any) {
-        setConnectError(authErr?.message || 'Sign-In with Solana (SIWS) authentication failed');
-        return;
-      }
-    }
-
-    if (!activeToken) {
-      setConnectError('Authentication session token is missing. Please re-authenticate your wallet.');
-      return;
-    }
+    const activeToken = sessionToken || (typeof window !== 'undefined' ? localStorage.getItem('social_wtf_session_token') : null);
 
     setIsSubmitting(true);
     setConnectError(null);
 
     try {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (activeToken) {
+        headers['Authorization'] = `Bearer ${activeToken}`;
+      }
+
       const res = await fetch('/api/posts', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${activeToken}`,
-        },
+        headers,
         body: JSON.stringify({
           content: content.trim(),
           tags: ['SocialWTF', 'CookieChain', 'cApp'],
@@ -129,7 +107,7 @@ export const Feed: React.FC<FeedProps> = ({
 
       if (!res.ok || !data.success || !data.post) {
         if (res.status === 401) {
-          throw new Error('Authentication expired. Please re-authenticate your wallet.');
+          throw new Error('Authentication session expired. Please sign in again.');
         }
         if (res.status === 403) {
           throw new Error(data.error || 'Access restricted.');
@@ -198,22 +176,16 @@ export const Feed: React.FC<FeedProps> = ({
               </span>
             </div>
 
-            {!connected || !walletAddress ? (
+            {!isAuthenticated ? (
               <button
                 type="button"
-                onClick={async () => {
-                  try {
-                    setConnectError(null);
-                    await connect();
-                  } catch (err: any) {
-                    console.warn('Feed wallet connect click error:', err?.message || err);
-                    setConnectError(err?.message || 'Failed to connect wallet');
-                  }
+                onClick={() => {
+                  setConnectError('Please sign in to publish posts.');
                 }}
                 className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-500 text-slate-950 font-bold text-xs hover:brightness-110 active:scale-95 transition-all shadow-md shadow-amber-500/20"
               >
                 <LogIn className="w-3.5 h-3.5" />
-                <span>Connect Wallet to Post</span>
+                <span>Sign In to Post</span>
               </button>
             ) : (
               <button

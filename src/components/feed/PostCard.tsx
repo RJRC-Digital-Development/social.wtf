@@ -436,6 +436,10 @@ export const PostCard: React.FC<PostCardProps> = ({
             >
               Sign & Send {tipAmount} COOK
             </button>
+
+            <div className="mt-3 text-center text-[10px] text-slate-400 dark:text-slate-500">
+              Direct peer-to-peer creator tip (99.95% to creator, 0.05% protocol sustainability fee).
+            </div>
           </div>
         </div>
       )}

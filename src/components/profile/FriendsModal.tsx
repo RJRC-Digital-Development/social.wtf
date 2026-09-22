@@ -45,13 +45,19 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
 
   const token = typeof window !== 'undefined' ? localStorage.getItem('social_wtf_session_token') : null;
 
+  const getHeaders = (hasBody = false) => {
+    const headers: Record<string, string> = {};
+    if (hasBody) headers['Content-Type'] = 'application/json';
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    return headers;
+  };
+
   const loadRelationships = async () => {
-    if (!token) return;
     setLoading(true);
     setActionError(null);
     try {
       const res = await fetch('/api/friends', {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: getHeaders(),
       });
       if (res.ok) {
         const data = await res.json();
@@ -76,11 +82,10 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
   if (!isOpen) return null;
 
   const handleAccept = async (senderWallet: string) => {
-    if (!token) return;
     try {
       const res = await fetch('/api/friends/accept', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        headers: getHeaders(true),
         body: JSON.stringify({ senderWallet }),
       });
       if (res.ok) {
@@ -96,11 +101,10 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
   };
 
   const handleReject = async (senderWallet: string) => {
-    if (!token) return;
     try {
       const res = await fetch('/api/friends/reject', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        headers: getHeaders(true),
         body: JSON.stringify({ senderWallet }),
       });
       if (res.ok) {
@@ -111,11 +115,10 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
   };
 
   const handleUnfriend = async (targetWallet: string) => {
-    if (!token) return;
     try {
       const res = await fetch('/api/friends/remove', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        headers: getHeaders(true),
         body: JSON.stringify({ targetWallet }),
       });
       if (res.ok) {
@@ -126,11 +129,10 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
   };
 
   const handleUnblock = async (targetWallet: string) => {
-    if (!token) return;
     try {
       const res = await fetch('/api/friends/block', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        headers: getHeaders(true),
         body: JSON.stringify({ targetWallet, action: 'unblock' }),
       });
       if (res.ok) {

@@ -348,7 +348,7 @@ export async function saveOnboardedProfileAsync(
         storeSettings: {
           storeName: input.storeSettings?.storeName?.trim() || existingProfile?.storeSettings?.storeName || `${sanitizedName}'s Storefront`,
           storeDescription: input.storeSettings?.storeDescription?.trim() || existingProfile?.storeSettings?.storeDescription || 'Digital goods and community assets on Cookie Chain SVM.',
-          supportCookTreasuryPct: 5,
+          supportCookTreasuryPct: 0.05,
         },
         widgets: existingProfile?.widgets || [],
       };
@@ -496,7 +496,7 @@ export function saveOnboardedProfile(
     storeSettings: {
       storeName: input.storeSettings?.storeName?.trim() || existingProfile?.storeSettings?.storeName || `${sanitizedName}'s Storefront`,
       storeDescription: input.storeSettings?.storeDescription?.trim() || existingProfile?.storeSettings?.storeDescription || 'Digital goods and community assets on Cookie Chain SVM.',
-      supportCookTreasuryPct: 5,
+      supportCookTreasuryPct: 0.05,
     },
     widgets: existingProfile?.widgets || [],
   };
@@ -506,4 +506,10 @@ export function saveOnboardedProfile(
   saveToLocalDisk();
 
   return { success: true, profile: updatedProfile };
+}
+
+export function resetProfileStoreForTests(): void {
+  profilesCache.clear();
+  handleCache.clear();
+  isLocalInitialized = true;
 }
