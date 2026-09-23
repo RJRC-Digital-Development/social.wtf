@@ -50,7 +50,7 @@ export interface AuditLogRecord {
   actorWalletAddress?: string;
   capabilityUsed: string;
   action: string;
-  targetType: 'ACCOUNT' | 'POST' | 'SYSTEM_CONFIG' | 'ROLE' | 'COMMERCE' | 'WALLET';
+  targetType: 'ACCOUNT' | 'POST' | 'SYSTEM_CONFIG' | 'ROLE' | 'COMMERCE' | 'WALLET' | 'PLATFORM_PUBLICATION';
   targetId: string;
   timestamp: number;
   ipHash: string;

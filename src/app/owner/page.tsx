@@ -16,22 +16,26 @@ import {
   AlertCircle,
   Clock,
   ArrowLeft,
+  Megaphone,
 } from 'lucide-react';
 import Link from 'next/link';
 
 export default function OwnerDashboardPage() {
-  const [activeTab, setActiveTab] = useState<'overview' | 'accounts' | 'moderation' | 'system' | 'audit' | 'commerce'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'accounts' | 'moderation' | 'system' | 'audit' | 'commerce' | 'publications'>('overview');
   const [overviewData, setOverviewData] = useState<any>(null);
   const [accountsData, setAccountsData] = useState<any[]>([]);
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [publications, setPublications] = useState<any[]>([]);
+  const [editingPublicationId, setEditingPublicationId] = useState<string | null>(null);
+  const [publicationForm, setPublicationForm] = useState({ category: 'COMING_SOON', title: '', body: '', pinned: false, priority: 0 });
 
   const [stepUpChallengeNonce, setStepUpChallengeNonce] = useState<string | null>(null);
   const [stepUpPassword, setStepUpPassword] = useState('');
   const [stepUpToken, setStepUpToken] = useState<string | null>(null);
   const [stepUpActive, setStepUpActive] = useState(false);
-  const [stepUpActionCallback, setStepUpActionCallback] = useState<(() => Promise<void>) | null>(null);
+  const [stepUpActionCallback, setStepUpActionCallback] = useState<((freshToken: string) => Promise<void>) | null>(null);
   const [stepUpExpiresAt, setStepUpExpiresAt] = useState<number | null>(null);
 
   // Auth gate state
@@ -145,15 +149,55 @@ export default function OwnerDashboardPage() {
     } catch {}
   };
 
+  const fetchPublications = async () => {
+    const res = await fetch('/api/owner/publications');
+    const data = await res.json();
+    if (rejectIfUnauthorized(res)) return;
+    if (res.ok) setPublications(data.publications || []);
+  };
+
   useEffect(() => {
     if (!authVerified) return;
     setLoading(true);
-    Promise.all([fetchOverview(), fetchAccounts(), fetchAudit()]).finally(() => {
+    Promise.all([fetchOverview(), fetchAccounts(), fetchAudit(), fetchPublications()]).finally(() => {
       setLoading(false);
     });
   }, [authVerified]);
 
-  const handleRequestStepUp = async (onSuccess: () => Promise<void>) => {
+  const resetPublicationForm = () => {
+    setEditingPublicationId(null);
+    setPublicationForm({ category: 'COMING_SOON', title: '', body: '', pinned: false, priority: 0 });
+  };
+
+  const savePublication = async () => {
+    const res = await fetch('/api/owner/publications', {
+      method: editingPublicationId ? 'PATCH' : 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(editingPublicationId ? { ...publicationForm, publicationId: editingPublicationId, action: 'UPDATE' } : publicationForm),
+    });
+    const data = await res.json();
+    if (rejectIfUnauthorized(res)) return;
+    if (!res.ok) return setError(data.message || data.error || 'Failed to save publication');
+    resetPublicationForm();
+    await fetchPublications();
+  };
+
+  const changePublicationStatus = async (publicationId: string, action: 'PUBLISH' | 'ARCHIVE') => {
+    const execute = async (activeToken = stepUpToken) => {
+      const res = await fetch('/api/owner/publications', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ publicationId, action, stepUpToken: activeToken }),
+      });
+      const data = await res.json();
+      if (rejectIfUnauthorized(res)) return;
+      if (!res.ok) return setError(data.message || data.error || `Failed to ${action.toLowerCase()} publication`);
+      await fetchPublications();
+    };
+    if (!stepUpToken) await handleRequestStepUp(execute); else await execute();
+  };
+
+  const handleRequestStepUp = async (onSuccess: (freshToken: string) => Promise<void>) => {
     try {
       const res = await fetch('/api/owner/step-up/challenge', { method: 'POST' });
       const data = await res.json();
@@ -193,7 +237,7 @@ export default function OwnerDashboardPage() {
         setStepUpActive(false);
         setStepUpPassword('');
         if (stepUpActionCallback) {
-          await stepUpActionCallback();
+          await stepUpActionCallback(data.stepUpToken);
           setStepUpActionCallback(null);
         }
       } else {
@@ -390,6 +434,16 @@ export default function OwnerDashboardPage() {
             <Clock className="w-4 h-4" />
             <span>Audit Trail</span>
           </button>
+
+          <button
+            onClick={() => setActiveTab('publications')}
+            className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2.5 ${
+              activeTab === 'publications' ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20' : 'text-slate-400 hover:bg-slate-900 hover:text-white'
+            }`}
+          >
+            <Megaphone className="w-4 h-4" />
+            <span>Official Communications</span>
+          </button>
         </aside>
 
         {/* Content Pane */}
@@ -559,6 +613,31 @@ export default function OwnerDashboardPage() {
                     Deployment Locked (OFF)
                   </span>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'publications' && (
+            <div className="space-y-6">
+              <div className="p-6 rounded-3xl bg-slate-900/80 border border-slate-800 space-y-4">
+                <div><h3 className="font-bold text-white">Official Communications</h3><p className="text-xs text-slate-400 mt-1">Publish institutional updates independently from personal posts and friendships.</p></div>
+                <div className="grid md:grid-cols-2 gap-3">
+                  <select value={publicationForm.category} onChange={(e) => setPublicationForm({ ...publicationForm, category: e.target.value })} className="rounded-xl bg-slate-950 border border-slate-700 px-3 py-2 text-sm">
+                    <option value="COMING_SOON">Coming Soon</option><option value="IN_DEVELOPMENT">In Development</option><option value="RECENTLY_INSTALLED">Recently Installed</option><option value="PLATFORM_UPDATE">Platform Update</option><option value="FUTURE_PLAN">Future Plan</option><option value="PLANNED_FEATURE">Planned Feature</option><option value="FEATURE_REQUEST_UPDATE">Feature Request Update</option>
+                  </select>
+                  <input type="number" min={0} max={100} value={publicationForm.priority} onChange={(e) => setPublicationForm({ ...publicationForm, priority: Number(e.target.value) })} className="rounded-xl bg-slate-950 border border-slate-700 px-3 py-2 text-sm" placeholder="Priority 0–100" />
+                </div>
+                <input maxLength={120} value={publicationForm.title} onChange={(e) => setPublicationForm({ ...publicationForm, title: e.target.value })} className="w-full rounded-xl bg-slate-950 border border-slate-700 px-3 py-2 text-sm" placeholder="Title" />
+                <textarea maxLength={5000} rows={7} value={publicationForm.body} onChange={(e) => setPublicationForm({ ...publicationForm, body: e.target.value })} className="w-full rounded-xl bg-slate-950 border border-slate-700 px-3 py-2 text-sm resize-y" placeholder="Plain-text official update" />
+                <label className="flex items-center gap-2 text-xs text-slate-300"><input type="checkbox" checked={publicationForm.pinned} onChange={(e) => setPublicationForm({ ...publicationForm, pinned: e.target.checked })} /> Pin this publication</label>
+                <div className="flex gap-2"><button onClick={savePublication} className="px-4 py-2 rounded-xl bg-amber-500 text-slate-950 text-xs font-bold">{editingPublicationId ? 'Save Changes' : 'Create Draft'}</button>{editingPublicationId && <button onClick={resetPublicationForm} className="px-4 py-2 rounded-xl bg-slate-800 text-xs font-bold">Cancel</button>}</div>
+              </div>
+              <div className="space-y-3">
+                {publications.map((publication) => <article key={publication.publicationId} className="p-5 rounded-2xl bg-slate-900 border border-slate-800">
+                  <div className="flex flex-wrap justify-between gap-3"><div><span className="text-[10px] font-bold text-amber-400">{publication.category.replaceAll('_', ' ')}</span><h4 className="font-bold text-white mt-1">{publication.title}</h4></div><span className="text-xs font-bold text-slate-400">{publication.status}</span></div>
+                  <p className="mt-3 text-sm text-slate-400 whitespace-pre-wrap line-clamp-4">{publication.body}</p>
+                  <div className="mt-4 flex flex-wrap gap-2"><button onClick={() => { setEditingPublicationId(publication.publicationId); setPublicationForm({ category: publication.category, title: publication.title, body: publication.body, pinned: publication.pinned, priority: publication.priority }); }} className="px-3 py-1.5 rounded-lg bg-slate-800 text-xs">Edit</button>{publication.status !== 'PUBLISHED' && publication.status !== 'ARCHIVED' && <button onClick={() => changePublicationStatus(publication.publicationId, 'PUBLISH')} className="px-3 py-1.5 rounded-lg bg-emerald-500/20 text-emerald-300 text-xs">Publish</button>}{publication.status !== 'ARCHIVED' && <button onClick={() => changePublicationStatus(publication.publicationId, 'ARCHIVE')} className="px-3 py-1.5 rounded-lg bg-rose-500/20 text-rose-300 text-xs">Archive</button>}</div>
+                </article>)}
               </div>
             </div>
           )}

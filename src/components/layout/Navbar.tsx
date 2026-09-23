@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { NightlyWalletButton } from '../wallet/NightlyWalletButton';
 import { useShield } from '@/lib/shield/shieldContext';
 import { useWallet } from '@/lib/wallet/walletContext';
@@ -132,6 +133,9 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Right Header Action Items */}
         <div className="flex items-center gap-2 shrink-0">
+          <Link href="/updates" className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-300 text-xs font-bold whitespace-nowrap">
+            <Sparkles className="w-3.5 h-3.5" /> What&apos;s New
+          </Link>
           {/* Day / Night Theme Switcher */}
           <button
             onClick={toggleTheme}
@@ -326,6 +330,14 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
         <span className="text-[10px] mt-0.5">Treasury</span>
       </button>
 
+      <Link
+        href="/updates"
+        className="flex flex-col items-center justify-center py-1 px-2 rounded-xl text-slate-500 dark:text-slate-400 hover:text-amber-600 dark:hover:text-amber-400 transition-all"
+      >
+        <Sparkles className="w-5 h-5" />
+        <span className="text-[10px] mt-0.5">Updates</span>
+      </Link>
+
       {/* AI Agent Floating Quick Action */}
       {onOpenAiAgent && (
         <button
@@ -339,4 +351,3 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
     </nav>
   );
 };
-

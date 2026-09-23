@@ -66,6 +66,7 @@ export const ROLE_CAPABILITIES: Record<AccountRole, string[]> = {
     'roles:manage',
     'treasury:sign',
     'emergency:freeze',
+    'platform:publish',
   ],
 };
 
@@ -419,6 +420,49 @@ export async function validateStepUpTokenAsync(
     }
   }
 
+  return true;
+}
+
+/**
+ * Atomically consume a Step-Up token for a single privileged mutation.
+ * Distributed persistence is authoritative whenever configured; uncertainty
+ * never falls back to a process-local token.
+ */
+export async function consumeStepUpTokenAsync(
+  accountId: string,
+  stepUpToken?: string,
+  sessionId?: string
+): Promise<boolean> {
+  if (!accountId || !stepUpToken || !sessionId) return false;
+
+  let record: TokenRecord | null = null;
+  if (distributedStore.isConfigured()) {
+    const consumed = await distributedStore.getdelWithStatus(`${STEP_UP_TOKEN_PREFIX}${stepUpToken}`);
+    if (!consumed.ok || !consumed.value) return false;
+    try {
+      record = consumed.value.startsWith('{')
+        ? JSON.parse(consumed.value)
+        : { accountId: consumed.value, issuedAt: Date.now() - 1000, expiresAt: Date.now() + 299_000 };
+    } catch {
+      return false;
+    }
+    memoryStepUpTokens.delete(stepUpToken);
+  } else {
+    const memoryRecord = memoryStepUpTokens.get(stepUpToken);
+    if (!memoryRecord) return false;
+    memoryStepUpTokens.delete(stepUpToken);
+    record = memoryRecord;
+  }
+
+  if (!record || record.accountId !== accountId || !record.sessionId || record.sessionId !== sessionId) return false;
+  const now = Date.now();
+  if (now > record.expiresAt || now - record.issuedAt > 300_000) return false;
+  if (sessionRegistry.isRevoked(record.sessionId)) return false;
+
+  if (distributedStore.isConfigured()) {
+    const revoked = await distributedStore.getWithStatus(`revoked_session:${record.sessionId}`);
+    if (!revoked.ok || revoked.value) return false;
+  }
   return true;
 }
 

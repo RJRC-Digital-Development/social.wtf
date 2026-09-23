@@ -17,6 +17,10 @@ export type DistributedReadResult =
   | { ok: true; value: string | null }
   | { ok: false; value: null };
 
+export type DistributedSetReadResult =
+  | { ok: true; values: string[] }
+  | { ok: false; values: [] };
+
 export class DistributedStore {
   private readonly url: string | null = null;
   private readonly token: string | null = null;
@@ -184,6 +188,30 @@ export class DistributedStore {
     return item.value;
   }
 
+  /** Atomically consumes a value while preserving unavailable-vs-missing. */
+  public async getdelWithStatus(key: string): Promise<DistributedReadResult> {
+    if (!this.isEnabled || !this.url || !this.token) {
+      return { ok: true, value: await this.getdel(key) };
+    }
+
+    try {
+      const response = await fetch(this.url, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${this.token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(['GETDEL', key]),
+        signal: AbortSignal.timeout(3000),
+      });
+      if (!response.ok) return { ok: false, value: null };
+      const data = await response.json();
+      return { ok: true, value: typeof data?.result === 'string' ? data.result : null };
+    } catch {
+      return { ok: false, value: null };
+    }
+  }
+
   /**
    * Deletes a key
    */
@@ -233,6 +261,32 @@ export class DistributedStore {
       return JSON.parse(raw.value) as string[];
     } catch {
       return [];
+    }
+  }
+
+  /** Reads a set while preserving the unavailable-vs-empty distinction. */
+  public async smembersWithStatus(key: string): Promise<DistributedSetReadResult> {
+    if (!this.isEnabled || !this.url || !this.token) {
+      return { ok: true, values: await this.smembers(key) };
+    }
+
+    try {
+      const response = await fetch(this.url, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${this.token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(['SMEMBERS', key]),
+        signal: AbortSignal.timeout(3000),
+      });
+      if (!response.ok) return { ok: false, values: [] };
+      const data = await response.json();
+      return Array.isArray(data?.result)
+        ? { ok: true, values: data.result.filter((value: unknown): value is string => typeof value === 'string') }
+        : { ok: false, values: [] };
+    } catch {
+      return { ok: false, values: [] };
     }
   }
 

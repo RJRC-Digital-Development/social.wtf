@@ -127,5 +127,7 @@ export const config = {
     '/api/:path*',
     // Main page
     '/',
+    // Public official communications
+    '/updates',
   ],
 };

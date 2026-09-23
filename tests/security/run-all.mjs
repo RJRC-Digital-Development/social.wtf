@@ -32,6 +32,7 @@ const testFiles = [
   'account-auth.test.mjs',
   'wallet-binding.test.mjs',
   'owner-dashboard.test.mjs',
+  'official-communications.test.mjs',
   'account-canonical-unification.test.mjs',
   'legacy-claim-security.test.mjs',
   'owner-bootstrap-race.test.mjs',
