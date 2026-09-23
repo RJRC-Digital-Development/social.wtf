@@ -139,15 +139,16 @@ async function runTests() {
   assert.strictEqual(prodsByAccount.products?.length, 1, 'Product lookup by accountId failed');
   console.log('  PASS: Product catalog resolves seamlessly across bound wallet and canonical accountId.');
 
-  console.log('\n[TEST 7] Owner bootstrap idempotency and non-hardcoded ID verification');
-  const boot1 = await bootstrapPlatformOwnerAsync('platform_owner');
+  console.log('\n[TEST 7] Owner bootstrap selects and preserves configured canonical ID idempotently');
+  process.env.PLATFORM_OWNER_ACCOUNT_ID = accA;
+  const boot1 = await bootstrapPlatformOwnerAsync();
   assert(boot1.accountId.startsWith('acc_'), 'Owner account ID must follow standard acc_ format');
   assert(boot1.accountId !== 'acc_platform_owner_root', 'Owner account ID must not be hardcoded special string');
 
-  const boot2 = await bootstrapPlatformOwnerAsync('platform_owner');
+  const boot2 = await bootstrapPlatformOwnerAsync();
   assert.strictEqual(boot1.accountId, boot2.accountId, 'Owner bootstrap must be idempotent');
   assert.strictEqual(boot2.isNew, false, 'Second bootstrap must recognize existing owner');
-  console.log('  PASS: Owner bootstrap generates random canonical ID and is strictly idempotent.');
+  console.log('  PASS: Owner bootstrap preserves the existing random canonical ID and is strictly idempotent.');
 
   const unboundWallet = 'UnboundWallet1111111111111111111111111111111111';
 

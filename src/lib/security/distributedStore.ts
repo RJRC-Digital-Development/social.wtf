@@ -13,6 +13,10 @@ export interface DistributedStoreConfig {
   token?: string;
 }
 
+export type DistributedReadResult =
+  | { ok: true; value: string | null }
+  | { ok: false; value: null };
+
 export class DistributedStore {
   private readonly url: string | null = null;
   private readonly token: string | null = null;
@@ -91,6 +95,30 @@ export class DistributedStore {
       return null;
     }
     return item.value;
+  }
+
+  /** Read with an explicit unavailable-vs-missing distinction. */
+  public async getWithStatus(key: string): Promise<DistributedReadResult> {
+    if (!this.isEnabled || !this.url || !this.token) {
+      return { ok: true, value: await this.get(key) };
+    }
+
+    try {
+      const response = await fetch(this.url, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${this.token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(['GET', key]),
+        signal: AbortSignal.timeout(3000),
+      });
+      if (!response.ok) return { ok: false, value: null };
+      const data = await response.json();
+      return { ok: true, value: typeof data?.result === 'string' ? data.result : null };
+    } catch {
+      return { ok: false, value: null };
+    }
   }
 
   /**

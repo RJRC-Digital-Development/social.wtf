@@ -248,19 +248,21 @@ export async function getAccountRolesAsync(accountId: string): Promise<AccountRo
     assignedAt: Date.now(),
   };
 
+  if (distributedStore.isConfigured()) {
+    const result = await distributedStore.getWithStatus(`${ROLES_PREFIX}${accountId}`);
+    if (!result.ok) throw new Error('AUTHORITATIVE_RBAC_UNAVAILABLE');
+    if (result.value) {
+      const parsed = JSON.parse(result.value) as AccountRoleRecord;
+      if (parsed.accountId !== accountId) throw new Error('AUTHORITATIVE_RBAC_INVALID');
+      rolesCache.set(accountId, parsed);
+      return parsed;
+    }
+    rolesCache.set(accountId, defaultRoles);
+    return defaultRoles;
+  }
+
   const cached = rolesCache.get(accountId);
   if (cached) return cached;
-
-  if (distributedStore.isConfigured()) {
-    try {
-      const raw = await distributedStore.get(`${ROLES_PREFIX}${accountId}`);
-      if (raw) {
-        const parsed = JSON.parse(raw) as AccountRoleRecord;
-        rolesCache.set(accountId, parsed);
-        return parsed;
-      }
-    } catch {}
-  }
 
   return defaultRoles;
 }
@@ -449,36 +451,41 @@ export async function updateAccountStatusAsync(
 }
 
 /**
- * Bootstrap or link the Platform Owner account.
- * Uses environment PLATFORM_OWNER_WALLET as genesis anchor.
- * Does NOT manufacture verified wallet binding without signature proof.
+ * Reconcile the one existing Platform Owner account selected by server config.
+ * Never creates an account or derives authority from username or wallet identity.
  */
-export async function bootstrapPlatformOwnerAsync(ownerUsername = 'platform_owner'): Promise<{
+export async function bootstrapPlatformOwnerAsync(): Promise<{
   accountId: string;
-  isNew: boolean;
+  isNew: false;
 }> {
-  const existingOwnerAccount = await getAccountByUsernameAsync(ownerUsername);
-  if (existingOwnerAccount) {
-    await setAccountRolesAsync(existingOwnerAccount.accountId, ['ROLE_PLATFORM_OWNER', 'ROLE_ADMIN', 'ROLE_USER']);
-    return { accountId: existingOwnerAccount.accountId, isNew: false };
+  const accountId = process.env.PLATFORM_OWNER_ACCOUNT_ID?.trim() || '';
+  if (!/^acc_[a-f0-9]{32}$/.test(accountId)) throw new Error('PLATFORM_OWNER_ACCOUNT_ID_INVALID');
+
+  const account = await getAccountByIdAsync(accountId);
+  if (!account) throw new Error('PLATFORM_OWNER_ACCOUNT_NOT_FOUND');
+  if (account.status !== 'ACTIVE') throw new Error('PLATFORM_OWNER_ACCOUNT_NOT_ACTIVE');
+
+  const requiredRoles: AccountRole[] = ['ROLE_PLATFORM_OWNER', 'ROLE_ADMIN', 'ROLE_USER'];
+  const persisted = await setAccountRolesAsync(accountId, requiredRoles);
+  if (!persisted) throw new Error('PLATFORM_OWNER_RBAC_WRITE_FAILED');
+
+  const verified = await getAccountRolesAsync(accountId);
+  if (
+    verified.accountId !== accountId ||
+    verified.roles.length !== requiredRoles.length ||
+    !requiredRoles.every((role) => verified.roles.includes(role))
+  ) {
+    throw new Error('PLATFORM_OWNER_RBAC_VERIFICATION_FAILED');
   }
 
-  // Register genesis owner account
-  const tempPassword = crypto.randomBytes(32).toString('hex') + '!A1';
-  const reg = await registerAccountAsync(ownerUsername, tempPassword);
-  if (!reg.success || !reg.account) {
-    if (reg.error === 'Username is already taken.') {
-      const raceExisting = await getAccountByUsernameAsync(ownerUsername);
-      if (raceExisting) {
-        await setAccountRolesAsync(raceExisting.accountId, ['ROLE_PLATFORM_OWNER', 'ROLE_ADMIN', 'ROLE_USER']);
-        return { accountId: raceExisting.accountId, isNew: false };
-      }
-    }
-    throw new Error(`Failed to bootstrap owner account: ${reg.error}`);
-  }
+  return { accountId, isNew: false };
+}
 
-  await setAccountRolesAsync(reg.account.accountId, ['ROLE_PLATFORM_OWNER', 'ROLE_ADMIN', 'ROLE_USER']);
-  return { accountId: reg.account.accountId, isNew: true };
+export async function reconcilePlatformOwnerLoginAsync(accountId: string): Promise<void> {
+  const configuredId = process.env.PLATFORM_OWNER_ACCOUNT_ID?.trim() || '';
+  const configurationValid = /^acc_[a-f0-9]{32}$/.test(configuredId);
+  if (!configurationValid || configuredId !== accountId) return;
+  await bootstrapPlatformOwnerAsync();
 }
 
 /**

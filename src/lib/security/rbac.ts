@@ -106,22 +106,44 @@ export async function accountHasCapabilityAsync(
 ): Promise<boolean> {
   if (!accountId || !requiredCapability) return false;
 
-  const roleRecord = await getAccountRolesAsync(accountId);
-
-  // Direct capabilities check
-  if (roleRecord.directCapabilities.includes(requiredCapability)) {
-    return true;
+  try {
+    const snapshot = await resolveEffectiveAuthorizationAsync(accountId);
+    return snapshot.effectiveCapabilities.includes(requiredCapability);
+  } catch {
+    return false;
   }
+}
 
-  // Role capabilities check
-  for (const role of roleRecord.roles) {
-    const caps = ROLE_CAPABILITIES[role] || [];
-    if (caps.includes(requiredCapability)) {
-      return true;
+export async function resolveEffectiveAuthorizationAsync(accountId: string): Promise<{
+  accountId: string;
+  roles: AccountRole[];
+  directCapabilities: string[];
+  effectiveCapabilities: string[];
+}> {
+  if (!accountId) throw new Error('ACCOUNT_ID_REQUIRED');
+  const roleRecord = await getAccountRolesAsync(accountId);
+  let roles = roleRecord.roles;
+  if (roles.includes('ROLE_PLATFORM_OWNER')) {
+    const configuredOwnerId = process.env.PLATFORM_OWNER_ACCOUNT_ID?.trim() || '';
+    const ownerConfigurationMatches =
+      /^acc_[a-f0-9]{32}$/.test(configuredOwnerId) && configuredOwnerId === accountId;
+    if (!ownerConfigurationMatches) {
+      roles = ['ROLE_USER'];
     }
   }
 
-  return false;
+  const directCapabilities = roles === roleRecord.roles ? roleRecord.directCapabilities : [];
+  const effective = new Set(directCapabilities);
+
+  for (const role of roles) {
+    for (const capability of ROLE_CAPABILITIES[role] || []) effective.add(capability);
+  }
+  return {
+    accountId,
+    roles,
+    directCapabilities,
+    effectiveCapabilities: Array.from(effective),
+  };
 }
 
 /**

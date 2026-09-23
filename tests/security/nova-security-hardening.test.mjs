@@ -52,6 +52,7 @@ async function runTests() {
   const owner = (await registerAccountAsync('nova_owner', 'OwnerPassword123!')).account;
   const admin = (await registerAccountAsync('nova_admin', 'AdminPassword123!')).account;
   const ordinary = (await registerAccountAsync('nova_user', 'UserPassword123!')).account;
+  process.env.PLATFORM_OWNER_ACCOUNT_ID = owner.accountId;
   await setAccountRolesAsync(owner.accountId, ['ROLE_PLATFORM_OWNER', 'ROLE_ADMIN', 'ROLE_USER']);
   await setAccountRolesAsync(admin.accountId, ['ROLE_ADMIN', 'ROLE_USER']);
   await setAccountRolesAsync(ordinary.accountId, ['ROLE_USER']);

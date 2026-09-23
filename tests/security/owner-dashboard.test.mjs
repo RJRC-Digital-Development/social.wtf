@@ -45,6 +45,7 @@ async function runTests() {
   const ordinaryUser = resJoe.account;
 
   // Assign roles
+  process.env.PLATFORM_OWNER_ACCOUNT_ID = ownerUser.accountId;
   await setAccountRolesAsync(ownerUser.accountId, ['ROLE_PLATFORM_OWNER', 'ROLE_ADMIN', 'ROLE_USER']);
   await setAccountRolesAsync(adminUser.accountId, ['ROLE_ADMIN', 'ROLE_USER']);
   await setAccountRolesAsync(modUser.accountId, ['ROLE_MODERATOR', 'ROLE_USER']);

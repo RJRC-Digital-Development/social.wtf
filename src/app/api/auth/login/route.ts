@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
-import { authenticateAccountAsync } from '@/lib/data/accountStore';
+import { authenticateAccountAsync, reconcilePlatformOwnerLoginAsync } from '@/lib/data/accountStore';
 import { createAccountSession, createSessionCookie } from '@/lib/security/session';
+import { resolveEffectiveAuthorizationAsync } from '@/lib/security/rbac';
 
 export async function POST(req: Request) {
   try {
@@ -27,7 +28,16 @@ export async function POST(req: Request) {
       );
     }
 
-    const roles = auth.roles || ['ROLE_USER'];
+    try {
+      await reconcilePlatformOwnerLoginAsync(auth.account.accountId);
+    } catch {
+      return NextResponse.json(
+        { error: 'OWNER_PROVISIONING_UNAVAILABLE', message: 'Owner authorization could not be verified.' },
+        { status: 503 }
+      );
+    }
+
+    const roles = (await resolveEffectiveAuthorizationAsync(auth.account.accountId)).roles;
     const sessionToken = createAccountSession(auth.account, roles);
     const sessionCookie = createSessionCookie(sessionToken, Date.now() + 24 * 60 * 60 * 1000);
 

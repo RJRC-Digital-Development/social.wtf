@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { validateRequestSessionAsync } from '@/lib/security/session';
-import { getAccountByIdAsync, getAccountRolesAsync, getWalletBindingAsync } from '@/lib/data/accountStore';
+import { getAccountByIdAsync, getWalletBindingAsync } from '@/lib/data/accountStore';
+import { resolveEffectiveAuthorizationAsync } from '@/lib/security/rbac';
 
 export async function GET(req: Request) {
   try {
@@ -11,7 +12,7 @@ export async function GET(req: Request) {
 
     const { accountId, username, walletAddress } = sessionResult.payload;
     const account = await getAccountByIdAsync(accountId);
-    const roleRecord = await getAccountRolesAsync(accountId);
+    const authorization = await resolveEffectiveAuthorizationAsync(accountId);
 
     let walletBinding = null;
     if (account?.primaryWalletAddress || walletAddress) {
@@ -30,8 +31,8 @@ export async function GET(req: Request) {
         createdAt: account?.createdAt,
         primaryWalletAddress: account?.primaryWalletAddress || walletAddress,
       },
-      roles: roleRecord.roles,
-      capabilities: roleRecord.directCapabilities,
+      roles: authorization.roles,
+      capabilities: authorization.effectiveCapabilities,
       walletBinding: walletBinding
         ? {
             walletAddress: walletBinding.walletAddress,

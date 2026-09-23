@@ -164,13 +164,13 @@ function verifyWalletChallenge({ walletAddress, nonce, signatureBase58 }) {
   process.env.PLATFORM_OWNER_WALLET = ownerAddress;
 
   function determineSessionScope(walletAddress) {
-    return isPlatformOwner(walletAddress) ? 'admin' : 'user';
+    return 'user';
   }
 
-  assert.strictEqual(determineSessionScope(ownerAddress), 'admin');
+  assert.strictEqual(determineSessionScope(ownerAddress), 'user');
   assert.strictEqual(determineSessionScope(normalAddress), 'user');
   assert.strictEqual(determineSessionScope(treasuryAddress), 'user');
-  console.log(' Test 5: Protocol Owner admin scope provenance & treasury/user isolation verified');
+  console.log(' Test 5: Wallet identity cannot confer platform owner scope');
 }
 
 console.log('ALL CRYPTOGRAPHIC WALLET AUTH TESTS PASSED!\n');

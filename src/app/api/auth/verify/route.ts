@@ -3,7 +3,6 @@ import { verifyWalletChallengeAsync } from '../../../../lib/security/walletAuth.
 import { globalRateLimiter } from '../../../../lib/security/rateLimiter.ts';
 import { createSession, verifySessionToken, createSessionCookie } from '../../../../lib/security/session.ts';
 import { getClientIp } from '../../../../lib/security/ipHelper.ts';
-import { isPlatformOwner } from '../../../../lib/security/ownerAuth.ts';
 
 export async function POST(req: Request) {
   try {
@@ -42,8 +41,8 @@ export async function POST(req: Request) {
       );
     }
 
-    // Determine authorization scope: Valid configured PLATFORM_OWNER_WALLET receives 'admin'; all other wallets receive 'user'
-    const sessionScope: 'admin' | 'user' = isPlatformOwner(walletAddress) ? 'admin' : 'user';
+    // Wallet control proves wallet ownership only; current account RBAC is authoritative.
+    const sessionScope: 'user' = 'user';
 
     // Generate authenticated, cryptographically signed session token bound to wallet
     const token = createSession(walletAddress, sessionScope);
@@ -61,7 +60,7 @@ export async function POST(req: Request) {
       verified: true,
       walletAddress,
       scope: sessionScope,
-      isAdmin: sessionScope === 'admin',
+      isAdmin: false,
       sessionToken: token,
       expiresAt: verification.payload.expiresAt,
       authenticatedAt: new Date(verification.payload.issuedAt).toISOString(),

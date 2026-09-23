@@ -39,6 +39,26 @@ export default function OwnerDashboardPage() {
   const [authDenied, setAuthDenied] = useState(false);
   const [currentAccountId, setCurrentAccountId] = useState<string | null>(null);
 
+  const clearPrivilegedState = () => {
+    setAuthVerified(false);
+    setAuthDenied(true);
+    setCurrentAccountId(null);
+    setStepUpChallengeNonce(null);
+    setStepUpPassword('');
+    setStepUpToken(null);
+    setStepUpActive(false);
+    setStepUpActionCallback(null);
+    setStepUpExpiresAt(null);
+  };
+
+  const rejectIfUnauthorized = (res: Response): boolean => {
+    if (res.status === 401 || res.status === 403) {
+      clearPrivilegedState();
+      return true;
+    }
+    return false;
+  };
+
   // Verify session and check privileged role before rendering anything
   useEffect(() => {
     let cancelled = false;
@@ -54,9 +74,8 @@ export default function OwnerDashboardPage() {
           if (!cancelled) setAuthDenied(true);
           return;
         }
-        // Check for privileged role
-        const roles: string[] = data.roles || [];
-        const isPrivileged = roles.includes('ROLE_ADMIN') || roles.includes('ROLE_PLATFORM_OWNER');
+        const capabilities: string[] = data.capabilities || [];
+        const isPrivileged = capabilities.includes('telemetry:read');
         if (!isPrivileged) {
           if (!cancelled) setAuthDenied(true);
           return;
@@ -93,6 +112,7 @@ export default function OwnerDashboardPage() {
     try {
       const res = await fetch('/api/owner/overview');
       const data = await res.json();
+      if (rejectIfUnauthorized(res)) return;
       if (!res.ok) {
         setError(data.message || data.error || 'Failed to load owner overview');
         return;
@@ -107,6 +127,7 @@ export default function OwnerDashboardPage() {
     try {
       const res = await fetch('/api/owner/accounts');
       const data = await res.json();
+      if (rejectIfUnauthorized(res)) return;
       if (res.ok && data.success) {
         setAccountsData(data.accounts || []);
       }
@@ -117,6 +138,7 @@ export default function OwnerDashboardPage() {
     try {
       const res = await fetch('/api/owner/audit');
       const data = await res.json();
+      if (rejectIfUnauthorized(res)) return;
       if (res.ok && data.success) {
         setAuditLogs(data.logs || []);
       }
@@ -135,6 +157,7 @@ export default function OwnerDashboardPage() {
     try {
       const res = await fetch('/api/owner/step-up/challenge', { method: 'POST' });
       const data = await res.json();
+      if (rejectIfUnauthorized(res)) return;
       if (res.ok && data.success) {
         setStepUpChallengeNonce(data.challengeNonce);
         setStepUpActionCallback(() => onSuccess);
@@ -163,6 +186,7 @@ export default function OwnerDashboardPage() {
       });
 
       const data = await res.json();
+      if (rejectIfUnauthorized(res)) return;
       if (res.ok && data.success && data.stepUpToken) {
         setStepUpToken(data.stepUpToken);
         setStepUpExpiresAt(Date.now() + (data.expiresInSeconds || 300) * 1000);
@@ -192,6 +216,7 @@ export default function OwnerDashboardPage() {
         }),
       });
       const data = await res.json();
+      if (rejectIfUnauthorized(res)) return;
       if (!res.ok) {
         alert(data.message || data.error || 'Failed to update feature');
       } else {
@@ -221,6 +246,7 @@ export default function OwnerDashboardPage() {
         }),
       });
       const data = await res.json();
+      if (rejectIfUnauthorized(res)) return;
       if (!res.ok) {
         alert(data.message || data.error || 'Failed to update account status');
       } else {

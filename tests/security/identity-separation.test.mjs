@@ -62,7 +62,7 @@ function simulateVerifyRoute(walletAddress, nonce, signatureBase58) {
   const check = verifyWalletChallenge({ walletAddress, nonce, signatureBase58 });
   if (!check.verified) return { status: 401, error: check.error };
 
-  const sessionScope = isPlatformOwner(walletAddress) ? 'admin' : 'user';
+  const sessionScope = 'user';
   const token = createSession(walletAddress, sessionScope);
   return {
     status: 200,
@@ -88,7 +88,7 @@ async function runTests() {
 
   try {
     // -------------------------------------------------------------
-    console.log(' [TEST 1] Configured Owner + Valid SIWS -> Admin Scope');
+    console.log(' [TEST 1] Configured Owner Wallet + Valid SIWS -> User Scope');
     // -------------------------------------------------------------
     process.env.PLATFORM_OWNER_WALLET = ownerAddress;
     assert.strictEqual(getPlatformOwnerWallet(), ownerAddress);
@@ -100,9 +100,9 @@ async function runTests() {
     const res1 = simulateVerifyRoute(ownerAddress, challenge1.nonce, sig1);
 
     assert.strictEqual(res1.status, 200);
-    assert.strictEqual(res1.scope, 'admin');
-    assert.strictEqual(res1.isAdmin, true);
-    console.log('   Configured owner successfully issued admin session');
+    assert.strictEqual(res1.scope, 'user');
+    assert.strictEqual(res1.isAdmin, false);
+    console.log('   Wallet configuration does not issue admin authority');
 
     // -------------------------------------------------------------
     console.log(' [TEST 2] Ordinary Wallet + Valid SIWS -> User Scope');
@@ -140,7 +140,7 @@ async function runTests() {
     console.log('   Treasury wallet strictly receives user scope when not configured as owner');
 
     // -------------------------------------------------------------
-    console.log(' [TEST 4] Treasury Explicitly Configured as Owner + Valid SIWS -> Admin Scope');
+    console.log(' [TEST 4] Treasury Wallet Configuration Still Cannot Grant Admin Scope');
     // -------------------------------------------------------------
     process.env.PLATFORM_OWNER_WALLET = mockTreasuryAddress;
     assert.strictEqual(getPlatformOwnerWallet(), mockTreasuryAddress);
@@ -152,9 +152,9 @@ async function runTests() {
     const res4 = simulateVerifyRoute(mockTreasuryAddress, challenge4.nonce, sig4);
 
     assert.strictEqual(res4.status, 200);
-    assert.strictEqual(res4.scope, 'admin');
-    assert.strictEqual(res4.isAdmin, true);
-    console.log('   Treasury receives admin scope only when explicitly configured by operator');
+    assert.strictEqual(res4.scope, 'user');
+    assert.strictEqual(res4.isAdmin, false);
+    console.log('   Wallet control remains separate from platform RBAC');
 
     // -------------------------------------------------------------
     console.log(' [TEST 5] Missing Owner Env -> Zero Implicit Admins (Fail-Closed)');
