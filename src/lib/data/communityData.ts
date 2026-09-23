@@ -149,8 +149,8 @@ Creators can configure a verified Sponsor Link (GitHub Sponsors, Patreon, or cus
 
 ### Key Sponsorship Features:
 1. **Direct Profile Sponsor Banner:** Highlight your open-source tools, artworks, or creative roadmap with an embedded Sponsor Link.
-2. **On-Chain Grants & Bounties:** Apply for community ecosystem grants funded by the 5% platform treasury reserve.
-3. **Transparent 95/5 Split:** On-chain tips and patronage contributions route 95% straight to creator wallets in sub-second blocks.
+2. **On-Chain Grants & Bounties:** Apply for community ecosystem grants funded by the platform treasury reserve.
+3. **Direct Creator Settlement:** On-chain tips and patronage contributions route straight to creator wallets in sub-second blocks.
 
 Share your sponsorship links, ask technical questions, or propose grant initiatives in this thread!`,
     createdAt: 'Pinned Topic',

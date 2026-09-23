@@ -521,7 +521,7 @@ export const CommunityHub: React.FC<CommunityHubProps> = ({
               {[
                 { id: 'all', label: ' All Guides' },
                 { id: 'creator_sdk', label: ' Creator SDK & Pages' },
-                { id: 'tokenomics', label: ' 0.05% Protocol Fee' },
+                { id: 'tokenomics', label: ' Tokenomics & Treasury' },
                 { id: 'privacy_ai', label: ' Sentinel AI & Privacy' },
                 { id: 'developers', label: ' SVM Tools & RPC' },
               ].map((tab) => (

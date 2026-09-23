@@ -6,7 +6,46 @@ import {
   LAMPORTS_PER_SOL,
 } from '@solana/web3.js';
 
-// Official Cookie Chain Network Parameters
+// Official Cookie Chain Network Parameters & Canonical Treasury
+export const DEFAULT_PLATFORM_TREASURY_PUBKEY =
+  'D5to2BbiYfKqWjBR2cGazz1PJjqi9Zp4UfnC7HA9SXtF';
+
+/**
+ * Server/Environment Canonical Treasury Resolver
+ * Resolves the authoritative Cookie Chain treasury public key.
+ *
+ * Invariants:
+ * 1. Resolves from process.env.PLATFORM_TREASURY_PUBKEY or process.env.NEXT_PUBLIC_TREASURY_PUBKEY if provided.
+ * 2. Falls back to canonical DEFAULT_PLATFORM_TREASURY_PUBKEY ('D5to2BbiYfKqWjBR2cGazz1PJjqi9Zp4UfnC7HA9SXtF') if unconfigured.
+ * 3. If an environment variable is present but contains an invalid/malformed public key: FAILS CLOSED by throwing.
+ * 4. NEVER falls back to creator wallet, connected user wallet, or arbitrary fallback address.
+ * 5. Destination is strictly server-authoritative and immutable to client input.
+ */
+export function getCanonicalTreasuryPublicKey(): PublicKey {
+  const rawEnv = (
+    typeof process !== 'undefined'
+      ? process.env.PLATFORM_TREASURY_PUBKEY || process.env.NEXT_PUBLIC_TREASURY_PUBKEY
+      : undefined
+  )?.trim();
+
+  const target = rawEnv || DEFAULT_PLATFORM_TREASURY_PUBKEY;
+  if (!target) {
+    throw new Error('[CookieChain] Platform treasury public key configuration is missing.');
+  }
+
+  try {
+    return new PublicKey(target);
+  } catch (err) {
+    throw new Error(`[CookieChain] Invalid or malformed platform treasury public key configuration: "${target}"`);
+  }
+}
+
+export function getCanonicalTreasuryAddress(): string {
+  return getCanonicalTreasuryPublicKey().toBase58();
+}
+
+export const PLATFORM_TREASURY_PUBKEY: PublicKey = getCanonicalTreasuryPublicKey();
+
 export const COOKIE_CHAIN_CONFIG = {
   chainId: 'cookie-mainnet',
   chainName: 'Cookie Chain',
@@ -20,14 +59,9 @@ export const COOKIE_CHAIN_CONFIG = {
     decimals: 9,
   },
   // Social.wtf Dedicated Protocol Treasury Wallet on Cookie Chain
-  treasuryPublicKey: 'HMnySuX1CdBfqysiLtU4brPawufcHxFTFZu97jrKQwT9',
+  treasuryPublicKey: DEFAULT_PLATFORM_TREASURY_PUBKEY,
   protocolFeePercent: 0.05, // 0.05% automated protocol fee
 };
-
-// Fallback valid Base58 public key for Cookie Chain Treasury
-export const PLATFORM_TREASURY_PUBKEY = new PublicKey(
-  'HMnySuX1CdBfqysiLtU4brPawufcHxFTFZu97jrKQwT9'
-);
 
 let globalConnection: Connection | null = null;
 
@@ -169,10 +203,11 @@ export async function buildSplitTransaction({
 
   // Instruction 2: Automated protocol fee to Social.wtf Treasury (if > 0)
   if (split.treasuryLamports > 0n) {
+    const treasuryPubkey = getCanonicalTreasuryPublicKey();
     tx.add(
       SystemProgram.transfer({
         fromPubkey,
-        toPubkey: PLATFORM_TREASURY_PUBKEY,
+        toPubkey: treasuryPubkey,
         lamports: split.treasuryLamports,
       })
     );

@@ -41,6 +41,8 @@ const testFiles = [
   'owner-data-leak.test.mjs',
   'auth-priority-zero.test.mjs',
   'account-wallet-decoupling.test.mjs',
+  'treasury-configuration.test.mjs',
+  'username-mutation.test.mjs',
 ];
 
 let totalPassed = 0;

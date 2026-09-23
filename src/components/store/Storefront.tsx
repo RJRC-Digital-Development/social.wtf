@@ -492,7 +492,7 @@ export const Storefront: React.FC<StorefrontProps> = ({
               </div>
 
               <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
-                When purchased: <span className="text-emerald-600 dark:text-emerald-400 font-semibold">99.95%</span> routes directly to your wallet, and <span className="text-blue-600 dark:text-blue-400 font-semibold">0.05%</span> funds the platform treasury on Cookie Chain.
+                When purchased: digital asset sales settle atomically and route directly to your connected creator wallet on Cookie Chain.
               </div>
 
               <button

@@ -749,6 +749,105 @@ export async function updateAccountPasswordHashAsync(
   return { success: true };
 }
 
+/**
+ * Update an account's login username with strict password confirmation and atomic reservation.
+ * Preserves the immutable accountId.
+ * Preserves/reserves previous username to prevent takeover/impersonation.
+ */
+export async function updateAccountUsernameAsync(
+  accountId: string,
+  newUsername: string,
+  currentPassword: string
+): Promise<{ success: boolean; account?: Account; error?: string; status?: number }> {
+  if (!accountId || typeof accountId !== 'string') {
+    return { success: false, error: 'Invalid account ID.', status: 400 };
+  }
+
+  const validation = validateUsername(newUsername);
+  if (!validation.valid) {
+    return { success: false, error: validation.reason, status: 400 };
+  }
+
+  const cleanNewUsername = normalizeUsername(newUsername);
+  const account = await getAccountByIdAsync(accountId);
+  if (!account) {
+    return { success: false, error: 'Account not found.', status: 404 };
+  }
+
+  if (account.status === 'SUSPENDED' || account.status === 'DEACTIVATED') {
+    return { success: false, error: 'Account is not active.', status: 403 };
+  }
+
+  // Password verification required for login username mutation
+  if (!currentPassword) {
+    return { success: false, error: 'Current password is required to change username.', status: 400 };
+  }
+
+  const passwordValid = await verifyAccountPasswordByIdAsync(accountId, currentPassword);
+  if (!passwordValid) {
+    return { success: false, error: 'Invalid password. Password confirmation failed.', status: 401 };
+  }
+
+  // Idempotent if username unchanged
+  if (account.username === cleanNewUsername) {
+    return { success: true, account };
+  }
+
+  const oldUsername = account.username;
+
+  if (process.env.NODE_ENV === 'production' && !distributedStore.isConfigured()) {
+    return { success: false, error: 'PERSISTENCE_SERVICE_UNAVAILABLE', status: 503 };
+  }
+
+  const now = Date.now();
+  const updatedAccount: Account = {
+    ...account,
+    username: cleanNewUsername,
+    updatedAt: now,
+  };
+
+  const newUsernameKey = `${USERNAME_PREFIX}${cleanNewUsername}`;
+
+  try {
+    // Atomic reservation of new username
+    const claimed = await distributedStore.setnx(newUsernameKey, accountId);
+    if (!claimed) {
+      const existingOwner = await distributedStore.get(newUsernameKey);
+      if (existingOwner && existingOwner !== accountId) {
+        return { success: false, error: 'Username is already taken.', status: 409 };
+      }
+    }
+
+    const ok = await distributedStore.set(`${ACCOUNT_PREFIX}${accountId}`, JSON.stringify(updatedAccount));
+    if (!ok) {
+      // Compensating rollback of newly claimed username
+      if (claimed) {
+        await distributedStore.del(newUsernameKey).catch(() => {});
+      }
+      return { success: false, error: 'Persistence failure during username update.', status: 500 };
+    }
+
+    // Old username reservation policy:
+    // Retain old username mapping in account:username:<oldUsername> as alias/reservation for this accountId
+    // to prevent immediate takeover/impersonation.
+    if (oldUsername && oldUsername !== cleanNewUsername) {
+      await distributedStore.set(`${USERNAME_PREFIX}${oldUsername}`, accountId).catch(() => {});
+    }
+  } catch (err) {
+    console.error('[AccountStore] updateAccountUsernameAsync failure:', err);
+    return { success: false, error: 'Persistence failure during username update.', status: 500 };
+  }
+
+  // Update memory caches
+  accountsCache.set(accountId, updatedAccount);
+  usernameToIdCache.set(cleanNewUsername, accountId);
+  if (oldUsername) {
+    usernameToIdCache.set(oldUsername, accountId);
+  }
+
+  return { success: true, account: updatedAccount };
+}
+
 export function resetAccountStoreForTests(): void {
   accountsCache.clear();
   usernameToIdCache.clear();

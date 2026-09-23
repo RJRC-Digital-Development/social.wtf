@@ -11,6 +11,7 @@ import {
   getCookieConnection,
   calculateFeeSplit,
   PLATFORM_TREASURY_PUBKEY,
+  getCanonicalTreasuryPublicKey,
   COOKIE_CHAIN_CONFIG,
 } from './cookieChain.ts';
 import { distributedStore, DistributedStore } from '../security/distributedStore.ts';
@@ -609,10 +610,11 @@ export async function executeOnChainSplitTransaction(params: {
     );
 
     if (split.treasuryLamports > 0n) {
+      const treasuryPubkey = getCanonicalTreasuryPublicKey();
       tx.add(
         SystemProgram.transfer({
           fromPubkey: signer.publicKey,
-          toPubkey: PLATFORM_TREASURY_PUBKEY,
+          toPubkey: treasuryPubkey,
           lamports: split.treasuryLamports,
         })
       );

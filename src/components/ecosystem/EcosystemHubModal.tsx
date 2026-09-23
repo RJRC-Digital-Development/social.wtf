@@ -14,6 +14,7 @@ import {
   Box,
 } from 'lucide-react';
 import { useWallet } from '@/lib/wallet/walletContext';
+import { COOKIE_CHAIN_CONFIG } from '@/lib/solana/cookieChain';
 import { TransactionRecord } from '@/types';
 import confetti from 'canvas-confetti';
 
@@ -72,7 +73,7 @@ export const EcosystemHubModal: React.FC<EcosystemHubModalProps> = ({
             signature: signature,
             fromAddress: walletAddress || 'CookYourWallet11111111111111111111111111',
             toAddress: 'CookSwapPool1111111111111111111111111111111111',
-            treasuryAddress: 'HMnySuX1CdBfqysiLtU4brPawufcHxFTFZu97jrKQwT9',
+            treasuryAddress: COOKIE_CHAIN_CONFIG.treasuryPublicKey,
             totalAmountCook: targetCook,
             creatorAmountCook: targetCook * 0.95,
             treasuryAmountCook: targetCook * 0.05,

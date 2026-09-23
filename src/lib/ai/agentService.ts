@@ -229,7 +229,7 @@ export class SocialWtfAiAgent {
         id: `msg-${Date.now()}`,
         sender: 'agent',
         timestamp,
-        content: ` **Cookie Chain SVM Live Network Metrics:**\n\n- **RPC Endpoint:** \`${COOKIE_CHAIN_CONFIG.rpcUrl}\`\n- **Block Time / Finality:** Sub-second (~1.0s)\n- **Platform Volume:** ${INITIAL_TREASURY_METRICS.totalPlatformVolumeCook.toLocaleString()} COOK\n- **Treasury Collected (5%):** ${INITIAL_TREASURY_METRICS.totalTreasuryCollectedCook.toFixed(
+        content: ` **Cookie Chain SVM Live Network Metrics:**\n\n- **RPC Endpoint:** \`${COOKIE_CHAIN_CONFIG.rpcUrl}\`\n- **Block Time / Finality:** Sub-second (~1.0s)\n- **Platform Volume:** ${INITIAL_TREASURY_METRICS.totalPlatformVolumeCook.toLocaleString()} COOK\n- **Treasury Collected:** ${INITIAL_TREASURY_METRICS.totalTreasuryCollectedCook.toFixed(
           2
         )} COOK\n- **Active SVM Creators:** ${INITIAL_TREASURY_METRICS.activeCreatorsCount}`,
         actions: [

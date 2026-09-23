@@ -62,7 +62,7 @@ export const TxStatusModal: React.FC<TxStatusModalProps> = ({
             </div>
             <h3 className="text-lg font-bold text-slate-100">Preparing Transaction...</h3>
             <p className="text-xs text-slate-400 mt-1">
-              Calculating 5% platform treasury fee & fetching Cookie Chain blockhash
+              Preparing on-chain settlement &amp; fetching Cookie Chain blockhash
             </p>
           </div>
         )}

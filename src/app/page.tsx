@@ -13,7 +13,7 @@ import { CommunityHub } from '@/components/community/CommunityHub';
 import { LoginGate } from '@/components/auth/LoginGate';
 import { INITIAL_TREASURY_METRICS } from '@/lib/data/mockData';
 import { Post, Product, User, TransactionRecord, TreasuryMetrics } from '@/types';
-import { calculateFeeSplit } from '@/lib/solana/cookieChain';
+import { calculateFeeSplit, COOKIE_CHAIN_CONFIG } from '@/lib/solana/cookieChain';
 import { useShield } from '@/lib/shield/shieldContext';
 import { useWallet } from '@/lib/wallet/walletContext';
 import {
@@ -225,8 +225,12 @@ export default function Home() {
       }
 
       const queryParam = cleanParam.length > 30 ? `wallet=${cleanParam}` : `handle=${cleanParam}`;
+      const headers: Record<string, string> = {};
+      if (sessionToken && typeof sessionToken === 'string' && sessionToken.trim()) {
+        headers['Authorization'] = `Bearer ${sessionToken.trim()}`;
+      }
       fetch(`/api/profile?${queryParam}`, {
-        headers: { Authorization: `Bearer ${sessionToken}` },
+        headers: Object.keys(headers).length > 0 ? headers : undefined,
       })
         .then((res) => (res.ok ? res.json() : null))
         .then((data) => {
@@ -258,7 +262,7 @@ export default function Home() {
       signature: meta.signature,
       fromAddress: walletAddress,
       toAddress: updatedPost.author.walletAddress,
-      treasuryAddress: 'HMnySuX1CdBfqysiLtU4brPawufcHxFTFZu97jrKQwT9',
+      treasuryAddress: COOKIE_CHAIN_CONFIG.treasuryPublicKey,
       totalAmountCook: tipAmount,
       creatorAmountCook: split.creatorAmount,
       treasuryAmountCook: split.treasuryAmount,
@@ -288,7 +292,7 @@ export default function Home() {
       signature: txSig.trim(),
       fromAddress: walletAddress,
       toAddress: product.creatorWallet,
-      treasuryAddress: 'HMnySuX1CdBfqysiLtU4brPawufcHxFTFZu97jrKQwT9',
+      treasuryAddress: COOKIE_CHAIN_CONFIG.treasuryPublicKey,
       totalAmountCook: product.priceCook,
       creatorAmountCook: split.creatorAmount,
       treasuryAmountCook: split.treasuryAmount,

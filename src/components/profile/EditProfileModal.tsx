@@ -253,7 +253,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
             />
           </div>
 
-          {/* Display Name & Handle */}
+          {/* Display Name & Public Profile Handle */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-slate-300">Display Name</label>
@@ -268,7 +268,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-300">Handle / Username</label>
+              <label className="text-xs font-semibold text-slate-300">Public Profile Handle</label>
               <div className="relative">
                 <span className="absolute left-3.5 top-2.5 text-xs text-slate-500 font-mono">@</span>
                 <input

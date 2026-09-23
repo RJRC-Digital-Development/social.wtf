@@ -423,7 +423,19 @@ export function extractSessionToken(request: Request): string | null {
   if (authorization) {
     const match = authorization.match(/^Bearer\s+(.+)$/i);
     if (match?.[1]) {
-      return match[1].trim();
+      const candidate = match[1].trim();
+      // Only treat candidate as bearer token if it is not an empty/placeholder value
+      // and conforms to token format (3 dot-separated segments)
+      if (
+        candidate &&
+        candidate !== 'null' &&
+        candidate !== 'undefined' &&
+        candidate !== '""' &&
+        candidate !== "''" &&
+        candidate.split('.').length === 3
+      ) {
+        return candidate;
+      }
     }
   }
 
@@ -440,7 +452,10 @@ export function extractSessionToken(request: Request): string | null {
     const name = cookie.slice(0, separator).trim();
     if (name !== 'session') continue;
 
-    return decodeURIComponent(cookie.slice(separator + 1).trim());
+    const val = decodeURIComponent(cookie.slice(separator + 1).trim());
+    if (val && val !== 'null' && val !== 'undefined') {
+      return val;
+    }
   }
 
   return null;

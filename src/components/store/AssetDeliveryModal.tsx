@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { Product } from '@/types';
-import { getExplorerTxUrl, formatAddress } from '@/lib/solana/cookieChain';
+import { getExplorerTxUrl, formatAddress, COOKIE_CHAIN_CONFIG } from '@/lib/solana/cookieChain';
 import {
   Download,
   CheckCircle2,
@@ -55,7 +55,7 @@ export const AssetDeliveryModal: React.FC<AssetDeliveryModalProps> = ({
 import { Program, AnchorProvider, web3, BN } from '@coral-xyz/anchor';
 import { PublicKey, SystemProgram } from '@solana/web3.js';
 
-export const COOKIE_CHAIN_TREASURY = new PublicKey('HMnySuX1CdBfqysiLtU4brPawufcHxFTFZu97jrKQwT9');
+export const COOKIE_CHAIN_TREASURY = new PublicKey('${COOKIE_CHAIN_CONFIG.treasuryPublicKey}');
 
 /**
  * Execute automated 95% creator / 5% protocol treasury split

@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { User, Product, Post, CreatorWidget, TransactionRecord } from '@/types';
 import { useShield } from '@/lib/shield/shieldContext';
 import { useWallet } from '@/lib/wallet/walletContext';
+import { COOKIE_CHAIN_CONFIG } from '@/lib/solana/cookieChain';
 import { TxStatusModal, TxStep } from '../transactions/TxStatusModal';
 import { Storefront } from '../store/Storefront';
 import { PostCard } from '../feed/PostCard';
@@ -193,7 +194,7 @@ setInterval(() => {
           signature: sig,
           fromAddress: walletAddress || 'CookYourWallet11111111111111111111111111',
           toAddress: creator.walletAddress,
-          treasuryAddress: 'HMnySuX1CdBfqysiLtU4brPawufcHxFTFZu97jrKQwT9',
+          treasuryAddress: COOKIE_CHAIN_CONFIG.treasuryPublicKey,
           totalAmountCook: amount,
           creatorAmountCook: +(amount * 0.9995).toFixed(4),
           treasuryAmountCook: +(amount * 0.0005).toFixed(4),
@@ -241,7 +242,7 @@ setInterval(() => {
           signature: sig,
           fromAddress: walletAddress || 'CookYourWallet11111111111111111111111111',
           toAddress: creator.walletAddress,
-          treasuryAddress: 'HMnySuX1CdBfqysiLtU4brPawufcHxFTFZu97jrKQwT9',
+          treasuryAddress: COOKIE_CHAIN_CONFIG.treasuryPublicKey,
           totalAmountCook: 5.0,
           creatorAmountCook: +(5.0 * 0.9995).toFixed(4),
           treasuryAmountCook: +(5.0 * 0.0005).toFixed(4),
@@ -453,7 +454,7 @@ setInterval(() => {
           </div>
 
           {/* Social Counts & Friends Quick Access */}
-          <div className="grid grid-cols-4 sm:flex sm:items-center gap-2 sm:gap-3 text-xs shrink-0 mt-2 lg:mt-0">
+          <div className="grid grid-cols-3 sm:flex sm:items-center gap-2 sm:gap-3 text-xs shrink-0 mt-2 lg:mt-0">
             <button
               onClick={() => {
                 setFriendsModalTab('friends');
@@ -492,13 +493,6 @@ setInterval(() => {
               </span>
               <span className="text-[10px] text-slate-400">Friends</span>
             </button>
-
-            <div className="px-3 py-1.5 rounded-xl bg-slate-900/80 border border-slate-800 text-center">
-              <span className="font-bold text-emerald-400 block text-sm font-mono">
-                99.95%
-              </span>
-              <span className="text-[10px] text-slate-400">Creator Split</span>
-            </div>
           </div>
         </div>
 
@@ -669,7 +663,7 @@ setInterval(() => {
               <div className="text-xl font-bold text-amber-300 font-mono">
                 {creatorTotalRevenue.toFixed(1)} COOK
               </div>
-              <div className="text-[10px] text-emerald-400 font-semibold">99.95% Creator Split</div>
+              <div className="text-[10px] text-emerald-400 font-semibold">Total Creator Volume</div>
             </div>
 
             <div className="p-5 rounded-3xl bg-[#0d1527] border border-slate-700/80 shadow-xl space-y-1">
@@ -712,7 +706,7 @@ setInterval(() => {
             <div className="p-5 rounded-3xl bg-[#0d1527] border border-slate-700/80 shadow-xl space-y-3">
               <div className="flex items-center gap-2.5 text-xs font-bold text-slate-200 pb-2 border-b border-slate-800">
                 <ShoppingBag className="w-4 h-4 text-amber-400" />
-                <span>Creator Store Drops (99.95% Proceeds)</span>
+                <span>Creator Store Drops</span>
               </div>
               <p className="text-xs text-slate-300 leading-relaxed">
                 List your digital artwork, sound stems, 3D assets, VIP access passes, or code scripts for sale on Cookie Chain with sub-second finality.
@@ -841,7 +835,7 @@ setInterval(() => {
               </div>
 
               <p className="text-[11px] text-slate-400 leading-relaxed">
-                Every tip automatically triggers a 0.05% split to the Social.wtf treasury to fund upcoming platform features and validator grants.
+                Direct community contributions route directly to the creator on Cookie Chain with sub-second finality.
               </p>
 
               <button
