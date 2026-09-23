@@ -4,7 +4,8 @@ import crypto from 'crypto';
  * Extract and hash client identification from an incoming request for audit logging.
  * Hashes are one-way (SHA-256 truncated) so raw IPs and user-agents are never stored.
  *
- * Uses headers set by edge middleware, falling back to standard headers.
+ * Uses authoritative internal headers replaced and forwarded by edge middleware,
+ * falling back to standard headers for direct server-side invocation.
  */
 export function extractAuditContext(req: Request): {
   ipHash: string;

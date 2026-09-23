@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { createAuditRequestHeaders } from '@/lib/security/auditHeaders';
 
 /**
  * Edge middleware for Social.wtf
@@ -103,18 +104,15 @@ export function middleware(request: NextRequest) {
     }
   }
 
-  // Forward client IP hash for audit logging (non-sensitive, hashed downstream)
-  const response = NextResponse.next();
+  // Forward trusted audit context to route handlers for server-side hashing.
+  // Always replace client-supplied internal headers rather than forwarding them.
+  const requestHeaders = createAuditRequestHeaders(request.headers);
 
-  // Pass the connecting IP for server-side hashing in audit logs
-  const clientIp = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
-    || request.headers.get('x-real-ip')
-    || 'unknown';
-  response.headers.set('x-client-ip-for-audit', clientIp);
-
-  // Pass user-agent for audit hashing
-  const ua = request.headers.get('user-agent') || 'unknown';
-  response.headers.set('x-client-ua-for-audit', ua);
+  const response = NextResponse.next({
+    request: {
+      headers: requestHeaders,
+    },
+  });
 
   return addSecurityHeaders(response);
 }

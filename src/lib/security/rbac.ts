@@ -406,3 +406,6 @@ export function clearStepUpCacheForTests(): void {
   memoryFailedAttempts.clear();
 }
 
+export function getStepUpChallengeCountForTests(): number {
+  return memoryStepUpChallenges.size;
+}

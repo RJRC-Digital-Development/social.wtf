@@ -37,6 +37,7 @@ const testFiles = [
   'owner-bootstrap-race.test.mjs',
   'wallet-free-flow.test.mjs',
   'step-up-session.test.mjs',
+  'nova-security-hardening.test.mjs',
   'username-normalization.test.mjs',
   'owner-data-leak.test.mjs',
   'auth-priority-zero.test.mjs',
