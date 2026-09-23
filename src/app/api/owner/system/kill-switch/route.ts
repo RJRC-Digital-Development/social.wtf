@@ -3,6 +3,7 @@ import { validateRequestSessionAsync } from '@/lib/security/session';
 import { accountHasCapabilityAsync, validateStepUpTokenAsync } from '@/lib/security/rbac';
 import { updateRuntimeFeatureStateAsync, getEffectiveFeatureStateAsync } from '@/lib/data/featureStore';
 import { recordAuditLogAsync, createPrivilegedOperationAsync, updateOperationStateAsync } from '@/lib/data/auditStore';
+import { extractAuditContext } from '@/lib/security/auditContext';
 
 export async function POST(req: Request) {
   try {
@@ -61,14 +62,15 @@ export async function POST(req: Request) {
 
     await updateOperationStateAsync(op.opId, 'APPLIED');
 
+    const { ipHash, userAgentHash } = extractAuditContext(req);
     const audit = await recordAuditLogAsync({
       actorAccountId,
       capabilityUsed: 'feature:toggle',
       action: 'FEATURE_FLAGS_UPDATED',
       targetType: 'SYSTEM_CONFIG',
       targetId: 'features',
-      ipHash: 'server_internal',
-      userAgentHash: 'server_internal',
+      ipHash,
+      userAgentHash,
       stepUpMethodUsed: 'PASSWORD',
       outcome: 'SUCCESS',
       reason: reason || 'Owner dashboard feature toggle',

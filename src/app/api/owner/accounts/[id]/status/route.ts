@@ -3,6 +3,7 @@ import { validateRequestSessionAsync } from '@/lib/security/session';
 import { accountHasCapabilityAsync, validateStepUpTokenAsync } from '@/lib/security/rbac';
 import { updateAccountStatusAsync, getAccountByIdAsync, getAccountRolesAsync } from '@/lib/data/accountStore';
 import { recordAuditLogAsync, createPrivilegedOperationAsync, updateOperationStateAsync } from '@/lib/data/auditStore';
+import { extractAuditContext } from '@/lib/security/auditContext';
 
 export async function POST(
   req: Request,
@@ -74,14 +75,15 @@ export async function POST(
 
     await updateOperationStateAsync(op.opId, 'APPLIED');
 
+    const { ipHash, userAgentHash } = extractAuditContext(req);
     const audit = await recordAuditLogAsync({
       actorAccountId,
       capabilityUsed: 'accounts:suspend',
       action: `ACCOUNT_STATUS_${status}`,
       targetType: 'ACCOUNT',
       targetId: targetAccountId,
-      ipHash: 'server_internal',
-      userAgentHash: 'server_internal',
+      ipHash,
+      userAgentHash,
       stepUpMethodUsed: isTargetPrivileged ? 'PASSWORD' : undefined,
       outcome: 'SUCCESS',
       reason: reason || 'Administrative action',

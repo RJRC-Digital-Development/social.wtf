@@ -27,12 +27,67 @@ export default function OwnerDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Step-Up state
   const [stepUpChallengeNonce, setStepUpChallengeNonce] = useState<string | null>(null);
   const [stepUpPassword, setStepUpPassword] = useState('');
   const [stepUpToken, setStepUpToken] = useState<string | null>(null);
   const [stepUpActive, setStepUpActive] = useState(false);
   const [stepUpActionCallback, setStepUpActionCallback] = useState<(() => Promise<void>) | null>(null);
+  const [stepUpExpiresAt, setStepUpExpiresAt] = useState<number | null>(null);
+
+  // Auth gate state
+  const [authVerified, setAuthVerified] = useState(false);
+  const [authDenied, setAuthDenied] = useState(false);
+  const [currentAccountId, setCurrentAccountId] = useState<string | null>(null);
+
+  // Verify session and check privileged role before rendering anything
+  useEffect(() => {
+    let cancelled = false;
+    const verifyAuth = async () => {
+      try {
+        const res = await fetch('/api/auth/me');
+        if (!res.ok) {
+          if (!cancelled) setAuthDenied(true);
+          return;
+        }
+        const data = await res.json();
+        if (!data.authenticated || !data.account?.accountId) {
+          if (!cancelled) setAuthDenied(true);
+          return;
+        }
+        // Check for privileged role
+        const roles: string[] = data.roles || [];
+        const isPrivileged = roles.includes('ROLE_ADMIN') || roles.includes('ROLE_PLATFORM_OWNER');
+        if (!isPrivileged) {
+          if (!cancelled) setAuthDenied(true);
+          return;
+        }
+        if (!cancelled) {
+          setCurrentAccountId(data.account.accountId);
+          setAuthVerified(true);
+        }
+      } catch {
+        if (!cancelled) setAuthDenied(true);
+      }
+    };
+    verifyAuth();
+    return () => { cancelled = true; };
+  }, []);
+
+  // Auto-clear step-up token after 5 minutes
+  useEffect(() => {
+    if (!stepUpToken || !stepUpExpiresAt) return;
+    const remaining = stepUpExpiresAt - Date.now();
+    if (remaining <= 0) {
+      setStepUpToken(null);
+      setStepUpExpiresAt(null);
+      return;
+    }
+    const timer = setTimeout(() => {
+      setStepUpToken(null);
+      setStepUpExpiresAt(null);
+    }, remaining);
+    return () => clearTimeout(timer);
+  }, [stepUpToken, stepUpExpiresAt]);
 
   const fetchOverview = async () => {
     try {
@@ -69,11 +124,12 @@ export default function OwnerDashboardPage() {
   };
 
   useEffect(() => {
+    if (!authVerified) return;
     setLoading(true);
     Promise.all([fetchOverview(), fetchAccounts(), fetchAudit()]).finally(() => {
       setLoading(false);
     });
-  }, []);
+  }, [authVerified]);
 
   const handleRequestStepUp = async (onSuccess: () => Promise<void>) => {
     try {
@@ -102,12 +158,14 @@ export default function OwnerDashboardPage() {
         body: JSON.stringify({
           challengeNonce: stepUpChallengeNonce,
           method: 'PASSWORD',
+          password: stepUpPassword,
         }),
       });
 
       const data = await res.json();
       if (res.ok && data.success && data.stepUpToken) {
         setStepUpToken(data.stepUpToken);
+        setStepUpExpiresAt(Date.now() + (data.expiresInSeconds || 300) * 1000);
         setStepUpActive(false);
         setStepUpPassword('');
         if (stepUpActionCallback) {
@@ -178,6 +236,40 @@ export default function OwnerDashboardPage() {
       await doUpdate();
     }
   };
+
+  // Auth gate: deny access before rendering any dashboard content
+  if (authDenied) {
+    return (
+      <div className="min-h-screen bg-[#070b14] text-slate-100 flex items-center justify-center">
+        <div className="text-center space-y-4 max-w-md px-6">
+          <ShieldAlert className="w-16 h-16 text-rose-400 mx-auto" />
+          <h1 className="text-2xl font-black text-white">Access Denied</h1>
+          <p className="text-sm text-slate-400">
+            This console requires an authenticated account with platform owner or administrator privileges.
+            Unauthorized access attempts are logged and monitored.
+          </p>
+          <Link
+            href="/"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-sm font-semibold transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>Return to Social.wtf</span>
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  if (!authVerified) {
+    return (
+      <div className="min-h-screen bg-[#070b14] text-slate-100 flex items-center justify-center">
+        <div className="text-center space-y-3">
+          <ShieldCheck className="w-10 h-10 text-amber-400 mx-auto animate-pulse" />
+          <p className="text-sm text-slate-400 font-semibold">Verifying authorization...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#070b14] text-slate-100 flex flex-col">
