@@ -53,9 +53,9 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-slate-200/80 bg-white/95 dark:border-slate-800/90 dark:bg-[#070b14]/90 backdrop-blur-xl transition-colors duration-200">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+      <div className="social-navbar-shell max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-2">
         {/* Logo & Brand */}
-        <div className="flex items-center gap-6 shrink-0">
+        <div className="social-navbar-brand flex items-center gap-6 shrink-0">
           <div
             onClick={() => onSelectView('feed')}
             className="flex items-center gap-2.5 cursor-pointer group"
@@ -74,7 +74,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
 
         {/* Center Main Nav Tabs */}
-        <nav className="hidden md:flex items-center gap-1 bg-slate-100/90 dark:bg-slate-900/70 p-1 rounded-2xl border border-slate-200 dark:border-slate-800/80 shrink-0">
+        <nav className="social-navbar-primary hidden lg:flex items-center justify-center gap-1 bg-slate-100/90 dark:bg-slate-900/70 p-1 rounded-2xl border border-slate-200 dark:border-slate-800/80 min-w-0">
           <button
             onClick={() => onSelectView('feed')}
             className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap shrink-0 transition-all ${
@@ -132,7 +132,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         </nav>
 
         {/* Right Header Action Items */}
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="social-navbar-actions flex flex-wrap items-center justify-end gap-2 min-w-0">
           <Link href="/updates" className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-300 text-xs font-bold whitespace-nowrap">
             <Sparkles className="w-3.5 h-3.5" /> What&apos;s New
           </Link>
@@ -197,7 +197,10 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
           )}
 
-          {/* Nightly Wallet Connection Button */}
+        </div>
+
+        {/* Wallet remains independently reachable while utility actions reflow. */}
+        <div className="social-navbar-wallet flex items-center justify-end shrink-0">
           <NightlyWalletButton />
         </div>
       </div>
@@ -223,7 +226,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
   return (
     <nav
       aria-label="Mobile Bottom Navigation"
-      className="fixed bottom-0 left-0 right-0 z-40 md:hidden bg-white/95 dark:bg-[#070b14]/95 border-t border-slate-200 dark:border-slate-800/90 backdrop-blur-xl px-2 py-1.5 flex items-center justify-around shadow-2xl transition-colors duration-200"
+      className="fixed bottom-0 left-0 right-0 z-40 lg:hidden bg-white/95 dark:bg-[#070b14]/95 border-t border-slate-200 dark:border-slate-800/90 backdrop-blur-xl px-2 py-1.5 flex items-center justify-around shadow-2xl transition-colors duration-200"
     >
       {/* Feed */}
       <button

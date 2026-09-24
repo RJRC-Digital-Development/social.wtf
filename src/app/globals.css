@@ -151,3 +151,54 @@
     gap: 0.5rem;
   }
 }
+
+.social-navbar-shell {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas:
+    "brand primary wallet"
+    "actions actions actions";
+  align-items: center;
+  gap: 0.5rem 1rem;
+}
+
+.social-navbar-brand {
+  grid-area: brand;
+}
+
+.social-navbar-primary {
+  grid-area: primary;
+  justify-self: center;
+}
+
+.social-navbar-actions {
+  grid-area: actions;
+}
+
+.social-navbar-wallet {
+  grid-area: wallet;
+}
+
+@media (min-width: 1536px) {
+  .social-navbar-shell {
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    grid-template-areas: "brand primary actions wallet";
+  }
+
+  .social-navbar-actions {
+    flex-wrap: nowrap;
+  }
+}
+
+@media (max-width: 767px) {
+  .social-navbar-shell {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "brand wallet"
+      "actions actions";
+  }
+
+  .social-navbar-actions {
+    justify-content: flex-end;
+  }
+}
