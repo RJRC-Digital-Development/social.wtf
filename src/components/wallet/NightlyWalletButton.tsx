@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useWallet } from '@/lib/wallet/walletContext';
 import { formatAddress, COOKIE_CHAIN_CONFIG } from '@/lib/solana/cookieChain';
 import {
@@ -39,6 +40,11 @@ export const NightlyWalletButton: React.FC = () => {
   const [showSelectModal, setShowSelectModal] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [connectError, setConnectError] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const handleConnect = async (type: 'trust' | 'nightly' | 'solana' | 'demo') => {
     setConnectError(null);
@@ -79,12 +85,12 @@ export const NightlyWalletButton: React.FC = () => {
           </span>
         </button>
 
-        {showSelectModal && (
+        {showSelectModal && mounted && createPortal(
           <div
             onClick={(e) => {
               if (e.target === e.currentTarget) setShowSelectModal(false);
             }}
-            className="fixed inset-0 z-50 overflow-y-auto bg-black/80 backdrop-blur-md p-3 sm:p-6 animate-fade-in"
+            className="fixed inset-0 z-[99999] overflow-y-auto bg-black/80 backdrop-blur-md p-3 sm:p-6 animate-fade-in"
           >
             <div className="min-h-full flex items-center justify-center py-4 sm:py-8">
               <div
@@ -248,7 +254,8 @@ export const NightlyWalletButton: React.FC = () => {
                 )}
               </div>
             </div>
-          </div>
+          </div>,
+          document.body
         )}
       </>
     );
@@ -290,16 +297,16 @@ export const NightlyWalletButton: React.FC = () => {
         <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
       </button>
 
-      {isOpen && (
+      {isOpen && mounted && createPortal(
         <>
           {/* Backdrop overlay for dismissing when clicking outside */}
           <div
-            className="fixed inset-0 z-40 bg-black/40 backdrop-blur-[2px] sm:bg-transparent sm:backdrop-blur-none"
+            className="fixed inset-0 z-[99998] bg-black/40 backdrop-blur-[2px] sm:bg-transparent sm:backdrop-blur-none"
             onClick={() => setIsOpen(false)}
           />
 
           {/* Floating wallet details card */}
-          <div className="fixed sm:absolute right-4 sm:right-0 top-16 sm:top-full sm:mt-2 w-[calc(100vw-2rem)] sm:w-80 max-h-[calc(100vh-5rem)] overflow-y-auto rounded-2xl bg-[#0d1527] border border-slate-700/90 p-4 shadow-2xl z-50 animate-fade-in ring-1 ring-white/10 backdrop-blur-xl text-xs">
+          <div className="fixed right-4 sm:right-6 lg:right-10 top-16 sm:top-[4.25rem] w-[calc(100vw-2rem)] sm:w-80 max-h-[calc(100vh-5rem)] overflow-y-auto rounded-2xl bg-[#0d1527] border border-slate-700/90 p-4 shadow-2xl z-[99999] animate-fade-in ring-1 ring-white/10 backdrop-blur-xl text-xs">
             <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-slate-800">
               <div className="flex items-center gap-2">
                 <div className="p-1.5 rounded-lg bg-amber-500/10 text-amber-400">
@@ -401,7 +408,8 @@ export const NightlyWalletButton: React.FC = () => {
               </button>
             </div>
           </div>
-        </>
+        </>,
+        document.body
       )}
     </div>
   );
