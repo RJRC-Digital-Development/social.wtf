@@ -180,7 +180,7 @@ export const LoginGate: React.FC<LoginGateProps> = ({ onAuthenticated }) => {
   const isBusy = connecting || authenticating || isSubmitting || !!authStep;
 
   return (
-    <div className="min-h-screen flex flex-col justify-between transition-colors duration-200" style={{background: 'var(--bg-main)', color: 'var(--text-main)'}}>
+    <div className="min-h-screen flex flex-col transition-colors duration-200" style={{background: 'var(--bg-main)', color: 'var(--text-main)'}}>
       <header className="w-full border-b border-[--border-main] backdrop-blur-md px-6 py-3.5 flex items-center justify-between transition-colors" style={{background: 'var(--bg-card)'}}>
         <div className="flex items-center gap-3">
           <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{background: 'var(--accent)'}}>
@@ -202,8 +202,9 @@ export const LoginGate: React.FC<LoginGateProps> = ({ onAuthenticated }) => {
         </div>
       </header>
 
-      <main className="max-w-lg mx-auto px-5 py-12 flex flex-col items-center justify-center flex-1 w-full">
-        <div className="text-center max-w-lg mx-auto mb-8 space-y-2">
+      <main className="flex-1 flex flex-col items-center justify-center px-4 py-10 w-full">
+        <div className="w-full max-w-md flex flex-col gap-5">
+        <div className="text-center space-y-1.5">
           <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight" style={{color: 'var(--text-main)'}}>
             {mode === 'register'
               ? 'Create an account'
@@ -229,7 +230,7 @@ export const LoginGate: React.FC<LoginGateProps> = ({ onAuthenticated }) => {
         </div>
 
         {/* Auth tabs */}
-        <div className="flex items-center gap-1 mb-6 w-full max-w-md p-1 rounded-lg" style={{background: 'var(--bg-card-subtle)', border: '1px solid var(--border-main)'}}>
+        <div className="flex items-center gap-1 p-1 rounded-xl" style={{background: 'var(--bg-card-subtle)', border: '1px solid var(--border-main)'}}>
           {(['wallet', 'login', 'register'] as const).map(m => (
             <button
               key={m}
@@ -246,8 +247,8 @@ export const LoginGate: React.FC<LoginGateProps> = ({ onAuthenticated }) => {
           ))}
         </div>
 
-        {/* Form Card */}
-        <div className="w-full max-w-md rounded-xl p-6 sm:p-8 transition-colors" style={{background: 'var(--bg-card)', border: '1px solid var(--border-main)', boxShadow: 'var(--shadow-card)'}}>
+        {/* Floating Card */}
+        <div className="w-full rounded-2xl p-6 sm:p-8 transition-colors" style={{background: 'var(--bg-card)', border: '1px solid var(--border-main)', boxShadow: '0 8px 48px rgba(0,0,0,0.22), 0 2px 8px rgba(0,0,0,0.10)'}}>
           {/* Status / Error / Success Alerts */}
           {errorMessage && (
             <div className="mb-6 p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-start gap-3">
@@ -519,6 +520,7 @@ export const LoginGate: React.FC<LoginGateProps> = ({ onAuthenticated }) => {
               </button>
             </div>
           )}
+        </div>
         </div>
       </main>
 
