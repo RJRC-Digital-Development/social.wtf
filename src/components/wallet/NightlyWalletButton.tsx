@@ -84,164 +84,169 @@ export const NightlyWalletButton: React.FC = () => {
             onClick={(e) => {
               if (e.target === e.currentTarget) setShowSelectModal(false);
             }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-fade-in"
+            className="fixed inset-0 z-50 overflow-y-auto bg-black/80 backdrop-blur-md p-3 sm:p-6 animate-fade-in"
           >
-            <div className="relative w-full max-w-md max-h-[calc(100dvh-2rem)] overflow-y-auto overscroll-contain bg-[#0d1527] border border-slate-700/80 rounded-2xl p-5 sm:p-6 shadow-2xl ring-1 ring-white/10">
-              <div className="flex items-center justify-between pb-4 border-b border-slate-800">
-                <div className="flex items-center gap-2">
-                  <div className="p-2 rounded-lg bg-amber-500/10 text-amber-400">
-                    <Wallet className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-slate-100">Connect to Cookie Chain</h3>
-                    <p className="text-xs text-slate-400">Select your preferred SVM Web3 wallet</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setShowSelectModal(false)}
-                  className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
-                  aria-label="Close modal"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              <div className="mt-4 space-y-3">
-                <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider px-1">
-                  Supported Web3 Wallets
-                </div>
-
-                {/* Trust Wallet Option */}
-                <button
-                  onClick={() => handleConnect('trust')}
-                  className="w-full flex items-center justify-between p-3.5 rounded-xl border border-blue-500/40 bg-blue-950/20 hover:bg-blue-900/30 hover:border-blue-400 transition-all text-left group"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-[#0500FF]/20 border border-[#0500FF]/40 flex items-center justify-center font-bold text-blue-400">
-                      <Shield className="w-5 h-5 text-blue-400" />
+            <div className="min-h-full flex items-center justify-center py-4 sm:py-8">
+              <div
+                onClick={(e) => e.stopPropagation()}
+                className="relative w-full max-w-md bg-[#0d1527] border border-slate-700/80 rounded-2xl p-5 sm:p-6 shadow-2xl ring-1 ring-white/10 my-auto"
+              >
+                <div className="flex items-center justify-between pb-4 border-b border-slate-800">
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-2 rounded-xl bg-amber-500/10 text-amber-400">
+                      <Wallet className="w-5 h-5" />
                     </div>
                     <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-slate-200 group-hover:text-blue-300">
-                          Trust Wallet
-                        </span>
-                        <span className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-blue-500/20 text-blue-300 border border-blue-500/30">
-                          WEB3 & MOBILE
-                        </span>
-                      </div>
-                      <p className="text-xs text-slate-400">Official Extension & Mobile dApp Browser</p>
+                      <h3 className="font-bold text-slate-100 text-base">Connect to Cookie Chain</h3>
+                      <p className="text-xs text-slate-400">Select your preferred SVM Web3 wallet</p>
                     </div>
-                  </div>
-                  {isTrustWalletInstalled ? (
-                    <span className="text-xs text-emerald-400 flex items-center gap-1 font-medium">
-                      <CheckCircle className="w-3.5 h-3.5" /> Ready
-                    </span>
-                  ) : (
-                    <span className="text-xs text-slate-400 flex items-center gap-1 group-hover:text-blue-300">
-                      Auto-Detect / Install
-                    </span>
-                  )}
-                </button>
-
-                {/* Nightly Wallet Option */}
-                <button
-                  onClick={() => handleConnect('nightly')}
-                  className="w-full flex items-center justify-between p-3.5 rounded-xl border border-slate-700/60 bg-slate-800/40 hover:bg-slate-800 hover:border-amber-500/50 transition-all text-left group"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-blue-600/20 border border-blue-500/30 flex items-center justify-center font-bold text-blue-400">
-                      N
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-slate-200 group-hover:text-amber-400">
-                          Nightly Wallet
-                        </span>
-                        <span className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                          RECOMMENDED
-                        </span>
-                      </div>
-                      <p className="text-xs text-slate-400">Official Cookie Chain SVM Wallet</p>
-                    </div>
-                  </div>
-                  {isNightlyInstalled ? (
-                    <span className="text-xs text-emerald-400 flex items-center gap-1 font-medium">
-                      <CheckCircle className="w-3.5 h-3.5" /> Ready
-                    </span>
-                  ) : (
-                    <span className="text-xs text-slate-500">Auto-Detect</span>
-                  )}
-                </button>
-
-                {/* Solana / Standard Adapter */}
-                <button
-                  onClick={() => handleConnect('solana')}
-                  className="w-full flex items-center justify-between p-3.5 rounded-xl border border-slate-700/60 bg-slate-800/40 hover:bg-slate-800 hover:border-amber-500/50 transition-all text-left group"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-purple-600/20 border border-purple-500/30 flex items-center justify-center font-bold text-purple-400">
-                      S
-                    </div>
-                    <div>
-                      <span className="font-semibold text-slate-200 group-hover:text-amber-400">
-                        Solana / Phantom
-                      </span>
-                      <p className="text-xs text-slate-400">Connect custom SVM RPC</p>
-                    </div>
-                  </div>
-                  <span className="text-xs text-slate-500">SVM Standard</span>
-                </button>
-
-                {/* Secondary / Evaluation Mode */}
-                <div className="pt-3 border-t border-slate-800">
-                  <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider px-1 mb-2">
-                    Sandbox Evaluation Mode
                   </div>
                   <button
-                    onClick={() => handleConnect('demo')}
-                    className="w-full flex items-center justify-between p-3.5 rounded-xl border border-slate-700/60 bg-slate-900/60 hover:bg-slate-800 hover:border-amber-500/40 transition-all text-left group"
+                    onClick={() => setShowSelectModal(false)}
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                    aria-label="Close modal"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="mt-4 space-y-2.5">
+                  <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider px-1">
+                    Supported Web3 Wallets
+                  </div>
+
+                  {/* Trust Wallet Option */}
+                  <button
+                    onClick={() => handleConnect('trust')}
+                    className="w-full flex items-center justify-between p-3 rounded-xl border border-blue-500/40 bg-blue-950/20 hover:bg-blue-900/30 hover:border-blue-400 transition-all text-left group"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-center font-bold text-amber-400">
-                        <Zap className="w-5 h-5" />
+                      <div className="w-9 h-9 rounded-lg bg-[#0500FF]/20 border border-[#0500FF]/40 flex items-center justify-center font-bold text-blue-400 shrink-0">
+                        <Shield className="w-4 h-4 text-blue-400" />
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className="font-semibold text-slate-200 group-hover:text-amber-300">
-                            Instant Demo Wallet
+                          <span className="font-semibold text-slate-200 group-hover:text-blue-300 text-sm">
+                            Trust Wallet
                           </span>
-                          <span className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-slate-800 text-amber-400 border border-amber-500/30">
-                            SANDBOX
+                          <span className="px-1.5 py-0.5 text-[9px] font-bold rounded bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                            WEB3 & MOBILE
                           </span>
                         </div>
-                        <p className="text-xs text-slate-400">Explore platform with 88.50 Synthetic COOK</p>
+                        <p className="text-[11px] text-slate-400">Official Extension & Mobile dApp Browser</p>
                       </div>
                     </div>
-                    <span className="text-xs text-amber-400 font-medium">1-Click Test</span>
+                    {isTrustWalletInstalled ? (
+                      <span className="text-xs text-emerald-400 flex items-center gap-1 font-medium">
+                        <CheckCircle className="w-3.5 h-3.5" /> Ready
+                      </span>
+                    ) : (
+                      <span className="text-xs text-slate-400 flex items-center gap-1 group-hover:text-blue-300">
+                        Auto-Detect / Install
+                      </span>
+                    )}
                   </button>
-                </div>
-              </div>
 
-              {connectError && (
-                <div className="mt-3 p-3 rounded-xl bg-red-950/50 border border-red-500/40 text-xs text-red-200 leading-relaxed animate-fade-in">
-                  <span className="font-semibold text-red-300">Connection Notice: </span>
-                  {connectError}
-                </div>
-              )}
+                  {/* Nightly Wallet Option */}
+                  <button
+                    onClick={() => handleConnect('nightly')}
+                    className="w-full flex items-center justify-between p-3 rounded-xl border border-slate-700/60 bg-slate-800/40 hover:bg-slate-800 hover:border-amber-500/50 transition-all text-left group"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-lg bg-blue-600/20 border border-blue-500/30 flex items-center justify-center font-bold text-blue-400 shrink-0">
+                        N
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-slate-200 group-hover:text-amber-400 text-sm">
+                            Nightly Wallet
+                          </span>
+                          <span className="px-1.5 py-0.5 text-[9px] font-bold rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                            RECOMMENDED
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-400">Official Cookie Chain SVM Wallet</p>
+                      </div>
+                    </div>
+                    {isNightlyInstalled ? (
+                      <span className="text-xs text-emerald-400 flex items-center gap-1 font-medium">
+                        <CheckCircle className="w-3.5 h-3.5" /> Ready
+                      </span>
+                    ) : (
+                      <span className="text-xs text-slate-500">Auto-Detect</span>
+                    )}
+                  </button>
 
-              <div className="mt-4 p-3 rounded-xl bg-slate-900/80 border border-slate-800 text-[11px] text-slate-400 leading-relaxed">
-                <span className="text-amber-400 font-semibold">Cookie Chain Network:</span> RPC: <code className="text-slate-300">rpc.cookiescan.io</code> | 1-sec block times | Native token: <span className="text-amber-300 font-semibold">$COOK</span>.
-              </div>
+                  {/* Solana / Standard Adapter */}
+                  <button
+                    onClick={() => handleConnect('solana')}
+                    className="w-full flex items-center justify-between p-3 rounded-xl border border-slate-700/60 bg-slate-800/40 hover:bg-slate-800 hover:border-amber-500/50 transition-all text-left group"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-lg bg-purple-600/20 border border-purple-500/30 flex items-center justify-center font-bold text-purple-400 shrink-0">
+                        S
+                      </div>
+                      <div>
+                        <span className="font-semibold text-slate-200 group-hover:text-amber-400 text-sm">
+                          Solana / Phantom
+                        </span>
+                        <p className="text-[11px] text-slate-400">Connect custom SVM RPC</p>
+                      </div>
+                    </div>
+                    <span className="text-xs text-slate-500">SVM Standard</span>
+                  </button>
 
-              {isServerSignerConfigured && (
-                <div className="mt-3 p-2.5 rounded-xl bg-emerald-950/40 border border-emerald-500/30 text-[11px] text-emerald-300 flex items-center justify-between">
-                  <div className="flex items-center gap-1.5">
-                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>Server Signer Active (PLATFORM_PRIVATE_KEY)</span>
+                  {/* Secondary / Evaluation Mode */}
+                  <div className="pt-2.5 border-t border-slate-800">
+                    <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider px-1 mb-2">
+                      Sandbox Evaluation Mode
+                    </div>
+                    <button
+                      onClick={() => handleConnect('demo')}
+                      className="w-full flex items-center justify-between p-3 rounded-xl border border-slate-700/60 bg-slate-900/60 hover:bg-slate-800 hover:border-amber-500/40 transition-all text-left group"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-center font-bold text-amber-400 shrink-0">
+                          <Zap className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-slate-200 group-hover:text-amber-300 text-sm">
+                              Instant Demo Wallet
+                            </span>
+                            <span className="px-1.5 py-0.5 text-[9px] font-bold rounded bg-slate-800 text-amber-400 border border-amber-500/30">
+                              SANDBOX
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-slate-400">Explore platform with 88.50 Synthetic COOK</p>
+                        </div>
+                      </div>
+                      <span className="text-xs text-amber-400 font-medium">1-Click Test</span>
+                    </button>
                   </div>
-                  <span className="font-mono text-[10px] text-emerald-400">On-Chain Ready</span>
                 </div>
-              )}
+
+                {connectError && (
+                  <div className="mt-3 p-3 rounded-xl bg-red-950/50 border border-red-500/40 text-xs text-red-200 leading-relaxed animate-fade-in">
+                    <span className="font-semibold text-red-300">Connection Notice: </span>
+                    {connectError}
+                  </div>
+                )}
+
+                <div className="mt-3.5 p-2.5 rounded-xl bg-slate-900/80 border border-slate-800 text-[11px] text-slate-400 leading-relaxed">
+                  <span className="text-amber-400 font-semibold">Cookie Chain Network:</span> RPC: <code className="text-slate-300">rpc.cookiescan.io</code> | 1-sec block times | Native token: <span className="text-amber-300 font-semibold">$COOK</span>.
+                </div>
+
+                {isServerSignerConfigured && (
+                  <div className="mt-2.5 p-2 rounded-xl bg-emerald-950/40 border border-emerald-500/30 text-[11px] text-emerald-300 flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>Server Signer Active (PLATFORM_PRIVATE_KEY)</span>
+                    </div>
+                    <span className="font-mono text-[10px] text-emerald-400">On-Chain Ready</span>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}
@@ -294,7 +299,7 @@ export const NightlyWalletButton: React.FC = () => {
           />
 
           {/* Floating wallet details card */}
-          <div className="fixed sm:absolute right-4 sm:right-0 top-16 sm:top-full sm:mt-2 w-[calc(100vw-2rem)] sm:w-80 rounded-2xl bg-[#0d1527] border border-slate-700/90 p-4 shadow-2xl z-50 animate-fade-in ring-1 ring-white/10 backdrop-blur-xl text-xs">
+          <div className="fixed sm:absolute right-4 sm:right-0 top-16 sm:top-full sm:mt-2 w-[calc(100vw-2rem)] sm:w-80 max-h-[calc(100vh-5rem)] overflow-y-auto rounded-2xl bg-[#0d1527] border border-slate-700/90 p-4 shadow-2xl z-50 animate-fade-in ring-1 ring-white/10 backdrop-blur-xl text-xs">
             <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-slate-800">
               <div className="flex items-center gap-2">
                 <div className="p-1.5 rounded-lg bg-amber-500/10 text-amber-400">
