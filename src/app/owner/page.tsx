@@ -344,8 +344,8 @@ export default function OwnerDashboardPage() {
   return (
     <div className="min-h-screen bg-[#070b14] text-slate-100 flex flex-col">
       {/* Owner Header */}
-      <header className="border-b border-slate-800 bg-slate-950/80 px-6 py-4 flex items-center justify-between sticky top-0 z-30 backdrop-blur-md">
-        <div className="flex items-center gap-4">
+      <header className="owner-dashboard-header border-b border-slate-800 bg-slate-950/80 px-6 py-4 sticky top-0 z-30 backdrop-blur-md">
+        <div className="owner-dashboard-identity flex items-center gap-4 min-w-0">
           <Link
             href="/"
             className="p-2 rounded-xl bg-slate-900 border border-slate-800 hover:border-amber-500/50 text-slate-400 hover:text-white transition-all flex items-center gap-1.5 text-xs font-semibold"
@@ -354,15 +354,15 @@ export default function OwnerDashboardPage() {
             <span>Exit to App</span>
           </Link>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 min-w-0">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
-            <h1 className="font-extrabold text-base tracking-tight text-white">
+            <h1 className="font-extrabold text-base tracking-tight text-white truncate">
               Social<span className="text-amber-400">.wtf</span> Owner Console
             </h1>
           </div>
         </div>
 
-        <div className="flex items-center gap-3 text-xs">
+        <div className="owner-dashboard-controls flex items-center gap-3 text-xs">
           <span className="px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 font-mono font-bold">
             ROLE_PLATFORM_OWNER
           </span>
@@ -384,9 +384,9 @@ export default function OwnerDashboardPage() {
       </header>
 
       {/* Main Layout with Sidebar */}
-      <div className="flex-1 flex max-w-7xl w-full mx-auto p-6 gap-6">
+      <div className="page-shell dashboard-grid flex-1 py-6">
         {/* Navigation Sidebar */}
-        <aside className="w-56 shrink-0 space-y-1.5">
+        <aside className="space-y-1.5">
           <button
             onClick={() => setActiveTab('overview')}
             className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2.5 ${
@@ -447,7 +447,7 @@ export default function OwnerDashboardPage() {
         </aside>
 
         {/* Content Pane */}
-        <main className="flex-1 space-y-6">
+        <main className="dashboard-content space-y-6">
           {error ? (
             <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
               <AlertCircle className="w-4 h-4 shrink-0" />
@@ -458,8 +458,8 @@ export default function OwnerDashboardPage() {
           {activeTab === 'overview' && overviewData && (
             <div className="space-y-6">
               {/* Metrics Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="p-5 rounded-2xl bg-slate-900/80 border border-slate-800 space-y-1">
+              <div className="metrics-grid">
+                <div className="min-w-0 p-5 rounded-2xl bg-slate-900/80 border border-slate-800 space-y-1">
                   <span className="text-xs text-slate-400 font-medium">Real Member Count</span>
                   <div className="text-2xl font-black text-white">{overviewData.metrics?.totalAccounts || 0}</div>
                   <span className="text-[11px] text-emerald-400 font-medium">
@@ -467,13 +467,13 @@ export default function OwnerDashboardPage() {
                   </span>
                 </div>
 
-                <div className="p-5 rounded-2xl bg-slate-900/80 border border-slate-800 space-y-1">
+                <div className="min-w-0 p-5 rounded-2xl bg-slate-900/80 border border-slate-800 space-y-1">
                   <span className="text-xs text-slate-400 font-medium">Real Text Posts</span>
                   <div className="text-2xl font-black text-white">{overviewData.metrics?.totalPosts || 0}</div>
                   <span className="text-[11px] text-slate-400">Authoritative persistent posts</span>
                 </div>
 
-                <div className="p-5 rounded-2xl bg-slate-900/80 border border-slate-800 space-y-1">
+                <div className="min-w-0 p-5 rounded-2xl bg-slate-900/80 border border-slate-800 space-y-1">
                   <span className="text-xs text-slate-400 font-medium">Distributed Storage</span>
                   <div className="text-lg font-bold text-amber-300">{overviewData.system?.persistence}</div>
                   <span className="text-[11px] text-slate-400">Upstash Redis / KV Gateway</span>
