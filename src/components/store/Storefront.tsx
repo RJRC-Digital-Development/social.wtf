@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Product } from '@/types';
 import { useWallet } from '@/lib/wallet/walletContext';
 import { calculateFeeSplit } from '@/lib/solana/cookieChain';
@@ -17,6 +18,8 @@ import {
   Music,
   PlusCircle,
   ExternalLink,
+  Shield,
+  ShieldCheck,
   X,
 } from 'lucide-react';
 
@@ -34,7 +37,23 @@ export const Storefront: React.FC<StorefrontProps> = ({
   onAddProduct,
   onPurchaseCompleted,
 }) => {
-  const { connected, connect, signAndSendTransaction, cookBalance, walletAddress, sessionToken, isAuthenticated } = useWallet();
+  const {
+    connected,
+    connect,
+    signAndSendTransaction,
+    cookBalance,
+    walletAddress,
+    sessionToken,
+    isAuthenticated,
+    authenticating,
+    authenticateWallet,
+  } = useWallet();
+
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [purchasedProductIds, setPurchasedProductIds] = useState<string[]>([]);
@@ -124,20 +143,33 @@ export const Storefront: React.FC<StorefrontProps> = ({
       return;
     }
 
-    if (!isAuthenticated || !sessionToken) {
-      setPublishError('Please complete wallet authentication (SIWS) before listing products.');
-      return;
+    if (!isAuthenticated) {
+      try {
+        const success = await authenticateWallet();
+        if (!success) {
+          setPublishError('Please complete wallet authentication (SIWS) before listing products.');
+          return;
+        }
+      } catch (authErr: any) {
+        setPublishError(authErr?.message || 'Please complete wallet authentication (SIWS) before listing products.');
+        return;
+      }
     }
 
     setIsPublishing(true);
 
     try {
+      const activeToken = sessionToken || (typeof window !== 'undefined' ? localStorage.getItem('social_wtf_session_token') : null);
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (activeToken) {
+        headers['Authorization'] = `Bearer ${activeToken}`;
+      }
+
       const res = await fetch('/api/products', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${sessionToken}`,
-        },
+        headers,
         body: JSON.stringify({
           title: newTitle.trim(),
           description: newDesc.trim() || 'Exclusive creator digital item.',
@@ -400,115 +432,151 @@ export const Storefront: React.FC<StorefrontProps> = ({
       )}
 
       {/* Add Product Modal for Creators */}
-      {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 dark:bg-black/80 backdrop-blur-sm animate-fade-in">
-          <div className="relative w-full max-w-md bg-white dark:bg-[#0d1527] border border-slate-200 dark:border-slate-700 rounded-3xl p-6 shadow-2xl">
-            <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-100 dark:border-slate-800">
-              <div className="flex items-center gap-2">
-                <div className="p-2 rounded-xl bg-amber-500/15 text-amber-600 dark:text-amber-400">
-                  <PlusCircle className="w-5 h-5" />
+      {showAddModal && mounted && createPortal(
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowAddModal(false);
+          }}
+          className="fixed inset-0 z-[99999] overflow-y-auto bg-black/80 backdrop-blur-md p-3 sm:p-6 animate-fade-in"
+        >
+          <div className="min-h-full flex items-center justify-center py-4 sm:py-8">
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="relative w-full max-w-md bg-white dark:bg-[#0d1527] border border-slate-200 dark:border-slate-700/80 rounded-3xl p-6 shadow-2xl ring-1 ring-white/10 my-auto"
+            >
+              <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-100 dark:border-slate-800">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-xl bg-amber-500/15 text-amber-600 dark:text-amber-400">
+                    <PlusCircle className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-slate-900 dark:text-slate-100 text-sm">List New Digital Asset</h3>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">Set price in $COOK with automated settlement</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="font-bold text-slate-900 dark:text-slate-100 text-sm">List New Digital Asset</h3>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400">Set price in $COOK with automated settlement</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setShowAddModal(false)}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white transition-colors"
-                aria-label="Close add product modal"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleCreateProduct} className="space-y-3.5 text-xs">
-              {publishError && (
-                <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs font-semibold leading-relaxed animate-fade-in">
-                  {publishError}
-                </div>
-              )}
-
-              <div>
-                <label className="block text-slate-600 dark:text-slate-400 mb-1">Product Title</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Master Synth Stem Pack Vol. 2"
-                  value={newTitle}
-                  onChange={(e) => setNewTitle(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-slate-900 dark:text-slate-200 focus:outline-none focus:border-amber-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-slate-600 dark:text-slate-400 mb-1">Category</label>
-                <select
-                  value={newCategory}
-                  onChange={(e) => setNewCategory(e.target.value as any)}
-                  className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-slate-900 dark:text-slate-200 focus:outline-none focus:border-amber-500"
+                <button
+                  onClick={() => setShowAddModal(false)}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white transition-colors"
+                  aria-label="Close add product modal"
                 >
-                  <option value="code_script">Code Snippet / Smart Contract / Script</option>
-                  <option value="digital_art">3D Asset / Digital Art</option>
-                  <option value="music_stem">Music WAV Stems / Audio</option>
-                  <option value="vip_pass">VIP Access Pass / Token</option>
-                  <option value="preset">Preset / LUT Pack</option>
-                </select>
+                  <X className="w-5 h-5" />
+                </button>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <form onSubmit={handleCreateProduct} className="space-y-3.5 text-xs">
+                {publishError && (
+                  <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs font-semibold leading-relaxed animate-fade-in space-y-2">
+                    <div>{publishError}</div>
+                    {!isAuthenticated && connected && (
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            setPublishError('');
+                            const ok = await authenticateWallet();
+                            if (ok) {
+                              setPublishError('');
+                            }
+                          } catch (err: any) {
+                            setPublishError(err?.message || 'Authentication challenge failed.');
+                          }
+                        }}
+                        disabled={authenticating}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition-all shadow-sm active:scale-95"
+                      >
+                        <Shield className="w-3.5 h-3.5" />
+                        <span>{authenticating ? 'Signing SIWS Challenge...' : 'Authenticate Wallet (SIWS)'}</span>
+                      </button>
+                    )}
+                  </div>
+                )}
+
                 <div>
-                  <label className="block text-slate-600 dark:text-slate-400 mb-1">Price (in $COOK)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.5"
-                    required
-                    value={newPrice}
-                    onChange={(e) => setNewPrice(parseFloat(e.target.value) || 0)}
-                    className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-slate-900 dark:text-slate-200 font-mono focus:outline-none focus:border-amber-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-slate-600 dark:text-slate-400 mb-1">File Format / Spec</label>
+                  <label className="block text-slate-600 dark:text-slate-400 mb-1">Product Title</label>
                   <input
                     type="text"
-                    value={newFormat}
-                    onChange={(e) => setNewFormat(e.target.value)}
+                    required
+                    placeholder="e.g. Master Synth Stem Pack Vol. 2"
+                    value={newTitle}
+                    onChange={(e) => setNewTitle(e.target.value)}
                     className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-slate-900 dark:text-slate-200 focus:outline-none focus:border-amber-500"
                   />
                 </div>
-              </div>
 
-              <div>
-                <label className="block text-slate-600 dark:text-slate-400 mb-1">Description</label>
-                <textarea
-                  rows={3}
-                  placeholder="Describe your digital goods..."
-                  value={newDesc}
-                  onChange={(e) => setNewDesc(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-slate-900 dark:text-slate-200 focus:outline-none focus:border-amber-500"
-                />
-              </div>
+                <div>
+                  <label className="block text-slate-600 dark:text-slate-400 mb-1">Category</label>
+                  <select
+                    value={newCategory}
+                    onChange={(e) => setNewCategory(e.target.value as any)}
+                    className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-slate-900 dark:text-slate-200 focus:outline-none focus:border-amber-500"
+                  >
+                    <option value="code_script">Code Snippet / Smart Contract / Script</option>
+                    <option value="digital_art">3D Asset / Digital Art</option>
+                    <option value="music_stem">Music WAV Stems / Audio</option>
+                    <option value="vip_pass">VIP Access Pass / Token</option>
+                    <option value="preset">Preset / LUT Pack</option>
+                  </select>
+                </div>
 
-              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
-                When purchased: digital asset sales settle atomically and route directly to your connected creator wallet on Cookie Chain.
-              </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-slate-600 dark:text-slate-400 mb-1">Price (in $COOK)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.5"
+                      required
+                      value={newPrice}
+                      onChange={(e) => setNewPrice(parseFloat(e.target.value) || 0)}
+                      className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-slate-900 dark:text-slate-200 font-mono focus:outline-none focus:border-amber-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-slate-600 dark:text-slate-400 mb-1">File Format / Spec</label>
+                    <input
+                      type="text"
+                      value={newFormat}
+                      onChange={(e) => setNewFormat(e.target.value)}
+                      className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-slate-900 dark:text-slate-200 focus:outline-none focus:border-amber-500"
+                    />
+                  </div>
+                </div>
 
-              <button
-                type="submit"
-                disabled={isPublishing}
-                className={`w-full py-2.5 rounded-xl font-bold text-xs transition-all shadow-md ${
-                  isPublishing
-                    ? 'bg-amber-500/50 text-slate-700 cursor-not-allowed'
-                    : 'bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-amber-500/20'
-                }`}
-              >
-                {isPublishing ? 'Publishing to Authoritative Catalog...' : 'Publish to Creator Storefront'}
-              </button>
-            </form>
+                <div>
+                  <label className="block text-slate-600 dark:text-slate-400 mb-1">Description</label>
+                  <textarea
+                    rows={3}
+                    placeholder="Describe your digital goods..."
+                    value={newDesc}
+                    onChange={(e) => setNewDesc(e.target.value)}
+                    className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-slate-900 dark:text-slate-200 focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+
+                <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
+                  When purchased: digital asset sales settle atomically and route directly to your connected creator wallet on Cookie Chain.
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isPublishing || authenticating}
+                  className={`w-full py-2.5 rounded-xl font-bold text-xs transition-all shadow-md ${
+                    isPublishing || authenticating
+                      ? 'bg-amber-500/50 text-slate-700 cursor-not-allowed'
+                      : 'bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-amber-500/20 active:scale-95'
+                  }`}
+                >
+                  {isPublishing
+                    ? 'Publishing to Authoritative Catalog...'
+                    : authenticating
+                    ? 'Authenticating Wallet...'
+                    : 'Publish to Creator Storefront'}
+                </button>
+              </form>
+            </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Transaction Status Modal */}
