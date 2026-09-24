@@ -159,6 +159,16 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const isOwner = sessionScope === 'admin';
 
+  // Load persisted sessionToken from localStorage on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const storedToken = localStorage.getItem(SESSION_TOKEN_STORAGE_KEY);
+      if (storedToken && storedToken.split('.').length === 3) {
+        setSessionToken(storedToken);
+      }
+    }
+  }, []);
+
   // Check if Web3 providers (Nightly, Trust Wallet) and Server Signer are available
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -186,12 +196,24 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   }, []);
 
-  // Synchronize authoritative account authentication from server using cookies
+  // Synchronize authoritative account authentication from server using cookies and Bearer tokens
   const refreshAccountAuth = useCallback(async (): Promise<boolean> => {
     try {
+      const activeToken =
+        sessionToken ||
+        (typeof window !== 'undefined' ? localStorage.getItem(SESSION_TOKEN_STORAGE_KEY) : null);
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (activeToken && activeToken.split('.').length === 3) {
+        headers['Authorization'] = `Bearer ${activeToken}`;
+      }
+
       const res = await fetch('/api/auth/me', {
         method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
+        credentials: 'include',
       });
 
       if (res.ok) {
@@ -226,7 +248,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
       setAuthStatus('unauthenticated');
       return false;
     }
-  }, []);
+  }, [sessionToken]);
 
   // Introspect active session on mount
   useEffect(() => {
@@ -534,7 +556,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  // SIWS wallet binding / challenge authentication
+  // SIWS wallet binding / direct challenge authentication
   const authenticateWallet = async (): Promise<boolean> => {
     if (!walletAddress) {
       throw new Error('Please connect your wallet before authenticating.');
@@ -542,20 +564,64 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
 
     setAuthenticating(true);
     try {
-      const challengeRes = await fetch('/api/auth/wallet/challenge', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ walletAddress }),
-      });
+      let isAccountSession = !!(isAuthenticated && account && account.accountId?.startsWith('acc_'));
+      let nonce = '';
+      let message = '';
+      let endpointType: 'bind' | 'verify' = 'bind';
 
-      if (!challengeRes.ok) {
-        throw new Error('Failed to request wallet challenge from server.');
+      // If user is signed in to an account, request wallet-to-account binding challenge
+      if (isAccountSession) {
+        try {
+          const challengeRes = await fetch('/api/auth/wallet/challenge', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ walletAddress }),
+          });
+
+          if (challengeRes.ok) {
+            const challengeData = await challengeRes.json();
+            nonce = challengeData.nonce;
+            message = challengeData.message;
+            endpointType = 'bind';
+          } else if (challengeRes.status === 401) {
+            // No active account session, fallback to direct SIWS login
+            isAccountSession = false;
+          } else {
+            const errData = await challengeRes.json().catch(() => ({}));
+            throw new Error(errData.message || 'Failed to request wallet binding challenge from server.');
+          }
+        } catch (err: any) {
+          if (err?.message?.includes('binding challenge')) {
+            throw err;
+          }
+          isAccountSession = false;
+        }
       }
 
-      const challengeData = await challengeRes.json();
-      const { nonce, message } = challengeData;
+      // If not an account session or fallback needed, request direct SIWS sign-in challenge
+      if (!isAccountSession || endpointType !== 'bind') {
+        const nonceRes = await fetch('/api/auth/nonce', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ walletAddress }),
+        });
+
+        if (!nonceRes.ok) {
+          const errData = await nonceRes.json().catch(() => ({}));
+          throw new Error(
+            errData.error || errData.message || 'Failed to generate authentication challenge from server.'
+          );
+        }
+
+        const nonceData = await nonceRes.json();
+        nonce = nonceData.nonce;
+        message = nonceData.message;
+        endpointType = 'verify';
+      }
+
       if (!nonce || !message) {
-        throw new Error('Malformed challenge received from server.');
+        throw new Error('Malformed authentication challenge received from server.');
       }
 
       let signatureBase58: string;
@@ -578,30 +644,67 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
           throw new Error('Active wallet does not support cryptographic message signing.');
         }
 
-        const signResult = await provider.signMessage(encodedMsg, 'utf8');
-        const rawSig = signResult?.signature || signResult;
-        if (typeof rawSig === 'string') {
-          signatureBase58 = rawSig;
-        } else if (rawSig instanceof Uint8Array || Array.isArray(rawSig)) {
-          signatureBase58 = bs58.encode(Uint8Array.from(rawSig));
-        } else {
-          throw new Error('Unexpected signature format returned by wallet.');
+        try {
+          const signResult = await provider.signMessage(encodedMsg, 'utf8');
+          const rawSig = signResult?.signature || signResult;
+          if (typeof rawSig === 'string') {
+            signatureBase58 = rawSig;
+          } else if (rawSig instanceof Uint8Array || Array.isArray(rawSig)) {
+            signatureBase58 = bs58.encode(Uint8Array.from(rawSig));
+          } else {
+            throw new Error('Unexpected signature format returned by wallet.');
+          }
+        } catch (signErr: any) {
+          if (
+            signErr?.code === 4001 ||
+            /user rejected|user canceled|cancelled|rejected by user/i.test(signErr?.message || '')
+          ) {
+            throw new Error('Signature request was rejected in your wallet.');
+          }
+          throw signErr;
         }
       }
 
-      const bindRes = await fetch('/api/auth/wallet/bind', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          walletAddress,
-          nonce,
-          signatureBase58,
-        }),
-      });
+      if (endpointType === 'bind') {
+        const bindRes = await fetch('/api/auth/wallet/bind', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            walletAddress,
+            nonce,
+            signatureBase58,
+          }),
+        });
 
-      if (!bindRes.ok) {
-        const errData = await bindRes.json().catch(() => ({}));
-        throw new Error(errData.message || 'Server rejected wallet challenge signature.');
+        if (!bindRes.ok) {
+          const errData = await bindRes.json().catch(() => ({}));
+          throw new Error(errData.message || 'Server rejected wallet challenge signature.');
+        }
+      } else {
+        const verifyRes = await fetch('/api/auth/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            walletAddress,
+            nonce,
+            signatureBase58,
+          }),
+        });
+
+        if (!verifyRes.ok) {
+          const errData = await verifyRes.json().catch(() => ({}));
+          throw new Error(errData.error || errData.message || 'Authentication verification failed.');
+        }
+
+        const verifyData = await verifyRes.json();
+        if (verifyData?.sessionToken) {
+          setSessionToken(verifyData.sessionToken);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem(SESSION_TOKEN_STORAGE_KEY, verifyData.sessionToken);
+          }
+        }
       }
 
       await refreshAccountAuth();

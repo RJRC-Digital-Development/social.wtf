@@ -163,13 +163,14 @@ export const Storefront: React.FC<StorefrontProps> = ({
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
       };
-      if (activeToken) {
+      if (activeToken && activeToken.split('.').length === 3) {
         headers['Authorization'] = `Bearer ${activeToken}`;
       }
 
       const res = await fetch('/api/products', {
         method: 'POST',
         headers,
+        credentials: 'include',
         body: JSON.stringify({
           title: newTitle.trim(),
           description: newDesc.trim() || 'Exclusive creator digital item.',
@@ -190,7 +191,7 @@ export const Storefront: React.FC<StorefrontProps> = ({
         setNewDesc('');
         setPublishError('');
       } else if (res.status === 401) {
-        setPublishError('Session expired or unauthorized. Please re-authenticate your wallet.');
+        setPublishError('Session expired or unauthorized. Please re-authenticate your wallet with SIWS.');
       } else if (res.status === 503) {
         setPublishError(data?.error || 'Authoritative product store is temporarily unavailable. Please retry.');
       } else {
@@ -464,6 +465,38 @@ export const Storefront: React.FC<StorefrontProps> = ({
               </div>
 
               <form onSubmit={handleCreateProduct} className="space-y-3.5 text-xs">
+                {/* SIWS Status Banner */}
+                {isAuthenticated ? (
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-medium">
+                    <ShieldCheck className="w-4 h-4 flex-shrink-0" />
+                    <span>Wallet Verified & Authenticated (SIWS Active)</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between gap-2 p-3 rounded-xl bg-amber-500/10 border border-amber-500/25 text-amber-700 dark:text-amber-300">
+                    <div className="flex items-center gap-2">
+                      <Shield className="w-4 h-4 text-amber-500 flex-shrink-0" />
+                      <span className="text-[11px]">SIWS cryptographic verification required to list products.</span>
+                    </div>
+                    {connected && (
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            setPublishError('');
+                            await authenticateWallet();
+                          } catch (err: any) {
+                            setPublishError(err?.message || 'Authentication challenge failed.');
+                          }
+                        }}
+                        disabled={authenticating}
+                        className="px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-[11px] transition-all whitespace-nowrap active:scale-95"
+                      >
+                        {authenticating ? 'Signing...' : 'Sign SIWS'}
+                      </button>
+                    )}
+                  </div>
+                )}
+
                 {publishError && (
                   <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs font-semibold leading-relaxed animate-fade-in space-y-2">
                     <div>{publishError}</div>
