@@ -1,10 +1,10 @@
-import { NextResponse } from 'next/server';
-import { validateRequestSessionAsync } from '@/lib/security/session';
-import { accountHasCapabilityAsync } from '@/lib/security/rbac';
-import { listAllAccountsAsync } from '@/lib/data/accountStore';
-import { getAllPostsAsync } from '@/lib/data/postsStore';
-import { getEffectiveFeatureStateAsync } from '@/lib/data/featureStore';
-import { distributedStore } from '@/lib/security/distributedStore';
+import { NextResponse } from 'next/server.js';
+import { validateRequestSessionAsync } from '../../../../lib/security/session.ts';
+import { accountHasCapabilityAsync } from '../../../../lib/security/rbac.ts';
+import { listAllAccountsAsync } from '../../../../lib/data/accountStore.ts';
+import { getAllPostsAsync } from '../../../../lib/data/postsStore.ts';
+import { FeatureStateUnavailableError, getEffectiveFeatureStateAsync } from '../../../../lib/data/featureStore.ts';
+import { distributedStore } from '../../../../lib/security/distributedStore.ts';
 
 export async function GET(req: Request) {
   try {
@@ -51,6 +51,12 @@ export async function GET(req: Request) {
       },
     });
   } catch (err: any) {
+    if (err instanceof FeatureStateUnavailableError) {
+      return NextResponse.json(
+        { error: 'FEATURE_STATE_UNAVAILABLE', message: 'Authoritative feature state is temporarily unavailable.' },
+        { status: 503 }
+      );
+    }
     console.error('[Owner Overview Error]:', err);
     return NextResponse.json({ error: 'INTERNAL_ERROR', message: 'Internal server error' }, { status: 500 });
   }

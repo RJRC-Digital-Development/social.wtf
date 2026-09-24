@@ -1,7 +1,7 @@
-import { NextResponse } from 'next/server';
-import { registerAccountAsync } from '@/lib/data/accountStore';
-import { createAccountSession, createSessionCookie } from '@/lib/security/session';
-import { getEffectiveFeatureStateAsync } from '@/lib/data/featureStore';
+import { NextResponse } from 'next/server.js';
+import { registerAccountAsync } from '../../../../lib/data/accountStore.ts';
+import { createAccountSession, createSessionCookie } from '../../../../lib/security/session.ts';
+import { FeatureStateUnavailableError, getEffectiveFeatureStateAsync } from '../../../../lib/data/featureStore.ts';
 
 export async function POST(req: Request) {
   try {
@@ -57,6 +57,12 @@ export async function POST(req: Request) {
     response.headers.set('Set-Cookie', sessionCookie);
     return response;
   } catch (err: any) {
+    if (err instanceof FeatureStateUnavailableError) {
+      return NextResponse.json(
+        { error: 'FEATURE_STATE_UNAVAILABLE', message: 'Registration is temporarily unavailable.' },
+        { status: 503 }
+      );
+    }
     console.error('[Register API Error]:', err);
     return NextResponse.json(
       { error: 'INTERNAL_ERROR', message: 'An internal server error occurred.' },

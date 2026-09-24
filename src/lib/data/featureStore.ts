@@ -3,11 +3,39 @@ import type { SystemFeatureState } from '../../types/account.ts';
 
 const FEATURE_KEY = 'platform:system:features';
 
-let memoryFeatureState: SystemFeatureState = {
+const DEFAULT_FEATURE_STATE: SystemFeatureState = {
   adultClubEnabled: false,
   mediaCreationEnabled: false,
   registrationEnabled: true,
 };
+
+export class FeatureStateUnavailableError extends Error {
+  constructor(message = 'Authoritative feature state is unavailable') {
+    super(message);
+    this.name = 'FeatureStateUnavailableError';
+  }
+}
+
+let memoryFeatureState: SystemFeatureState = { ...DEFAULT_FEATURE_STATE };
+
+function normalizeFeatureState(value: unknown): SystemFeatureState {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new FeatureStateUnavailableError('Authoritative feature state is invalid');
+  }
+  const parsed = value as Partial<SystemFeatureState>;
+  if (
+    typeof parsed.adultClubEnabled !== 'boolean'
+    || typeof parsed.mediaCreationEnabled !== 'boolean'
+    || typeof parsed.registrationEnabled !== 'boolean'
+  ) {
+    throw new FeatureStateUnavailableError('Authoritative feature state is invalid');
+  }
+  return {
+    adultClubEnabled: parsed.adultClubEnabled,
+    mediaCreationEnabled: parsed.mediaCreationEnabled,
+    registrationEnabled: parsed.registrationEnabled,
+  };
+}
 
 /**
  * Check deployment level authorization
@@ -27,18 +55,15 @@ export function getDeploymentFeatureLimits(): {
  */
 export async function getRuntimeFeatureStateAsync(): Promise<SystemFeatureState> {
   if (distributedStore.isConfigured()) {
+    const result = await distributedStore.getWithStatus(FEATURE_KEY);
+    if (!result.ok) throw new FeatureStateUnavailableError();
+    if (result.value === null) return { ...DEFAULT_FEATURE_STATE };
     try {
-      const raw = await distributedStore.get(FEATURE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw) as Partial<SystemFeatureState>;
-        return {
-          adultClubEnabled: parsed.adultClubEnabled ?? false,
-          mediaCreationEnabled: parsed.mediaCreationEnabled ?? false,
-          registrationEnabled: parsed.registrationEnabled ?? true,
-        };
-      }
+      const authoritative = normalizeFeatureState(JSON.parse(result.value));
+      memoryFeatureState = { ...authoritative };
+      return authoritative;
     } catch {
-      // Fallback to memory state
+      throw new FeatureStateUnavailableError('Authoritative feature state is invalid');
     }
   }
 
@@ -85,6 +110,7 @@ export async function updateRuntimeFeatureStateAsync(
     registration: boolean;
   };
   error?: string;
+  unavailable?: boolean;
 }> {
   const deployment = getDeploymentFeatureLimits();
   const current = await getRuntimeFeatureStateAsync();
@@ -115,10 +141,10 @@ export async function updateRuntimeFeatureStateAsync(
     try {
       const ok = await distributedStore.set(FEATURE_KEY, JSON.stringify(nextState));
       if (!ok) {
-        return { success: false, error: 'Failed to persist feature state to distributed store.' };
+        return { success: false, unavailable: true, error: 'Authoritative feature state could not be persisted.' };
       }
     } catch {
-      return { success: false, error: 'Distributed store failure during feature update.' };
+      return { success: false, unavailable: true, error: 'Authoritative feature state is unavailable.' };
     }
   }
 
@@ -136,9 +162,5 @@ export async function updateRuntimeFeatureStateAsync(
 }
 
 export function resetFeatureStoreForTests(): void {
-  memoryFeatureState = {
-    adultClubEnabled: false,
-    mediaCreationEnabled: false,
-    registrationEnabled: true,
-  };
+  memoryFeatureState = { ...DEFAULT_FEATURE_STATE };
 }

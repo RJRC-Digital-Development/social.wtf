@@ -1,9 +1,9 @@
-import { NextResponse } from 'next/server';
-import { validateRequestSessionAsync } from '@/lib/security/session';
-import { accountHasCapabilityAsync, validateStepUpTokenAsync } from '@/lib/security/rbac';
-import { updateRuntimeFeatureStateAsync, getEffectiveFeatureStateAsync } from '@/lib/data/featureStore';
-import { recordAuditLogAsync, createPrivilegedOperationAsync, updateOperationStateAsync } from '@/lib/data/auditStore';
-import { extractAuditContext } from '@/lib/security/auditContext';
+import { NextResponse } from 'next/server.js';
+import { validateRequestSessionAsync } from '../../../../../lib/security/session.ts';
+import { accountHasCapabilityAsync, validateStepUpTokenAsync } from '../../../../../lib/security/rbac.ts';
+import { FeatureStateUnavailableError, updateRuntimeFeatureStateAsync, getEffectiveFeatureStateAsync } from '../../../../../lib/data/featureStore.ts';
+import { recordAuditLogAsync, createPrivilegedOperationAsync, updateOperationStateAsync } from '../../../../../lib/data/auditStore.ts';
+import { extractAuditContext } from '../../../../../lib/security/auditContext.ts';
 
 export async function POST(req: Request) {
   try {
@@ -55,8 +55,8 @@ export async function POST(req: Request) {
     if (!updateResult.success) {
       await updateOperationStateAsync(op.opId, 'FAILED', undefined, updateResult.error);
       return NextResponse.json(
-        { error: 'FEATURE_UPDATE_FAILED', message: updateResult.error || 'Failed to update feature state.' },
-        { status: 400 }
+        { error: updateResult.unavailable ? 'FEATURE_STATE_UNAVAILABLE' : 'FEATURE_UPDATE_FAILED', message: updateResult.error || 'Failed to update feature state.' },
+        { status: updateResult.unavailable ? 503 : 400 }
       );
     }
 
@@ -91,6 +91,12 @@ export async function POST(req: Request) {
       auditId: audit.auditId,
     });
   } catch (err: any) {
+    if (err instanceof FeatureStateUnavailableError) {
+      return NextResponse.json(
+        { error: 'FEATURE_STATE_UNAVAILABLE', message: 'Authoritative feature state is temporarily unavailable.' },
+        { status: 503 }
+      );
+    }
     console.error('[Kill Switch Toggle Error]:', err);
     return NextResponse.json({ error: 'INTERNAL_ERROR', message: 'Internal server error' }, { status: 500 });
   }
