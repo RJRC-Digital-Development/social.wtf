@@ -1,30 +1,22 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import Link from 'next/link';
 import { NightlyWalletButton } from '../wallet/NightlyWalletButton';
 import { useShield } from '@/lib/shield/shieldContext';
 import { useWallet } from '@/lib/wallet/walletContext';
 import { useTheme } from '@/lib/theme/themeContext';
-import { COOKIE_CHAIN_CONFIG } from '@/lib/solana/cookieChain';
 import { User } from '@/types';
 import {
   Cookie,
-  ShieldCheck,
-  ShieldAlert,
-  Eye,
-  EyeOff,
-  Activity,
-  Layers,
-  Sparkles,
-  ShoppingBag,
-  TrendingUp,
-  Bot,
-  User as UserIcon,
-  Sliders,
   Sun,
   Moon,
   MessageSquare,
+  ShoppingBag,
+  User as UserIcon,
+  TrendingUp,
+  Bot,
+  Sparkles,
   BookOpen,
 } from 'lucide-react';
 
@@ -51,156 +43,68 @@ export const Navbar: React.FC<NavbarProps> = ({
   const { connected, walletAddress } = useWallet();
   const { theme, isNight, isDay, toggleTheme } = useTheme();
 
+  const navItems = [
+    { id: 'feed'      as const, label: 'Feed',     Icon: MessageSquare },
+    { id: 'store'     as const, label: 'Store',    Icon: ShoppingBag },
+    { id: 'creator'   as const, label: 'Creators', Icon: UserIcon },
+    { id: 'community' as const, label: 'Wiki',     Icon: BookOpen },
+    { id: 'analytics' as const, label: 'Treasury', Icon: TrendingUp },
+  ];
+
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-slate-200/80 bg-white/95 dark:border-slate-800/90 dark:bg-[#070b14]/90 backdrop-blur-xl transition-colors duration-200">
-      <div className="social-navbar-shell max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-2">
-        {/* Logo & Brand */}
-        <div className="social-navbar-brand flex items-center gap-6 shrink-0">
-          <div
+    <header className="sticky top-0 z-40 w-full border-b border-[--border-main] bg-[--bg-card]/95 backdrop-blur-md transition-colors duration-200">
+      <div className="social-navbar-shell max-w-[1400px] mx-auto px-5 sm:px-8 lg:px-10 py-3">
+
+        {/* Logo */}
+        <div className="social-navbar-brand shrink-0">
+          <button
             onClick={() => onSelectView('feed')}
-            className="flex items-center gap-2.5 cursor-pointer group"
+            className="flex items-center gap-2.5"
           >
-            <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-amber-500 via-amber-600 to-yellow-600 dark:from-amber-400 dark:via-amber-500 dark:to-yellow-600 flex items-center justify-center shadow-md shadow-amber-500/15 group-hover:scale-105 transition-transform">
-              <Cookie className="w-5 h-5 text-slate-950 fill-slate-950" />
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{background: 'var(--accent)'}}>
+              <Cookie className="w-3.5 h-3.5 text-white" />
             </div>
-            <div>
-              <div className="flex items-center">
-                <span className="font-extrabold text-base tracking-tight text-slate-900 dark:text-white font-sans">
-                  Social<span className="text-amber-600 dark:text-amber-400">.wtf</span>
-                </span>
-              </div>
-            </div>
-          </div>
+            <span className="font-semibold text-[15px] tracking-tight" style={{color: 'var(--text-main)'}}>
+              Social<span style={{color: 'var(--accent)'}}>.</span>wtf
+            </span>
+          </button>
         </div>
 
-        {/* Center Main Nav Tabs */}
-        <nav className="social-navbar-primary hidden lg:flex items-center justify-center gap-1 bg-slate-100/90 dark:bg-slate-900/70 p-1 rounded-2xl border border-slate-200 dark:border-slate-800/80 min-w-0">
-          <button
-            onClick={() => onSelectView('feed')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap shrink-0 transition-all ${
-              activeView === 'feed'
-                ? 'bg-amber-500 text-slate-950 shadow-sm font-bold'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-            }`}
-          >
-            Social Feed
-          </button>
-
-          <button
-            onClick={() => onSelectView('store')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap shrink-0 transition-all ${
-              activeView === 'store'
-                ? 'bg-amber-500 text-slate-950 shadow-sm font-bold'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-            }`}
-          >
-            Storefronts
-          </button>
-
-          <button
-            onClick={() => onSelectView('creator')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap shrink-0 transition-all ${
-              activeView === 'creator'
-                ? 'bg-amber-500 text-slate-950 shadow-sm font-bold'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-            }`}
-          >
-            Creator Mini-Apps
-          </button>
-
-          <button
-            onClick={() => onSelectView('community')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap shrink-0 transition-all ${
-              activeView === 'community'
-                ? 'bg-amber-500 text-slate-950 shadow-sm font-bold'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-            }`}
-          >
-            Wiki &amp; Discussions
-          </button>
-
-          <button
-            onClick={() => onSelectView('analytics')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap shrink-0 transition-all ${
-              activeView === 'analytics'
-                ? 'bg-amber-500 text-slate-950 shadow-sm font-bold'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-            }`}
-          >
-            Treasury &amp; Analytics
-          </button>
+        {/* Center nav — text only, no icons, generous spacing */}
+        <nav className="social-navbar-primary flex items-center justify-center gap-1" aria-label="Main navigation">
+          {navItems.map(({ id, label }) => (
+            <button
+              key={id}
+              onClick={() => onSelectView(id)}
+              className="px-4 py-2 rounded-md text-sm font-medium whitespace-nowrap transition-all"
+              style={activeView === id ? {
+                background: 'var(--accent-muted)',
+                color: 'var(--accent)',
+                fontWeight: 600,
+              } : {
+                color: 'var(--text-muted)',
+              }}
+              onMouseEnter={e => { if (activeView !== id) { (e.currentTarget as HTMLElement).style.color = 'var(--text-main)'; (e.currentTarget as HTMLElement).style.background = 'var(--bg-card-subtle)'; } }}
+              onMouseLeave={e => { if (activeView !== id) { (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'; (e.currentTarget as HTMLElement).style.background = ''; } }}
+            >
+              {label}
+            </button>
+          ))}
         </nav>
 
-        {/* Right Header Action Items */}
-        <div className="social-navbar-actions flex flex-wrap items-center justify-end gap-2 min-w-0">
-          <Link href="/updates" className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-300 text-xs font-bold whitespace-nowrap">
-            <Sparkles className="w-3.5 h-3.5" /> What&apos;s New
-          </Link>
-          {/* Day / Night Theme Switcher */}
+        {/* Right: theme + wallet */}
+        <div className="social-navbar-wallet flex items-center gap-2 shrink-0">
           <button
             onClick={toggleTheme}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 text-xs font-medium transition-all shadow-sm shrink-0 whitespace-nowrap"
-            title={isNight ? 'Switch to Day Mode (Dawn Clarity)' : 'Switch to Night Mode (Midnight Focus)'}
-            aria-label="Toggle Night and Day Theme"
+            className="w-8 h-8 rounded-md flex items-center justify-center transition-colors"
+            style={{color: 'var(--text-muted)'}}
+            title={isNight ? 'Light mode' : 'Dark mode'}
+            aria-label="Toggle theme"
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--bg-card-subtle)'; (e.currentTarget as HTMLElement).style.color = 'var(--text-main)'; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = ''; (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'; }}
           >
-            {isNight ? (
-              <>
-                <Sun className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                <span className="hidden xl:inline text-[11px] font-bold text-slate-900 dark:text-slate-100 whitespace-nowrap">Day</span>
-              </>
-            ) : (
-              <>
-                <Moon className="w-3.5 h-3.5 text-slate-800 dark:text-slate-200 shrink-0" />
-                <span className="hidden xl:inline text-[11px] font-bold text-slate-900 dark:text-slate-100 whitespace-nowrap">Night</span>
-              </>
-            )}
+            {isNight ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
           </button>
-
-          {/* My Personal Page Shortcut */}
-          {onOpenMyPage && (
-            <button
-              onClick={onOpenMyPage}
-              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 text-xs font-bold transition-all shadow-sm shrink-0 whitespace-nowrap"
-              title="Open and customize your personal creator page"
-            >
-              {userProfile?.avatar ? (
-                <img
-                  src={userProfile.avatar}
-                  alt={userProfile.name}
-                  className="w-4 h-4 rounded-full object-cover border border-amber-500 shrink-0"
-                />
-              ) : (
-                <UserIcon className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
-              )}
-              <span className="whitespace-nowrap text-slate-900 dark:text-slate-100">My Page</span>
-            </button>
-          )}
-
-          {/* Sentinel AI Agent Conversation Launcher */}
-          {onOpenAiAgent && (
-            <button
-              onClick={onOpenAiAgent}
-              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 text-xs font-bold transition-all shadow-sm group shrink-0 whitespace-nowrap"
-            >
-              <Bot className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 group-hover:scale-110 transition-transform shrink-0" />
-              <span className="whitespace-nowrap text-slate-900 dark:text-slate-100">AI Agent</span>
-            </button>
-          )}
-
-          {/* Bridge & Swap Ecosystem Quick Launcher */}
-          {onOpenEcosystemModal && (
-            <button
-              onClick={() => onOpenEcosystemModal('bridge')}
-              className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 text-xs font-bold transition-all shadow-sm shrink-0 whitespace-nowrap"
-            >
-              <span className="whitespace-nowrap text-slate-900 dark:text-slate-100">Bridge &amp; Swap</span>
-            </button>
-          )}
-
-        </div>
-
-        {/* Wallet remains independently reachable while utility actions reflow. */}
-        <div className="social-navbar-wallet flex items-center justify-end shrink-0">
           <NightlyWalletButton />
         </div>
       </div>
@@ -223,132 +127,50 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
   userProfile,
   onOpenMyPage,
 }) => {
+  const items = [
+    { id: 'feed'      as const, label: 'Feed',     Icon: MessageSquare },
+    { id: 'store'     as const, label: 'Store',    Icon: ShoppingBag },
+    { id: 'creator'   as const, label: 'Me',       Icon: UserIcon },
+    { id: 'community' as const, label: 'Wiki',     Icon: BookOpen },
+    { id: 'analytics' as const, label: 'Treasury', Icon: TrendingUp },
+  ];
+
   return (
     <nav
-      aria-label="Mobile Bottom Navigation"
-      className="fixed bottom-0 left-0 right-0 z-40 lg:hidden bg-white/95 dark:bg-[#070b14]/95 border-t border-slate-200 dark:border-slate-800/90 backdrop-blur-xl px-2 py-1.5 flex items-center justify-around shadow-2xl transition-colors duration-200"
+      aria-label="Mobile navigation"
+      className="fixed bottom-0 left-0 right-0 z-40 lg:hidden backdrop-blur-md border-t flex items-center justify-around px-2 py-2 transition-colors duration-200"
+      style={{ background: 'var(--bg-card)', borderColor: 'var(--border-main)' }}
     >
-      {/* Feed */}
-      <button
-        onClick={() => onSelectView('feed')}
-        className={`flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all ${
-          activeView === 'feed'
-            ? 'text-amber-600 dark:text-amber-400 font-bold'
-            : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
-        }`}
-      >
-        <div className="relative">
-          <MessageSquare className="w-5 h-5" />
-          {activeView === 'feed' && (
-            <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-          )}
-        </div>
-        <span className="text-[10px] mt-0.5">Feed</span>
-      </button>
+      {items.map(({ id, label, Icon }) => {
+        const isActive = activeView === id;
+        return (
+          <button
+            key={id}
+            onClick={() => {
+              if (id === 'creator' && onOpenMyPage) onOpenMyPage();
+              else onSelectView(id);
+            }}
+            className="flex flex-col items-center justify-center py-1.5 px-3 rounded-lg gap-0.5 transition-colors"
+            style={{ color: isActive ? 'var(--accent)' : 'var(--text-muted)' }}
+          >
+            {id === 'creator' && userProfile?.avatar ? (
+              <img src={userProfile.avatar} alt="" className="w-5 h-5 rounded-full object-cover" style={isActive ? {outline: '2px solid var(--accent)', outlineOffset: '1px'} : {}} />
+            ) : (
+              <Icon className="w-5 h-5" />
+            )}
+            <span className="text-[10px] font-medium">{label}</span>
+          </button>
+        );
+      })}
 
-      {/* Store */}
-      <button
-        onClick={() => onSelectView('store')}
-        className={`flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all ${
-          activeView === 'store'
-            ? 'text-amber-600 dark:text-amber-400 font-bold'
-            : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
-        }`}
-      >
-        <div className="relative">
-          <ShoppingBag className="w-5 h-5" />
-          {activeView === 'store' && (
-            <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-          )}
-        </div>
-        <span className="text-[10px] mt-0.5">Store</span>
-      </button>
-
-      {/* My Page (Creator Profile) */}
-      <button
-        onClick={() => {
-          if (onOpenMyPage) onOpenMyPage();
-          else onSelectView('creator');
-        }}
-        className={`flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all ${
-          activeView === 'creator'
-            ? 'text-amber-600 dark:text-amber-400 font-bold'
-            : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
-        }`}
-      >
-        <div className="relative">
-          {userProfile?.avatar ? (
-            <img
-              src={userProfile.avatar}
-              alt="Profile"
-              className={`w-5 h-5 rounded-full object-cover border ${
-                activeView === 'creator'
-                  ? 'border-amber-500'
-                  : 'border-slate-300 dark:border-slate-700'
-              }`}
-            />
-          ) : (
-            <UserIcon className="w-5 h-5" />
-          )}
-          {activeView === 'creator' && (
-            <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-          )}
-        </div>
-        <span className="text-[10px] mt-0.5">My Page</span>
-      </button>
-
-      {/* Discussions */}
-      <button
-        onClick={() => onSelectView('community')}
-        className={`flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all ${
-          activeView === 'community'
-            ? 'text-amber-600 dark:text-amber-400 font-bold'
-            : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
-        }`}
-      >
-        <div className="relative">
-          <BookOpen className="w-5 h-5" />
-          {activeView === 'community' && (
-            <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-          )}
-        </div>
-        <span className="text-[10px] mt-0.5">Discuss</span>
-      </button>
-
-      {/* Analytics */}
-      <button
-        onClick={() => onSelectView('analytics')}
-        className={`flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all ${
-          activeView === 'analytics'
-            ? 'text-amber-600 dark:text-amber-400 font-bold'
-            : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
-        }`}
-      >
-        <div className="relative">
-          <TrendingUp className="w-5 h-5" />
-          {activeView === 'analytics' && (
-            <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-          )}
-        </div>
-        <span className="text-[10px] mt-0.5">Treasury</span>
-      </button>
-
-      <Link
-        href="/updates"
-        className="flex flex-col items-center justify-center py-1 px-2 rounded-xl text-slate-500 dark:text-slate-400 hover:text-amber-600 dark:hover:text-amber-400 transition-all"
-      >
-        <Sparkles className="w-5 h-5" />
-        <span className="text-[10px] mt-0.5">Updates</span>
-      </Link>
-
-      {/* AI Agent Floating Quick Action */}
       {onOpenAiAgent && (
         <button
           onClick={onOpenAiAgent}
-          className="flex flex-col items-center justify-center py-1 px-2.5 rounded-xl text-amber-700 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-300 transition-all"
+          className="flex flex-col items-center justify-center py-1.5 px-3 rounded-lg gap-0.5 transition-colors"
+          style={{ color: 'var(--text-muted)' }}
         >
-          <Bot className="w-5 h-5 text-amber-600 dark:text-amber-400" />
-          <span className="text-[10px] mt-0.5">AI</span>
+          <Bot className="w-5 h-5" />
+          <span className="text-[10px] font-medium">AI</span>
         </button>
       )}
     </nav>

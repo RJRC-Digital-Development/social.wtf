@@ -434,7 +434,7 @@ export default function Home() {
   const activeSelected = selectedCreator || activeUser;
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-[#070b14] text-slate-900 dark:text-slate-100 transition-colors duration-200">
+    <div className="min-h-screen flex flex-col transition-colors duration-200" style={{background: 'var(--bg-main)', color: 'var(--text-main)'}}>
       {/* Top Navbar */}
       <Navbar
         activeView={activeView}
@@ -454,48 +454,47 @@ export default function Home() {
 
       {/* Main Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 pb-24 md:pb-8">
-        {/* Top Highlight Banner */}
-        <div className="mb-5 sm:mb-6 p-3.5 sm:p-4 md:p-5 rounded-3xl bg-white dark:bg-[#0d1527] border border-slate-200 dark:border-slate-700/80 shadow-sm dark:shadow-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-3 sm:gap-4 transition-colors">
+        {/* Header strip */}
+        <div className="mb-5 sm:mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-amber-500/10 dark:bg-amber-500/20 border border-amber-500/30 dark:border-amber-500/40 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0">
-              <Sparkles className="w-5 h-5 sm:w-6 sm:h-6" />
+            <div className="w-8 h-8 rounded-lg bg-amber-500/10 dark:bg-amber-500/[0.12] flex items-center justify-center shrink-0">
+              <Sparkles className="w-4 h-4 text-amber-500" />
             </div>
             <div>
-              <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2 flex-wrap">
-                <span>Social.wtf — Relationship-Scoped Social Network &amp; Storefronts</span>
+              <h2 className="text-sm font-semibold text-slate-900 dark:text-white leading-tight">
+                Social.wtf
               </h2>
-              <p className="text-[11px] sm:text-xs text-slate-600 dark:text-slate-300 mt-0.5">
-                Authenticated with Cookie Chain SVM. Your profile and storefront are visible strictly to verified friends.
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                Relationship-scoped feed &amp; storefronts &mdash; visible only to accepted friends
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap shrink-0 w-full md:w-auto justify-start md:justify-end">
+          <div className="flex items-center gap-2 shrink-0">
             <button
               onClick={handleOpenMyPage}
-              className="flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 sm:py-2 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 font-bold text-xs hover:brightness-110 active:scale-95 transition-all shadow-md shadow-amber-500/20"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-white font-semibold text-xs transition-all shadow-sm hover:shadow-amber-500/20 hover:shadow-md active:scale-95"
             >
               <Edit3 className="w-3.5 h-3.5" />
-              <span>Customize My Page</span>
+              <span>My Page</span>
             </button>
 
             <button
               onClick={() => setAiAgentOpen(true)}
-              className="flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 sm:py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 text-xs font-bold transition-all shadow-sm"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-white/[0.06] dark:hover:bg-white/[0.1] border border-slate-200/80 dark:border-white/[0.06] text-slate-600 dark:text-slate-400 text-xs font-medium transition-all"
             >
-              <Bot className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-              <span>AI Assistant</span>
+              <Bot className="w-3.5 h-3.5 text-amber-500" />
+              <span>AI</span>
             </button>
-
           </div>
         </div>
 
         {/* 3-Column Responsive Layout */}
         <div className="grid grid-cols-1 md:grid-cols-12 gap-5 lg:gap-6">
           {/* Left Sidebar */}
-          <aside className="hidden md:block md:col-span-4 lg:col-span-3 space-y-5">
-            {/* My Personal Profile Quick Card */}
-            <div className="p-4 rounded-3xl bg-white dark:bg-[#0d1527] border border-amber-500/30 shadow-sm dark:shadow-xl space-y-3 transition-colors">
+          <aside className="hidden md:block md:col-span-4 lg:col-span-3 space-y-4">
+            {/* My Profile Quick Card */}
+            <div className="p-4 rounded-2xl bg-white dark:bg-[#141414] border border-slate-200/80 dark:border-white/[0.06] shadow-sm dark:shadow-xl space-y-3 transition-colors">
               <div className="flex items-center gap-3">
                 <img
                   src={activeUser.avatar}
@@ -503,24 +502,24 @@ export default function Home() {
                   className="w-12 h-12 rounded-2xl object-cover border-2 border-amber-500 dark:border-amber-400 shrink-0"
                 />
                 <div className="overflow-hidden">
-                  <div className="font-bold text-slate-900 dark:text-slate-100 text-xs truncate">{activeUser.name}</div>
-                  <div className="text-[11px] text-amber-600 dark:text-amber-400 font-mono">@{activeUser.handle}</div>
-                  <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate mt-0.5 font-mono">{activeUser.walletAddress ? `${activeUser.walletAddress.slice(0, 4)}...${activeUser.walletAddress.slice(-4)}` : ''}</div>
+                  <div className="font-semibold text-slate-900 dark:text-white text-sm truncate">{activeUser.name}</div>
+                  <div className="text-[11px] text-amber-500 font-mono">@{activeUser.handle}</div>
+                  <div className="text-[10px] text-slate-400 dark:text-slate-500 truncate mt-0.5 font-mono">{activeUser.walletAddress ? `${activeUser.walletAddress.slice(0, 4)}...${activeUser.walletAddress.slice(-4)}` : ''}</div>
                 </div>
               </div>
 
-              <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-2">
+              <div className="pt-2 border-t border-slate-100 dark:border-white/[0.05] space-y-1.5">
                 <button
                   onClick={handleOpenMyPage}
-                  className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 font-bold text-xs hover:brightness-110 active:scale-95 transition-all shadow-md"
+                  className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-lg bg-amber-500 hover:bg-amber-400 text-white font-semibold text-xs active:scale-95 transition-all shadow-sm"
                 >
                   <Edit3 className="w-3.5 h-3.5" />
-                  <span>Customize My Personal Page</span>
+                  <span>Customize My Page</span>
                 </button>
 
                 <button
                   onClick={handleCopyMyPersonalUrl}
-                  className="w-full flex items-center justify-center gap-2 py-1.5 px-3 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold transition-all"
+                  className="w-full flex items-center justify-center gap-2 py-1.5 px-3 rounded-lg bg-slate-50 hover:bg-slate-100 dark:bg-white/[0.04] dark:hover:bg-white/[0.07] border border-slate-200/80 dark:border-white/[0.06] text-slate-600 dark:text-slate-400 text-xs font-medium transition-all"
                 >
                   {copiedPersonalUrl ? (
                     <>
@@ -537,67 +536,28 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Quick Navigation Box */}
-            <div className="p-4 rounded-3xl bg-white dark:bg-[#0d1527] border border-slate-200 dark:border-slate-700/70 shadow-sm dark:shadow-xl space-y-1 text-xs font-medium transition-colors">
-              <button
-                onClick={() => setActiveView('feed')}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl transition-all ${
-                  activeView === 'feed'
-                    ? 'bg-amber-500 text-slate-950 font-bold shadow-md'
-                    : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'
-                }`}
-              >
-                <MessageSquare className="w-4 h-4" />
-                <span>Friend Feed</span>
-              </button>
-
-              <button
-                onClick={() => setActiveView('store')}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl transition-all ${
-                  activeView === 'store'
-                    ? 'bg-amber-500 text-slate-950 font-bold shadow-md'
-                    : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'
-                }`}
-              >
-                <ShoppingBag className="w-4 h-4" />
-                <span>Storefronts</span>
-              </button>
-
-              <button
-                onClick={() => setActiveView('creator')}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl transition-all ${
-                  activeView === 'creator'
-                    ? 'bg-amber-500 text-slate-950 font-bold shadow-md'
-                    : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'
-                }`}
-              >
-                <UserIcon className="w-4 h-4" />
-                <span>Creator Profile</span>
-              </button>
-
-              <button
-                onClick={() => setActiveView('community')}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl transition-all ${
-                  activeView === 'community'
-                    ? 'bg-amber-500 text-slate-950 font-bold shadow-md'
-                    : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'
-                }`}
-              >
-                <Globe className="w-4 h-4" />
-                <span>Community Hub</span>
-              </button>
-
-              <button
-                onClick={() => setActiveView('analytics')}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl transition-all ${
-                  activeView === 'analytics'
-                    ? 'bg-amber-500 text-slate-950 font-bold shadow-md'
-                    : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'
-                }`}
-              >
-                <TrendingUp className="w-4 h-4" />
-                <span>Creator Dashboard</span>
-              </button>
+            {/* Quick Nav */}
+            <div className="p-3 rounded-2xl bg-white dark:bg-[#141414] border border-slate-200/80 dark:border-white/[0.06] shadow-sm dark:shadow-xl space-y-0.5 transition-colors">
+              {([
+                { id: 'feed', label: 'Feed', Icon: MessageSquare },
+                { id: 'store', label: 'Storefronts', Icon: ShoppingBag },
+                { id: 'creator', label: 'Creator Profile', Icon: UserIcon },
+                { id: 'community', label: 'Community', Icon: Globe },
+                { id: 'analytics', label: 'Dashboard', Icon: TrendingUp },
+              ] as const).map(({ id, label, Icon }) => (
+                <button
+                  key={id}
+                  onClick={() => setActiveView(id)}
+                  className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
+                    activeView === id
+                      ? 'bg-amber-500 text-white shadow-sm'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-50/80 dark:hover:bg-white/[0.05]'
+                  }`}
+                >
+                  <Icon className="w-3.5 h-3.5 shrink-0" />
+                  <span>{label}</span>
+                </button>
+              ))}
             </div>
           </aside>
 
@@ -670,41 +630,39 @@ export default function Home() {
           </section>
 
           {/* Right Sidebar: Platform Metrics & Security */}
-          <aside className="hidden lg:block lg:col-span-3 space-y-5">
-            <div className="p-4 rounded-3xl bg-white dark:bg-[#0d1527] border border-slate-200 dark:border-slate-700/70 shadow-sm dark:shadow-xl space-y-3 transition-colors">
-              <div className="flex items-center gap-2 text-xs font-bold text-amber-600 dark:text-amber-400">
-                <Coins className="w-4 h-4" />
-                <span>Cookie Chain Network</span>
+          <aside className="hidden lg:block lg:col-span-3 space-y-4">
+            <div className="p-4 rounded-2xl bg-white dark:bg-[#141414] border border-slate-200/80 dark:border-white/[0.06] shadow-sm dark:shadow-xl space-y-3 transition-colors">
+              <div className="flex items-center gap-2 text-xs font-semibold text-amber-500">
+                <Coins className="w-3.5 h-3.5" />
+                <span>Cookie Chain</span>
               </div>
-              <div className="space-y-2 text-xs">
-                <div className="flex justify-between py-1 border-b border-slate-100 dark:border-slate-800">
-                  <span className="text-slate-500">Total Volume</span>
-                  <span className="font-mono font-bold text-slate-900 dark:text-white">
+              <div className="space-y-1.5 text-xs">
+                <div className="flex justify-between py-1 border-b border-slate-100/80 dark:border-white/[0.04]">
+                  <span className="text-slate-500 dark:text-slate-400">Volume</span>
+                  <span className="font-mono font-semibold text-slate-900 dark:text-white">
                     {metrics.totalPlatformVolumeCook.toLocaleString()} COOK
                   </span>
                 </div>
-                <div className="flex justify-between py-1 border-b border-slate-100 dark:border-slate-800">
-                  <span className="text-slate-500">SVM Speed</span>
-                  <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
-                    &lt; 400ms Finality
-                  </span>
+                <div className="flex justify-between py-1 border-b border-slate-100/80 dark:border-white/[0.04]">
+                  <span className="text-slate-500 dark:text-slate-400">SVM Speed</span>
+                  <span className="font-mono font-semibold text-emerald-500">&lt; 400ms</span>
                 </div>
                 <div className="flex justify-between py-1">
-                  <span className="text-slate-500">Transactions</span>
-                  <span className="font-mono font-bold text-slate-900 dark:text-white">
+                  <span className="text-slate-500 dark:text-slate-400">Transactions</span>
+                  <span className="font-mono font-semibold text-slate-900 dark:text-white">
                     {metrics.totalTransactionsCount}
                   </span>
                 </div>
               </div>
             </div>
 
-            <div className="p-4 rounded-3xl bg-white dark:bg-[#0d1527] border border-slate-200 dark:border-slate-700/70 shadow-sm dark:shadow-xl space-y-2 text-xs transition-colors">
-              <div className="flex items-center gap-2 font-bold text-emerald-600 dark:text-emerald-400">
-                <ShieldCheck className="w-4 h-4" />
+            <div className="p-4 rounded-2xl bg-white dark:bg-[#141414] border border-slate-200/80 dark:border-white/[0.06] shadow-sm dark:shadow-xl space-y-2 text-xs transition-colors">
+              <div className="flex items-center gap-2 font-semibold text-emerald-500">
+                <ShieldCheck className="w-3.5 h-3.5" />
                 <span>Relationship Security</span>
               </div>
               <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
-                Posts and storefront items are strictly visible to accepted friends. Unrelated accounts receive generic 404 responses with zero metadata leakage.
+                Visible only to accepted friends. Zero metadata leakage on 404s.
               </p>
             </div>
           </aside>

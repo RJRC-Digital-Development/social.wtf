@@ -180,119 +180,74 @@ export const LoginGate: React.FC<LoginGateProps> = ({ onAuthenticated }) => {
   const isBusy = connecting || authenticating || isSubmitting || !!authStep;
 
   return (
-    <div className="min-h-screen bg-[#070b14] text-slate-100 flex flex-col justify-between selection:bg-amber-500/30 selection:text-amber-200">
-      {/* Top Header */}
-      <header className="w-full border-b border-slate-800/80 bg-[#070b14]/80 backdrop-blur-md px-6 py-4 flex items-center justify-between">
+    <div className="min-h-screen flex flex-col justify-between transition-colors duration-200" style={{background: 'var(--bg-main)', color: 'var(--text-main)'}}>
+      <header className="w-full border-b border-[--border-main] backdrop-blur-md px-6 py-3.5 flex items-center justify-between transition-colors" style={{background: 'var(--bg-card)'}}>
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-amber-500 via-amber-600 to-yellow-600 flex items-center justify-center shadow-lg shadow-amber-500/20">
-            <span className="font-black text-slate-950 text-base leading-none">W</span>
+          <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{background: 'var(--accent)'}}>
+            <span className="font-bold text-white text-sm leading-none">W</span>
           </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="font-extrabold text-lg tracking-tight text-white">
-                Social<span className="text-amber-400">.wtf</span>
-              </span>
-              <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-500/10 text-amber-300 border border-amber-500/25">
-                COOKIE CHAIN SVM
-              </span>
-            </div>
+          <div className="flex items-center gap-2">
+            <span className="font-semibold text-[15px] tracking-tight" style={{color: 'var(--text-main)'}}>
+              Social<span style={{color: 'var(--accent)'}}>.</span>wtf
+            </span>
+            <span className="px-1.5 py-0.5 rounded text-[9px] font-medium" style={{color: 'var(--text-muted)', border: '1px solid var(--border-main)'}}>
+              Cookie Chain
+            </span>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 text-xs text-slate-400">
-          <ShieldCheck className="w-4 h-4 text-emerald-400" />
-          <span>Encrypted Platform Gate</span>
+        <div className="flex items-center gap-2 text-xs" style={{color: 'var(--text-muted)'}}>
+          <ShieldCheck className="w-3.5 h-3.5" style={{color: '#6aab7a'}} />
+          <span>Encrypted</span>
         </div>
       </header>
 
-      {/* Main Hero & Gate Container */}
-      <main className="max-w-4xl mx-auto px-4 py-12 flex flex-col items-center justify-center flex-1 w-full">
-        {/* Brand Headline */}
-        <div className="text-center max-w-2xl mx-auto mb-8 space-y-3">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs font-semibold">
-            <Lock className="w-3.5 h-3.5" />
-            <span>Private &bull; Relationship-Scoped &bull; Self-Sovereign</span>
-          </div>
-
-          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white leading-tight">
+      <main className="max-w-lg mx-auto px-5 py-12 flex flex-col items-center justify-center flex-1 w-full">
+        <div className="text-center max-w-lg mx-auto mb-8 space-y-2">
+          <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight" style={{color: 'var(--text-main)'}}>
             {mode === 'register'
-              ? 'Create Your Account'
+              ? 'Create an account'
               : mode === 'forgot_password'
-              ? 'Recover Account Access'
+              ? 'Recover access'
               : mode === 'reset_password'
-              ? 'Set New Password'
+              ? 'Set new password'
               : mode === 'wallet'
-              ? 'Connect Web3 Wallet'
-              : 'Sign In to Social.wtf'}
+              ? 'Connect wallet'
+              : 'Sign in'}
           </h1>
-
-          <p className="text-sm sm:text-base text-slate-400 leading-relaxed">
+          <p className="text-sm" style={{color: 'var(--text-muted)'}}>
             {mode === 'register'
-              ? 'Join the private creator network. Account-first, zero wallet required to get started.'
+              ? 'Private creator network. No wallet required to start.'
               : mode === 'forgot_password'
-              ? 'Enter your username or verified recovery email to receive reset instructions.'
+              ? 'Enter your username or email to get a reset link.'
               : mode === 'reset_password'
-              ? 'Enter your reset token and choose a new secure password.'
+              ? 'Enter your reset token and a new password.'
               : mode === 'wallet'
-              ? 'Connect your Solana wallet to bind on-chain capabilities.'
-              : 'Enter your credentials to access your friend feed, profile, and storefronts.'}
+              ? 'Connect your Solana wallet for on-chain features.'
+              : 'Enter your credentials to access your feed and profile.'}
           </p>
         </div>
 
-        {/* Auth Mode Toggle Tabs */}
-        <div className="flex items-center p-1 bg-slate-900/90 border border-slate-800 rounded-2xl mb-6 shadow-inner w-full max-w-md">
-          <button
-            type="button"
-            onClick={() => {
-              setMode('wallet');
-              setErrorMessage(null);
-              setSuccessMessage(null);
-            }}
-            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold transition-all ${
-              mode === 'wallet'
-                ? 'bg-amber-500 text-slate-950 shadow-md'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
-            }`}
-          >
-            <Wallet className="w-3.5 h-3.5" />
-            <span>Web3 Wallet</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setMode('login');
-              setErrorMessage(null);
-              setSuccessMessage(null);
-            }}
-            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold transition-all ${
-              mode === 'login'
-                ? 'bg-amber-500 text-slate-950 shadow-md'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
-            }`}
-          >
-            <LogIn className="w-3.5 h-3.5" />
-            <span>Sign In</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setMode('register');
-              setErrorMessage(null);
-              setSuccessMessage(null);
-            }}
-            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold transition-all ${
-              mode === 'register'
-                ? 'bg-amber-500 text-slate-950 shadow-md'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
-            }`}
-          >
-            <UserPlus className="w-3.5 h-3.5" />
-            <span>Register</span>
-          </button>
+        {/* Auth tabs */}
+        <div className="flex items-center gap-1 mb-6 w-full max-w-md p-1 rounded-lg" style={{background: 'var(--bg-card-subtle)', border: '1px solid var(--border-main)'}}>
+          {(['wallet', 'login', 'register'] as const).map(m => (
+            <button
+              key={m}
+              type="button"
+              onClick={() => { setMode(m); setErrorMessage(null); setSuccessMessage(null); }}
+              className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-md text-sm font-medium transition-all"
+              style={mode === m ? {background: 'var(--bg-card)', color: 'var(--text-main)', boxShadow: 'var(--shadow-card)'} : {color: 'var(--text-muted)'}}
+            >
+              {m === 'wallet' && <Wallet className="w-3.5 h-3.5" />}
+              {m === 'login' && <LogIn className="w-3.5 h-3.5" />}
+              {m === 'register' && <UserPlus className="w-3.5 h-3.5" />}
+              {m === 'wallet' ? 'Wallet' : m === 'login' ? 'Sign In' : 'Register'}
+            </button>
+          ))}
         </div>
 
-        {/* Card Box */}
-        <div className="w-full max-w-md bg-[#0d1527]/90 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl backdrop-blur-xl relative overflow-hidden">
+        {/* Form Card */}
+        <div className="w-full max-w-md rounded-xl p-6 sm:p-8 transition-colors" style={{background: 'var(--bg-card)', border: '1px solid var(--border-main)', boxShadow: 'var(--shadow-card)'}}>
           {/* Status / Error / Success Alerts */}
           {errorMessage && (
             <div className="mb-6 p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-start gap-3">
@@ -567,9 +522,8 @@ export const LoginGate: React.FC<LoginGateProps> = ({ onAuthenticated }) => {
         </div>
       </main>
 
-      {/* Footer Legal & Security */}
-      <footer className="w-full border-t border-slate-800/80 bg-[#070b14]/80 px-6 py-4 text-center text-xs text-slate-500">
-        Social.wtf Cookie Chain SVM Platform &bull; Account-First Private Social Architecture
+      <footer className="w-full border-t px-6 py-4 text-center text-xs transition-colors" style={{borderColor: 'var(--border-main)', color: 'var(--text-muted)', background: 'var(--bg-card)'}}>
+        Social.wtf &bull; Cookie Chain SVM &bull; Private Creator Network
       </footer>
     </div>
   );
