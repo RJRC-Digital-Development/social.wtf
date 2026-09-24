@@ -80,8 +80,13 @@ export const NightlyWalletButton: React.FC = () => {
         </button>
 
         {showSelectModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto p-4 bg-black/70 backdrop-blur-sm animate-fade-in">
-            <div className="relative w-full max-w-md max-h-[calc(100dvh-2rem)] overflow-y-auto overscroll-contain bg-[#0d1527] border border-slate-700/80 rounded-2xl p-4 sm:p-6 shadow-2xl">
+          <div
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setShowSelectModal(false);
+            }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-fade-in"
+          >
+            <div className="relative w-full max-w-md max-h-[calc(100dvh-2rem)] overflow-y-auto overscroll-contain bg-[#0d1527] border border-slate-700/80 rounded-2xl p-5 sm:p-6 shadow-2xl ring-1 ring-white/10">
               <div className="flex items-center justify-between pb-4 border-b border-slate-800">
                 <div className="flex items-center gap-2">
                   <div className="p-2 rounded-lg bg-amber-500/10 text-amber-400">
@@ -94,7 +99,7 @@ export const NightlyWalletButton: React.FC = () => {
                 </div>
                 <button
                   onClick={() => setShowSelectModal(false)}
-                  className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
                   aria-label="Close modal"
                 >
                   <X className="w-5 h-5" />
@@ -281,89 +286,117 @@ export const NightlyWalletButton: React.FC = () => {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-72 max-w-[calc(100vw-2rem)] rounded-2xl bg-[#0d1527] border border-slate-700/80 p-3 shadow-2xl z-50 animate-fade-in text-xs">
-          <div className="pb-2.5 mb-2 border-b border-slate-800">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] text-slate-400">
-                Connected Wallet ({walletType === 'trust' ? 'Trust Wallet' : walletType === 'nightly' ? 'Nightly' : walletType === 'solana' ? 'Solana / Phantom' : 'Demo'})
-              </span>
-              {walletType === 'demo' && (
-                <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-bold">
-                  SANDBOX
-                </span>
-              )}
-            </div>
-            <div className="font-mono text-slate-200 break-all font-medium mt-0.5 text-[11px] select-all bg-slate-900/80 p-1.5 rounded-lg border border-slate-800">
-              {walletAddress}
-            </div>
-            <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-800/60">
-              <span className="text-slate-400">
-                {walletType === 'demo' ? 'Synthetic Balance:' : 'Cookie Chain Balance:'}
-              </span>
-              <div className="flex items-center gap-1.5">
-                <span className="font-bold text-amber-300 font-mono text-sm">
-                  {cookBalance.toFixed(2)} {walletType === 'demo' ? 'Synthetic COOK' : 'COOK'}
-                </span>
-                <button
-                  onClick={handleRefresh}
-                  title="Refresh balance from RPC"
-                  className="p-1 rounded text-slate-400 hover:text-amber-300 hover:bg-slate-800"
-                >
-                  <RefreshCw className={`w-3 h-3 ${isRefreshing ? 'animate-spin' : ''}`} />
-                </button>
-              </div>
-            </div>
-          </div>
+        <>
+          {/* Backdrop overlay for dismissing when clicking outside */}
+          <div
+            className="fixed inset-0 z-40 bg-black/40 backdrop-blur-[2px] sm:bg-transparent sm:backdrop-blur-none"
+            onClick={() => setIsOpen(false)}
+          />
 
-          <div className="space-y-1.5">
-            {/* Session SIWS status / Authenticate button */}
-            {isAuthenticated ? (
-              <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[11px] font-medium">
-                <ShieldCheck className="w-3.5 h-3.5 flex-shrink-0" />
-                <span>Session Verified (SIWS)</span>
+          {/* Floating wallet details card */}
+          <div className="fixed sm:absolute right-4 sm:right-0 top-16 sm:top-full sm:mt-2 w-[calc(100vw-2rem)] sm:w-80 rounded-2xl bg-[#0d1527] border border-slate-700/90 p-4 shadow-2xl z-50 animate-fade-in ring-1 ring-white/10 backdrop-blur-xl text-xs">
+            <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-slate-800">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-lg bg-amber-500/10 text-amber-400">
+                  <Wallet className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="text-[11px] font-semibold text-slate-300">
+                    {walletType === 'trust' ? 'Trust Wallet' : walletType === 'nightly' ? 'Nightly Wallet' : walletType === 'solana' ? 'Solana / Phantom' : 'Demo Wallet'}
+                  </div>
+                  {walletType === 'demo' && (
+                    <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 font-bold inline-block">
+                      SANDBOX MODE
+                    </span>
+                  )}
+                </div>
               </div>
-            ) : (
               <button
-                onClick={async () => {
-                  try {
-                    await authenticateWallet();
-                  } catch (err: any) {
-                    console.error('Session authentication failed:', err);
-                  }
-                }}
-                disabled={authenticating}
-                className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 font-medium transition-all"
+                onClick={() => setIsOpen(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                aria-label="Close"
               >
-                <span className="flex items-center gap-1.5">
-                  <Shield className="w-3.5 h-3.5" />
-                  <span>{authenticating ? 'Signing SIWS...' : 'Authenticate Session'}</span>
-                </span>
-                <span className="text-[10px] uppercase font-bold text-amber-400">SIWS</span>
+                <X className="w-4 h-4" />
               </button>
-            )}
+            </div>
 
-            <a
-              href={`${COOKIE_CHAIN_CONFIG.explorerUrl}/address/${walletAddress}`}
-              target="_blank"
-              rel="noreferrer"
-              className="flex items-center justify-between p-2 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800/60 transition-colors"
-            >
-              <span>View on CookieScan</span>
-              <ExternalLink className="w-3.5 h-3.5 text-slate-500" />
-            </a>
+            <div className="space-y-2 mb-3">
+              <div className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">
+                Wallet Address
+              </div>
+              <div className="font-mono text-slate-200 break-all font-medium text-[11px] select-all bg-slate-900/90 p-2 rounded-xl border border-slate-800">
+                {walletAddress}
+              </div>
 
-            <button
-              onClick={() => {
-                disconnect();
-                setIsOpen(false);
-              }}
-              className="w-full flex items-center justify-between p-2 rounded-lg text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors"
-            >
-              <span>Disconnect</span>
-              <LogOut className="w-3.5 h-3.5" />
-            </button>
+              <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-900/60 border border-slate-800/80 mt-2">
+                <span className="text-slate-400 text-[11px]">
+                  {walletType === 'demo' ? 'Synthetic Balance' : 'Network Balance'}
+                </span>
+                <div className="flex items-center gap-1.5">
+                  <span className="font-bold text-amber-300 font-mono text-sm">
+                    {cookBalance.toFixed(2)} {walletType === 'demo' ? 'Synthetic COOK' : 'COOK'}
+                  </span>
+                  <button
+                    onClick={handleRefresh}
+                    title="Refresh balance from RPC"
+                    className="p-1 rounded text-slate-400 hover:text-amber-300 hover:bg-slate-800 transition-colors"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-amber-400' : ''}`} />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-1.5 pt-2 border-t border-slate-800">
+              {/* Session SIWS status / Authenticate button */}
+              {isAuthenticated ? (
+                <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[11px] font-medium">
+                  <ShieldCheck className="w-4 h-4 flex-shrink-0" />
+                  <span>Session Verified (SIWS)</span>
+                </div>
+              ) : (
+                <button
+                  onClick={async () => {
+                    try {
+                      await authenticateWallet();
+                    } catch (err: any) {
+                      console.error('Session authentication failed:', err);
+                    }
+                  }}
+                  disabled={authenticating}
+                  className="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 font-medium transition-all"
+                >
+                  <span className="flex items-center gap-1.5">
+                    <Shield className="w-3.5 h-3.5" />
+                    <span>{authenticating ? 'Signing SIWS...' : 'Authenticate Session'}</span>
+                  </span>
+                  <span className="text-[10px] uppercase font-bold text-amber-400">SIWS</span>
+                </button>
+              )}
+
+              <a
+                href={`${COOKIE_CHAIN_CONFIG.explorerUrl}/address/${walletAddress}`}
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center justify-between p-2.5 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800/80 transition-colors"
+              >
+                <span>View on CookieScan</span>
+                <ExternalLink className="w-3.5 h-3.5 text-slate-500" />
+              </a>
+
+              <button
+                onClick={() => {
+                  disconnect();
+                  setIsOpen(false);
+                }}
+                className="w-full flex items-center justify-between p-2.5 rounded-xl text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors font-medium"
+              >
+                <span>Disconnect Wallet</span>
+                <LogOut className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
-        </div>
+        </>
       )}
     </div>
   );
