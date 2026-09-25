@@ -20,7 +20,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'INVALID_JSON', message: 'Invalid JSON body.' }, { status: 400 });
     }
 
-    const { username, password } = body || {};
+    const { username, password, walletAddress } = body || {};
     if (!username || !password) {
       return NextResponse.json(
         { error: 'MISSING_FIELDS', message: 'Username and password are required.' },
@@ -36,6 +36,10 @@ export async function POST(req: Request) {
       );
     }
 
+    if (walletAddress && typeof walletAddress === 'string' && walletAddress.length >= 32 && walletAddress.length <= 44) {
+      reg.account.primaryWalletAddress = walletAddress;
+    }
+
     // Create account-first session
     const sessionToken = createAccountSession(reg.account, ['ROLE_USER']);
     const sessionCookie = createSessionCookie(sessionToken, Date.now() + 24 * 60 * 60 * 1000);
@@ -43,11 +47,13 @@ export async function POST(req: Request) {
     const response = NextResponse.json(
       {
         success: true,
+        sessionToken,
         account: {
           accountId: reg.account.accountId,
           username: reg.account.username,
           createdAt: reg.account.createdAt,
           status: reg.account.status,
+          primaryWalletAddress: reg.account.primaryWalletAddress,
         },
         roles: ['ROLE_USER'],
       },

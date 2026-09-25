@@ -12,7 +12,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'INVALID_JSON', message: 'Invalid JSON body.' }, { status: 400 });
     }
 
-    const { username, password } = body || {};
+    const { username, password, walletAddress } = body || {};
     if (!username || !password) {
       return NextResponse.json(
         { error: 'MISSING_FIELDS', message: 'Username and password are required.' },
@@ -26,6 +26,13 @@ export async function POST(req: Request) {
         { error: 'INVALID_CREDENTIALS', message: auth.error || 'Invalid username or password.' },
         { status: 401 }
       );
+    }
+
+    // If client supplied a connected wallet and account doesn't have one, or if they match, strap them together
+    if (walletAddress && typeof walletAddress === 'string' && walletAddress.length >= 32 && walletAddress.length <= 44) {
+      if (!auth.account.primaryWalletAddress) {
+        auth.account.primaryWalletAddress = walletAddress;
+      }
     }
 
     try {
@@ -44,6 +51,7 @@ export async function POST(req: Request) {
     const response = NextResponse.json(
       {
         success: true,
+        sessionToken,
         account: {
           accountId: auth.account.accountId,
           username: auth.account.username,

@@ -157,20 +157,51 @@ export function verifyWalletChallenge({
   }
 
   try {
-    // 5. Reconstruct canonical message
-    const message = formatChallengeMessage(challenge);
-    const messageBytes = new TextEncoder().encode(message);
+    // 5. Reconstruct canonical message and variations
+    const canonicalMsg = formatChallengeMessage(challenge);
+    const msgVariations = [
+      canonicalMsg.replace(/\r\n/g, '\n'),
+      canonicalMsg.replace(/\n/g, '\r\n'),
+      canonicalMsg,
+    ];
 
     // 6. Decode public key and signature
     const publicKeyBytes = new PublicKey(walletAddress).toBytes();
-    const signatureBytes = bs58.decode(signatureBase58);
+    let signatureBytes: Uint8Array;
+    const trimmedSig = signatureBase58.trim();
+
+    try {
+      signatureBytes = bs58.decode(trimmedSig);
+      if (signatureBytes.length !== 64) {
+        if (trimmedSig.length === 128 && /^[0-9a-fA-F]+$/.test(trimmedSig)) {
+          signatureBytes = Uint8Array.from(Buffer.from(trimmedSig, 'hex'));
+        } else if (trimmedSig.length === 88 || trimmedSig.includes('=') || trimmedSig.includes('/')) {
+          signatureBytes = Uint8Array.from(Buffer.from(trimmedSig, 'base64'));
+        }
+      }
+    } catch {
+      if (trimmedSig.length === 128 && /^[0-9a-fA-F]+$/.test(trimmedSig)) {
+        signatureBytes = Uint8Array.from(Buffer.from(trimmedSig, 'hex'));
+      } else {
+        signatureBytes = Uint8Array.from(Buffer.from(trimmedSig, 'base64'));
+      }
+    }
 
     if (signatureBytes.length !== 64) {
       return { verified: false, error: 'Invalid signature byte length' };
     }
 
-    // 7. Verify Ed25519 signature
-    const isValid = ed25519.verify(signatureBytes, messageBytes, publicKeyBytes);
+    // 7. Verify Ed25519 signature across canonical format variations
+    let isValid = false;
+    for (const msg of msgVariations) {
+      const messageBytes = new TextEncoder().encode(msg);
+      try {
+        if (ed25519.verify(signatureBytes, messageBytes, publicKeyBytes)) {
+          isValid = true;
+          break;
+        }
+      } catch {}
+    }
 
     if (!isValid) {
       return { verified: false, error: 'Cryptographic signature verification failed' };

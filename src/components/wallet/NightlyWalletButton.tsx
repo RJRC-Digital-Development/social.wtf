@@ -30,9 +30,13 @@ export const NightlyWalletButton: React.FC = () => {
     serverSignerAddress,
     isAuthenticated,
     authenticating,
+    account,
+    roles,
+    isOwner,
     authenticateWallet,
     connect,
     disconnect,
+    logoutSession,
     refreshBalance,
   } = useWallet();
 
@@ -332,6 +336,54 @@ export const NightlyWalletButton: React.FC = () => {
               </button>
             </div>
 
+            {/* Account Info & Strapping Section */}
+            {account && (
+              <div className="p-3 rounded-xl bg-slate-900/90 border border-slate-800 mb-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-400 text-[10px] uppercase font-bold tracking-wider">Account</span>
+                  <span
+                    className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${
+                      isOwner
+                        ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                        : roles.includes('ROLE_ADMIN')
+                        ? 'bg-purple-500/20 text-purple-300 border border-purple-500/40'
+                        : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                    }`}
+                  >
+                    {isOwner ? 'PLATFORM OWNER' : roles.includes('ROLE_ADMIN') ? 'ADMIN' : 'MEMBER'}
+                  </span>
+                </div>
+                <div className="font-semibold text-slate-100 text-sm flex items-center gap-1.5">
+                  <span>@{account.username}</span>
+                </div>
+
+                {/* Strapped status */}
+                <div className="pt-1 text-[11px] flex items-center justify-between text-slate-400">
+                  <span>Wallet Binding:</span>
+                  {account.primaryWalletAddress ? (
+                    <span className="text-emerald-400 font-mono font-medium flex items-center gap-1">
+                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>Strapped</span>
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          await authenticateWallet();
+                        } catch (err: any) {
+                          alert(err?.message || 'Failed to strap wallet to account');
+                        }
+                      }}
+                      className="text-amber-400 hover:text-amber-300 font-bold hover:underline"
+                    >
+                      Strap Wallet Now
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
             <div className="space-y-2 mb-3">
               <div className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">
                 Wallet Address
@@ -401,9 +453,20 @@ export const NightlyWalletButton: React.FC = () => {
                   disconnect();
                   setIsOpen(false);
                 }}
-                className="w-full flex items-center justify-between p-2.5 rounded-xl text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors font-medium"
+                className="w-full flex items-center justify-between p-2.5 rounded-xl text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-colors font-medium"
               >
-                <span>Disconnect Wallet</span>
+                <span>Disconnect Wallet Only</span>
+                <LogOut className="w-3.5 h-3.5" />
+              </button>
+
+              <button
+                onClick={async () => {
+                  await logoutSession();
+                  setIsOpen(false);
+                }}
+                className="w-full flex items-center justify-between p-2.5 rounded-xl text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 transition-colors font-bold"
+              >
+                <span>Sign Out & Disconnect (Universal)</span>
                 <LogOut className="w-3.5 h-3.5" />
               </button>
             </div>

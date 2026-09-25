@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   ShieldCheck,
   ShieldAlert,
@@ -17,10 +17,23 @@ import {
   Clock,
   ArrowLeft,
   Megaphone,
+  LogIn,
+  RotateCw,
 } from 'lucide-react';
 import Link from 'next/link';
+import { useWallet } from '@/lib/wallet/walletContext';
 
 export default function OwnerDashboardPage() {
+  const {
+    connected,
+    connect,
+    walletAddress,
+    isOwner,
+    authenticateWallet,
+    authenticating,
+    sessionToken,
+  } = useWallet();
+
   const [activeTab, setActiveTab] = useState<'overview' | 'accounts' | 'moderation' | 'system' | 'audit' | 'commerce' | 'publications'>('overview');
   const [overviewData, setOverviewData] = useState<any>(null);
   const [accountsData, setAccountsData] = useState<any[]>([]);
@@ -42,6 +55,21 @@ export default function OwnerDashboardPage() {
   const [authVerified, setAuthVerified] = useState(false);
   const [authDenied, setAuthDenied] = useState(false);
   const [currentAccountId, setCurrentAccountId] = useState<string | null>(null);
+  const [authChecking, setAuthChecking] = useState(true);
+
+  const getAuthHeaders = useCallback((): Record<string, string> => {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    const activeToken =
+      sessionToken ||
+      (typeof window !== 'undefined' ? localStorage.getItem('social_wtf_session_token') : null);
+
+    if (activeToken && activeToken.split('.').length === 3) {
+      headers['Authorization'] = `Bearer ${activeToken}`;
+    }
+    return headers;
+  }, [sessionToken]);
 
   const clearPrivilegedState = () => {
     setAuthVerified(false);
@@ -63,38 +91,56 @@ export default function OwnerDashboardPage() {
     return false;
   };
 
+  const verifyAuth = useCallback(async () => {
+    setAuthChecking(true);
+    try {
+      const headers = getAuthHeaders();
+      const res = await fetch('/api/auth/me', {
+        headers,
+        credentials: 'include',
+      });
+
+      if (!res.ok) {
+        setAuthDenied(true);
+        setAuthVerified(false);
+        return;
+      }
+
+      const data = await res.json();
+      if (!data.authenticated || !data.account?.accountId) {
+        setAuthDenied(true);
+        setAuthVerified(false);
+        return;
+      }
+
+      const capabilities: string[] = data.capabilities || [];
+      const roles: string[] = data.roles || [];
+      const isPrivileged =
+        capabilities.includes('telemetry:read') ||
+        roles.includes('ROLE_PLATFORM_OWNER') ||
+        roles.includes('ROLE_ADMIN');
+
+      if (!isPrivileged) {
+        setAuthDenied(true);
+        setAuthVerified(false);
+        return;
+      }
+
+      setCurrentAccountId(data.account.accountId);
+      setAuthVerified(true);
+      setAuthDenied(false);
+    } catch {
+      setAuthDenied(true);
+      setAuthVerified(false);
+    } finally {
+      setAuthChecking(false);
+    }
+  }, [getAuthHeaders]);
+
   // Verify session and check privileged role before rendering anything
   useEffect(() => {
-    let cancelled = false;
-    const verifyAuth = async () => {
-      try {
-        const res = await fetch('/api/auth/me');
-        if (!res.ok) {
-          if (!cancelled) setAuthDenied(true);
-          return;
-        }
-        const data = await res.json();
-        if (!data.authenticated || !data.account?.accountId) {
-          if (!cancelled) setAuthDenied(true);
-          return;
-        }
-        const capabilities: string[] = data.capabilities || [];
-        const isPrivileged = capabilities.includes('telemetry:read');
-        if (!isPrivileged) {
-          if (!cancelled) setAuthDenied(true);
-          return;
-        }
-        if (!cancelled) {
-          setCurrentAccountId(data.account.accountId);
-          setAuthVerified(true);
-        }
-      } catch {
-        if (!cancelled) setAuthDenied(true);
-      }
-    };
     verifyAuth();
-    return () => { cancelled = true; };
-  }, []);
+  }, [verifyAuth, sessionToken, walletAddress]);
 
   // Auto-clear step-up token after 5 minutes
   useEffect(() => {
@@ -114,7 +160,10 @@ export default function OwnerDashboardPage() {
 
   const fetchOverview = async () => {
     try {
-      const res = await fetch('/api/owner/overview');
+      const res = await fetch('/api/owner/overview', {
+        headers: getAuthHeaders(),
+        credentials: 'include',
+      });
       const data = await res.json();
       if (rejectIfUnauthorized(res)) return;
       if (!res.ok) {
@@ -129,7 +178,10 @@ export default function OwnerDashboardPage() {
 
   const fetchAccounts = async () => {
     try {
-      const res = await fetch('/api/owner/accounts');
+      const res = await fetch('/api/owner/accounts', {
+        headers: getAuthHeaders(),
+        credentials: 'include',
+      });
       const data = await res.json();
       if (rejectIfUnauthorized(res)) return;
       if (res.ok && data.success) {
@@ -140,7 +192,10 @@ export default function OwnerDashboardPage() {
 
   const fetchAudit = async () => {
     try {
-      const res = await fetch('/api/owner/audit');
+      const res = await fetch('/api/owner/audit', {
+        headers: getAuthHeaders(),
+        credentials: 'include',
+      });
       const data = await res.json();
       if (rejectIfUnauthorized(res)) return;
       if (res.ok && data.success) {
@@ -150,7 +205,10 @@ export default function OwnerDashboardPage() {
   };
 
   const fetchPublications = async () => {
-    const res = await fetch('/api/owner/publications');
+    const res = await fetch('/api/owner/publications', {
+      headers: getAuthHeaders(),
+      credentials: 'include',
+    });
     const data = await res.json();
     if (rejectIfUnauthorized(res)) return;
     if (res.ok) setPublications(data.publications || []);
@@ -172,7 +230,8 @@ export default function OwnerDashboardPage() {
   const savePublication = async () => {
     const res = await fetch('/api/owner/publications', {
       method: editingPublicationId ? 'PATCH' : 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAuthHeaders(),
+      credentials: 'include',
       body: JSON.stringify(editingPublicationId ? { ...publicationForm, publicationId: editingPublicationId, action: 'UPDATE' } : publicationForm),
     });
     const data = await res.json();
@@ -186,7 +245,8 @@ export default function OwnerDashboardPage() {
     const execute = async (activeToken = stepUpToken) => {
       const res = await fetch('/api/owner/publications', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
+        credentials: 'include',
         body: JSON.stringify({ publicationId, action, stepUpToken: activeToken }),
       });
       const data = await res.json();
@@ -199,7 +259,11 @@ export default function OwnerDashboardPage() {
 
   const handleRequestStepUp = async (onSuccess: (freshToken: string) => Promise<void>) => {
     try {
-      const res = await fetch('/api/owner/step-up/challenge', { method: 'POST' });
+      const res = await fetch('/api/owner/step-up/challenge', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        credentials: 'include',
+      });
       const data = await res.json();
       if (rejectIfUnauthorized(res)) return;
       if (res.ok && data.success) {
@@ -221,7 +285,8 @@ export default function OwnerDashboardPage() {
     try {
       const res = await fetch('/api/owner/step-up/verify', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
+        credentials: 'include',
         body: JSON.stringify({
           challengeNonce: stepUpChallengeNonce,
           method: 'PASSWORD',
@@ -252,7 +317,8 @@ export default function OwnerDashboardPage() {
     const doUpdate = async () => {
       const res = await fetch('/api/owner/system/kill-switch', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { ...getAuthHeaders(), 'x-step-up-token': stepUpToken || '' },
+        credentials: 'include',
         body: JSON.stringify({
           updates: { [feature]: !currentValue },
           stepUpToken,
@@ -282,7 +348,8 @@ export default function OwnerDashboardPage() {
     const doUpdate = async () => {
       const res = await fetch(`/api/owner/accounts/${accountId}/status`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { ...getAuthHeaders(), 'x-step-up-token': stepUpToken || '' },
+        credentials: 'include',
         body: JSON.stringify({
           status: nextStatus,
           stepUpToken,
@@ -310,27 +377,81 @@ export default function OwnerDashboardPage() {
   // Auth gate: deny access before rendering any dashboard content
   if (authDenied) {
     return (
-      <div className="min-h-screen bg-[#070b14] text-slate-100 flex items-center justify-center">
-        <div className="text-center space-y-4 max-w-md px-6">
+      <div className="min-h-screen bg-[#070b14] text-slate-100 flex items-center justify-center p-4">
+        <div className="text-center space-y-5 max-w-md w-full bg-slate-900/90 border border-slate-800 rounded-3xl p-8 shadow-2xl">
           <ShieldAlert className="w-16 h-16 text-rose-400 mx-auto" />
-          <h1 className="text-2xl font-black text-white">Access Denied</h1>
-          <p className="text-sm text-slate-400">
-            This console requires an authenticated account with platform owner or administrator privileges.
-            Unauthorized access attempts are logged and monitored.
-          </p>
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-sm font-semibold transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span>Return to Social.wtf</span>
-          </Link>
+          <div className="space-y-2">
+            <h1 className="text-2xl font-black text-white">Access Denied</h1>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              This console requires an authenticated account with platform owner or administrator privileges matching your configured <code className="text-amber-400 bg-slate-950 px-1.5 py-0.5 rounded font-mono">PLATFORM_OWNER_WALLET</code>.
+            </p>
+          </div>
+
+          {/* Direct Wallet Auth Helper on Owner Page */}
+          <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800/80 space-y-3 text-left">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-slate-400">Connected Wallet:</span>
+              <span className="font-mono text-amber-400 text-[11px] truncate max-w-[200px]">
+                {walletAddress ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : 'Not connected'}
+              </span>
+            </div>
+
+            {!connected ? (
+              <div className="space-y-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => connect('trust')}
+                  className="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition-all flex items-center justify-center gap-2 shadow-md shadow-amber-500/20"
+                >
+                  <LogIn className="w-4 h-4" />
+                  <span>Connect Wallet</span>
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-2 pt-1">
+                <button
+                  type="button"
+                  disabled={authenticating}
+                  onClick={async () => {
+                    try {
+                      await authenticateWallet();
+                      await verifyAuth();
+                    } catch (err: any) {
+                      alert(err?.message || 'Authentication failed');
+                    }
+                  }}
+                  className="w-full py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:brightness-110 text-slate-950 font-bold text-xs transition-all flex items-center justify-center gap-2 shadow-md disabled:opacity-50"
+                >
+                  <Key className="w-4 h-4" />
+                  <span>{authenticating ? 'Signing Challenge...' : 'Sign In with Owner Wallet'}</span>
+                </button>
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center justify-center gap-3 pt-2">
+            <button
+              type="button"
+              onClick={verifyAuth}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition-colors"
+            >
+              <RotateCw className="w-3.5 h-3.5" />
+              <span>Retry Auth</span>
+            </button>
+            <Link
+              href="/"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition-colors"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>Return Home</span>
+            </Link>
+          </div>
         </div>
       </div>
     );
   }
 
-  if (!authVerified) {
+  if (authChecking || !authVerified) {
     return (
       <div className="min-h-screen bg-[#070b14] text-slate-100 flex items-center justify-center">
         <div className="text-center space-y-3">

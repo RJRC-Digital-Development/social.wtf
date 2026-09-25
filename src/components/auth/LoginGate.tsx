@@ -59,7 +59,12 @@ export const LoginGate: React.FC<LoginGateProps> = ({ onAuthenticated }) => {
       const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
+        credentials: 'include',
+        body: JSON.stringify({
+          username,
+          password,
+          walletAddress: connected && walletAddress ? walletAddress : undefined,
+        }),
       });
 
       const data = await res.json();
@@ -70,7 +75,11 @@ export const LoginGate: React.FC<LoginGateProps> = ({ onAuthenticated }) => {
         return;
       }
 
-      setAuthStep('Synchronizing session...');
+      if (data.sessionToken && typeof window !== 'undefined') {
+        localStorage.setItem('social_wtf_session_token', data.sessionToken);
+      }
+
+      setAuthStep('Synchronizing session & wallet...');
       const synced = await refreshAccountAuth();
       setIsSubmitting(false);
       setAuthStep(null);
@@ -274,6 +283,20 @@ export const LoginGate: React.FC<LoginGateProps> = ({ onAuthenticated }) => {
           {/* Form 1: Account Login / Register */}
           {(mode === 'login' || mode === 'register') && (
             <form onSubmit={handleAccountAuth} className="space-y-4">
+              {connected && walletAddress && (
+                <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Wallet className="w-4 h-4 text-amber-400 shrink-0" />
+                    <span className="text-slate-300">
+                      Wallet Attached: <span className="font-mono text-amber-300 font-bold">{walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}</span>
+                    </span>
+                  </div>
+                  <span className="px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 font-semibold text-[10px]">
+                    STRAPPED
+                  </span>
+                </div>
+              )}
+
               <div>
                 <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
                   Username

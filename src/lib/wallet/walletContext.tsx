@@ -290,6 +290,10 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
     setCapabilities([]);
     setSessionToken(null);
     setSessionScope(null);
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(SESSION_TOKEN_STORAGE_KEY);
+      localStorage.removeItem('social_wtf_session_token');
+    }
   }, []);
 
   // Local wallet state reset helper (clears ONLY wallet, leaves account session intact)
@@ -625,7 +629,8 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
       }
 
       let signatureBase58: string;
-      const encodedMsg = new TextEncoder().encode(message);
+      const normalizedMsgStr = message.replace(/\r\n/g, '\n');
+      const encodedMsg = new TextEncoder().encode(normalizedMsgStr);
 
       if (walletType === 'demo') {
         const secretStr = localStorage.getItem(DEMO_WALLET_SECRET_KEY);
@@ -645,12 +650,69 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
         }
 
         try {
-          const signResult = await provider.signMessage(encodedMsg, 'utf8');
-          const rawSig = signResult?.signature || signResult;
-          if (typeof rawSig === 'string') {
-            signatureBase58 = rawSig;
-          } else if (rawSig instanceof Uint8Array || Array.isArray(rawSig)) {
-            signatureBase58 = bs58.encode(Uint8Array.from(rawSig));
+          let signResult: any;
+          if (walletType === 'nightly') {
+            signResult = await provider.signMessage(encodedMsg);
+          } else {
+            try {
+              signResult = await provider.signMessage(encodedMsg, 'utf8');
+            } catch {
+              signResult = await provider.signMessage(encodedMsg);
+            }
+          }
+
+          if (!signResult) throw new Error('Wallet returned an empty signature.');
+
+          // Extract inner signature if wrapped in object
+          let raw: any = signResult;
+          if (typeof raw === 'object') {
+            if (raw.signature) raw = raw.signature;
+            else if (raw.data) raw = raw.data;
+          }
+          if (typeof raw === 'object' && raw && raw.data) {
+            raw = raw.data;
+          }
+
+          // 1. TypedArray / Buffer / Uint8Array (including cross-realm)
+          if (
+            raw instanceof Uint8Array ||
+            ArrayBuffer.isView(raw) ||
+            raw?.buffer instanceof ArrayBuffer ||
+            raw?.constructor?.name === 'Uint8Array'
+          ) {
+            const buf = new Uint8Array(raw.buffer || raw, raw.byteOffset || 0, raw.byteLength || raw.length);
+            signatureBase58 = bs58.encode(buf);
+          }
+          // 2. Number Array
+          else if (Array.isArray(raw)) {
+            signatureBase58 = bs58.encode(Uint8Array.from(raw));
+          }
+          // 3. Number-indexed Object { 0: ..., 1: ..., length: 64 }
+          else if (typeof raw === 'object' && raw !== null && (typeof raw[0] === 'number' || typeof raw['0'] === 'number')) {
+            const bytes = Object.keys(raw)
+              .filter((k) => !isNaN(Number(k)))
+              .sort((a, b) => Number(a) - Number(b))
+              .map((k) => raw[k]);
+            signatureBase58 = bs58.encode(Uint8Array.from(bytes));
+          }
+          // 4. String (Hex, Base64, or Base58)
+          else if (typeof raw === 'string') {
+            const trimmed = raw.trim();
+            if (trimmed.length === 128 && /^[0-9a-fA-F]+$/.test(trimmed)) {
+              const hexBytes = new Uint8Array(trimmed.match(/.{1,2}/g)!.map((byte: string) => parseInt(byte, 16)));
+              signatureBase58 = bs58.encode(hexBytes);
+            } else if (trimmed.includes('=') || trimmed.includes('/') || trimmed.includes('+')) {
+              try {
+                const binStr = atob(trimmed);
+                const b64Bytes = new Uint8Array(binStr.length);
+                for (let i = 0; i < binStr.length; i++) b64Bytes[i] = binStr.charCodeAt(i);
+                signatureBase58 = bs58.encode(b64Bytes);
+              } catch {
+                signatureBase58 = trimmed;
+              }
+            } else {
+              signatureBase58 = trimmed;
+            }
           } else {
             throw new Error('Unexpected signature format returned by wallet.');
           }
@@ -668,7 +730,10 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
       if (endpointType === 'bind') {
         const bindRes = await fetch('/api/auth/wallet/bind', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            ...(sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {}),
+          },
           credentials: 'include',
           body: JSON.stringify({
             walletAddress,
@@ -680,6 +745,14 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
         if (!bindRes.ok) {
           const errData = await bindRes.json().catch(() => ({}));
           throw new Error(errData.message || 'Server rejected wallet challenge signature.');
+        }
+
+        const bindData = await bindRes.json();
+        if (bindData?.sessionToken) {
+          setSessionToken(bindData.sessionToken);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem(SESSION_TOKEN_STORAGE_KEY, bindData.sessionToken);
+          }
         }
       } else {
         const verifyRes = await fetch('/api/auth/verify', {

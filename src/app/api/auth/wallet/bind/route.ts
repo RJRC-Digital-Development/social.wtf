@@ -102,12 +102,20 @@ export async function POST(req: Request) {
     }
 
     // 4. Verify signature strictly against server-reconstructed canonical message
-    const messageBytes = new TextEncoder().encode(challengeData.message);
+    const msgVariations = [
+      challengeData.message.replace(/\r\n/g, '\n'),
+      challengeData.message.replace(/\n/g, '\r\n'),
+      challengeData.message,
+    ];
     let isValid = false;
-    try {
-      isValid = ed25519.verify(sigBytes, messageBytes, pubKeyBytes);
-    } catch {
-      isValid = false;
+    for (const msg of msgVariations) {
+      const messageBytes = new TextEncoder().encode(msg);
+      try {
+        if (ed25519.verify(sigBytes, messageBytes, pubKeyBytes)) {
+          isValid = true;
+          break;
+        }
+      } catch {}
     }
 
     if (!isValid) {
@@ -158,6 +166,7 @@ export async function POST(req: Request) {
 
     const response = Response.json({
       success: true,
+      sessionToken: updatedToken,
       binding: {
         walletAddress: bindResult.binding.walletAddress,
         accountId: bindResult.binding.accountId,
