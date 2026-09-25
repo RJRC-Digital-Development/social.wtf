@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Post } from '@/types';
+import { Post, Comment } from '@/types';
 import { useWallet } from '@/lib/wallet/walletContext';
 import { calculateFeeSplit, COOKIE_CHAIN_CONFIG } from '@/lib/solana/cookieChain';
 import { AudioPlayer } from './AudioPlayer';
@@ -18,6 +18,13 @@ import {
   Sparkles,
   Send,
   Lock,
+  Edit3,
+  Trash2,
+  X,
+  Check,
+  MoreHorizontal,
+  Tag,
+  AlertCircle,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -25,19 +32,31 @@ interface PostCardProps {
   post: Post;
   onOpenStore?: (creatorHandle: string) => void;
   onPostUpdated?: (updatedPost: Post, meta?: { tipAmount?: number; signature?: string }) => void;
+  onPostDeleted?: (postId: string) => void;
 }
 
 export const PostCard: React.FC<PostCardProps> = ({
   post,
   onOpenStore,
   onPostUpdated,
+  onPostDeleted,
 }) => {
-  const { connected, connect, signAndSendTransaction, cookBalance } = useWallet();
+  const { connected, connect, signAndSendTransaction, cookBalance, walletAddress, sessionToken } = useWallet();
 
   const [liked, setLiked] = useState(false);
   const [likesCount, setLikesCount] = useState(post.likes);
   const [reposted, setReposted] = useState(false);
   const [repostsCount, setRepostsCount] = useState(post.reposts);
+
+  // Post Editing State
+  const [isEditingPost, setIsEditingPost] = useState(false);
+  const [editContent, setEditContent] = useState(post.content);
+  const [editTagsText, setEditTagsText] = useState((post.tags || []).join(', '));
+  const [editIsShielded, setEditIsShielded] = useState(post.isShielded || false);
+  const [isSavingPost, setIsSavingPost] = useState(false);
+  const [editPostError, setEditPostError] = useState<string | null>(null);
+  const [isDeletingPost, setIsDeletingPost] = useState(false);
+  const [showOptionsDropdown, setShowOptionsDropdown] = useState(false);
 
   // Tip Modal State
   const [showTipModal, setShowTipModal] = useState(false);
@@ -52,8 +71,15 @@ export const PostCard: React.FC<PostCardProps> = ({
 
   // Comment State
   const [showComments, setShowComments] = useState(false);
-  const [commentsList, setCommentsList] = useState(post.comments || []);
+  const [commentsList, setCommentsList] = useState<Comment[]>(post.comments || []);
   const [newCommentText, setNewCommentText] = useState('');
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+  const [editCommentText, setEditCommentText] = useState('');
+
+  const isAuthor =
+    (walletAddress && post.author.walletAddress && walletAddress.toLowerCase() === post.author.walletAddress.toLowerCase()) ||
+    post.author.handle === 'you' ||
+    post.author.handle === 'creator';
 
   const split = calculateFeeSplit(tipAmount);
 
@@ -65,6 +91,108 @@ export const PostCard: React.FC<PostCardProps> = ({
   const handleRepost = () => {
     setReposted(!reposted);
     setRepostsCount(reposted ? repostsCount - 1 : repostsCount + 1);
+  };
+
+  const handleSavePostEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editContent.trim()) {
+      setEditPostError('Post content cannot be empty.');
+      return;
+    }
+
+    setIsSavingPost(true);
+    setEditPostError(null);
+
+    const parsedTags = editTagsText
+      .split(',')
+      .map((t) => t.trim().replace(/^#+/, ''))
+      .filter((t) => t.length > 0);
+
+    try {
+      const activeToken =
+        sessionToken ||
+        (typeof window !== 'undefined' ? localStorage.getItem('social_wtf_session_token') : null);
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (activeToken) {
+        headers['Authorization'] = `Bearer ${activeToken}`;
+      }
+
+      const res = await fetch('/api/posts', {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify({
+          id: post.id,
+          content: editContent.trim(),
+          tags: parsedTags.length > 0 ? parsedTags : ['SocialWTF', 'CookieChain'],
+          isShielded: editIsShielded,
+        }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok || !data.success || !data.post) {
+        throw new Error(data?.error || 'Failed to save post changes');
+      }
+
+      const updated: Post = {
+        ...post,
+        content: data.post.content,
+        tags: data.post.tags,
+        isShielded: data.post.isShielded,
+        shieldCategory: data.post.shieldCategory,
+        shieldReason: data.post.shieldReason,
+      };
+
+      if (onPostUpdated) {
+        onPostUpdated(updated);
+      }
+      setIsEditingPost(false);
+    } catch (err: any) {
+      console.error('[PostCard] Edit error:', err);
+      setEditPostError(err.message || 'Error updating post.');
+    } finally {
+      setIsSavingPost(false);
+    }
+  };
+
+  const handleDeletePost = async () => {
+    if (!confirm('Are you sure you want to permanently delete this post?')) return;
+
+    setIsDeletingPost(true);
+    try {
+      const activeToken =
+        sessionToken ||
+        (typeof window !== 'undefined' ? localStorage.getItem('social_wtf_session_token') : null);
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (activeToken) {
+        headers['Authorization'] = `Bearer ${activeToken}`;
+      }
+
+      const res = await fetch('/api/posts', {
+        method: 'DELETE',
+        headers,
+        body: JSON.stringify({ id: post.id }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success) {
+        throw new Error(data?.error || 'Failed to delete post');
+      }
+
+      if (onPostDeleted) {
+        onPostDeleted(post.id);
+      }
+    } catch (err: any) {
+      alert(err.message || 'Failed to delete post.');
+    } finally {
+      setIsDeletingPost(false);
+    }
   };
 
   const handleExecuteTip = async () => {
@@ -119,7 +247,7 @@ export const PostCard: React.FC<PostCardProps> = ({
     e.preventDefault();
     if (!newCommentText.trim()) return;
 
-    const newComment = {
+    const newComment: Comment = {
       id: `comm-${Date.now()}`,
       author: {
         handle: 'you',
@@ -144,9 +272,47 @@ export const PostCard: React.FC<PostCardProps> = ({
     }
   };
 
+  const handleStartEditComment = (comment: Comment) => {
+    setEditingCommentId(comment.id);
+    setEditCommentText(comment.content);
+  };
+
+  const handleSaveCommentEdit = (commentId: string) => {
+    if (!editCommentText.trim()) return;
+
+    const updatedComments = commentsList.map((c) =>
+      c.id === commentId ? { ...c, content: editCommentText.trim() } : c
+    );
+
+    setCommentsList(updatedComments);
+    setEditingCommentId(null);
+    setEditCommentText('');
+
+    if (onPostUpdated) {
+      onPostUpdated({
+        ...post,
+        comments: updatedComments,
+        commentsCount: updatedComments.length,
+      });
+    }
+  };
+
+  const handleDeleteComment = (commentId: string) => {
+    const updatedComments = commentsList.filter((c) => c.id !== commentId);
+    setCommentsList(updatedComments);
+
+    if (onPostUpdated) {
+      onPostUpdated({
+        ...post,
+        comments: updatedComments,
+        commentsCount: updatedComments.length,
+      });
+    }
+  };
+
   return (
     <>
-      <article className="rounded-3xl bg-white dark:bg-[#0d1527] border border-slate-200 dark:border-slate-700/70 p-5 shadow-sm dark:shadow-xl transition-all hover:border-slate-300 dark:hover:border-slate-600/80 mb-5">
+      <article className="rounded-3xl bg-white dark:bg-[#0d1527] border border-slate-200 dark:border-slate-700/70 p-5 shadow-sm dark:shadow-xl transition-all hover:border-slate-300 dark:hover:border-slate-600/80 mb-5 relative">
         {/* Author Header */}
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
@@ -179,7 +345,7 @@ export const PostCard: React.FC<PostCardProps> = ({
             </div>
           </div>
 
-          {/* Action / Store shortcut */}
+          {/* Action / Store shortcut / Post Author Controls */}
           <div className="flex items-center gap-2">
             {post.author.isCreator && (
               <button
@@ -190,26 +356,145 @@ export const PostCard: React.FC<PostCardProps> = ({
                 <span>Visit Store</span>
               </button>
             )}
+
+            {isAuthor && (
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsEditingPost(!isEditingPost);
+                    setEditContent(post.content);
+                    setEditTagsText((post.tags || []).join(', '));
+                    setEditIsShielded(post.isShielded || false);
+                    setEditPostError(null);
+                  }}
+                  title="Edit Post"
+                  className="p-1.5 rounded-xl bg-slate-100 dark:bg-slate-800/80 hover:bg-amber-500/15 text-slate-600 dark:text-slate-300 hover:text-amber-600 dark:hover:text-amber-400 border border-slate-200 dark:border-slate-700 transition-all text-xs flex items-center gap-1"
+                >
+                  <Edit3 className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Edit</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDeletePost}
+                  disabled={isDeletingPost}
+                  title="Delete Post"
+                  className="p-1.5 rounded-xl bg-slate-100 dark:bg-slate-800/80 hover:bg-rose-500/15 text-slate-600 dark:text-slate-300 hover:text-rose-600 dark:hover:text-rose-400 border border-slate-200 dark:border-slate-700 transition-all text-xs"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Post Text Content */}
-        <div className="text-slate-700 dark:text-slate-200 text-sm leading-relaxed mb-4 whitespace-pre-line break-words [overflow-wrap:anywhere] max-w-full">
-          {post.content}
-        </div>
-
-        {/* Tags */}
-        {post.tags.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 mb-4">
-            {post.tags.map((tag) => (
-              <span
-                key={tag}
-                className="px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800/80 text-[11px] font-medium text-amber-700 dark:text-amber-400/90 border border-slate-200 dark:border-slate-700/50"
-              >
-                #{tag}
+        {/* Edit Post In-Place Form */}
+        {isEditingPost ? (
+          <form onSubmit={handleSavePostEdit} className="mb-4 p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/90 border border-amber-500/40 space-y-3">
+            <div className="flex justify-between items-center text-xs font-bold text-slate-900 dark:text-slate-200">
+              <span className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
+                <Edit3 className="w-3.5 h-3.5" /> Edit Post
               </span>
-            ))}
-          </div>
+              <button
+                type="button"
+                onClick={() => setIsEditingPost(false)}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <textarea
+              value={editContent}
+              onChange={(e) => setEditContent(e.target.value)}
+              rows={3}
+              maxLength={2000}
+              placeholder="What's on your mind?"
+              className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:border-amber-500 resize-y"
+            />
+
+            <div>
+              <label className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">
+                Tags (comma separated)
+              </label>
+              <input
+                type="text"
+                value={editTagsText}
+                onChange={(e) => setEditTagsText(e.target.value)}
+                placeholder="SocialWTF, CookieChain, Solana"
+                className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:border-amber-500 font-mono"
+              />
+            </div>
+
+            {/* Shield / 18+ toggle */}
+            <div className="flex items-center justify-between pt-1">
+              <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-700 dark:text-slate-300">
+                <input
+                  type="checkbox"
+                  checked={editIsShielded}
+                  onChange={(e) => setEditIsShielded(e.target.checked)}
+                  className="rounded border-slate-300 text-amber-500 focus:ring-amber-500 w-4 h-4"
+                />
+                <span>Gate content behind 18+ Sensitive Club</span>
+              </label>
+
+              <span className="text-[10px] text-slate-400 font-mono">
+                {editContent.length}/2000
+              </span>
+            </div>
+
+            {editPostError && (
+              <div className="flex items-center gap-1.5 text-xs text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-500/10 p-2.5 rounded-xl border border-rose-200 dark:border-rose-500/20">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{editPostError}</span>
+              </div>
+            )}
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-slate-200 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => setIsEditingPost(false)}
+                className="px-3.5 py-1.5 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isSavingPost}
+                className="px-4 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 text-xs font-bold hover:brightness-110 active:scale-95 transition-all shadow-md shadow-amber-500/20 flex items-center gap-1.5"
+              >
+                {isSavingPost ? (
+                  <span>Saving...</span>
+                ) : (
+                  <>
+                    <Check className="w-3.5 h-3.5" />
+                    <span>Save Changes</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
+        ) : (
+          <>
+            {/* Post Text Content */}
+            <div className="text-slate-700 dark:text-slate-200 text-sm leading-relaxed mb-4 whitespace-pre-line break-words [overflow-wrap:anywhere] max-w-full">
+              {post.content}
+            </div>
+
+            {/* Tags */}
+            {post.tags && post.tags.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mb-4">
+                {post.tags.map((tag) => (
+                  <span
+                    key={tag}
+                    className="px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800/80 text-[11px] font-medium text-amber-700 dark:text-amber-400/90 border border-slate-200 dark:border-slate-700/50"
+                  >
+                    #{tag}
+                  </span>
+                ))}
+              </div>
+            )}
+          </>
         )}
 
         {/* Multi-Format Media Rendering */}
@@ -299,7 +584,7 @@ export const PostCard: React.FC<PostCardProps> = ({
             className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-amber-50 dark:bg-gradient-to-r dark:from-amber-500/15 dark:via-amber-500/20 dark:to-yellow-500/15 border border-amber-300 dark:border-amber-500/40 text-amber-800 dark:text-amber-300 hover:brightness-105 dark:hover:brightness-125 transition-all text-xs font-bold shadow-sm"
           >
             <Coins className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-            <span>Tip {post.totalTipsCook.toFixed(1)} COOK</span>
+            <span>Tip {post.totalTipsCook ? post.totalTipsCook.toFixed(1) : '0'} COOK</span>
           </button>
         </div>
 
@@ -323,22 +608,77 @@ export const PostCard: React.FC<PostCardProps> = ({
             </form>
 
             <div className="space-y-3">
-              {commentsList.map((comm) => (
-                <div key={comm.id} className="flex items-start gap-2.5 text-xs">
-                  <img
-                    src={comm.author.avatar}
-                    alt={comm.author.name}
-                    className="w-7 h-7 rounded-xl object-cover border border-slate-200 dark:border-slate-700 mt-0.5"
-                  />
-                  <div className="flex-1 bg-slate-50 dark:bg-slate-900/60 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800">
-                    <div className="flex justify-between items-center mb-1">
-                      <span className="font-bold text-slate-900 dark:text-slate-200">{comm.author.name}</span>
-                      <span className="text-[10px] text-slate-500">{comm.createdAt}</span>
+              {commentsList.map((comm) => {
+                const isCommentAuthor = comm.author.handle === 'you' || comm.author.name === 'You';
+                const isEditingThisComment = editingCommentId === comm.id;
+
+                return (
+                  <div key={comm.id} className="flex items-start gap-2.5 text-xs group">
+                    <img
+                      src={comm.author.avatar}
+                      alt={comm.author.name}
+                      className="w-7 h-7 rounded-xl object-cover border border-slate-200 dark:border-slate-700 mt-0.5"
+                    />
+                    <div className="flex-1 bg-slate-50 dark:bg-slate-900/60 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="font-bold text-slate-900 dark:text-slate-200">{comm.author.name}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] text-slate-500">{comm.createdAt}</span>
+                          {isCommentAuthor && !isEditingThisComment && (
+                            <div className="flex items-center gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
+                              <button
+                                type="button"
+                                onClick={() => handleStartEditComment(comm)}
+                                className="text-slate-400 hover:text-amber-500 p-0.5"
+                                title="Edit comment"
+                              >
+                                <Edit3 className="w-3 h-3" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteComment(comm.id)}
+                                className="text-slate-400 hover:text-rose-500 p-0.5"
+                                title="Delete comment"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {isEditingThisComment ? (
+                        <div className="space-y-2 mt-1">
+                          <input
+                            type="text"
+                            value={editCommentText}
+                            onChange={(e) => setEditCommentText(e.target.value)}
+                            className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-amber-500"
+                          />
+                          <div className="flex justify-end gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => setEditingCommentId(null)}
+                              className="px-2 py-0.5 rounded text-[10px] text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleSaveCommentEdit(comm.id)}
+                              className="px-2.5 py-0.5 rounded bg-amber-500 text-slate-950 text-[10px] font-bold hover:bg-amber-400"
+                            >
+                              Save
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-slate-700 dark:text-slate-300">{comm.content}</p>
+                      )}
                     </div>
-                    <p className="text-slate-700 dark:text-slate-300">{comm.content}</p>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}

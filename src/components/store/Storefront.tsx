@@ -21,12 +21,17 @@ import {
   Shield,
   ShieldCheck,
   X,
+  Edit3,
+  Trash2,
+  Check,
 } from 'lucide-react';
 
 interface StorefrontProps {
   products: Product[];
   creatorHandle?: string;
   onAddProduct?: (newProduct: Product) => void;
+  onUpdateProduct?: (updatedProduct: Product) => void;
+  onDeleteProduct?: (productId: string) => void;
   onPurchaseCompleted?: (product: Product, txSig: string) => void;
   onOpenVerifyModal?: (tab?: 'card_auth' | 'video_liveness' | 'id_upload') => void;
 }
@@ -35,6 +40,8 @@ export const Storefront: React.FC<StorefrontProps> = ({
   products,
   creatorHandle,
   onAddProduct,
+  onUpdateProduct,
+  onDeleteProduct,
   onPurchaseCompleted,
 }) => {
   const {
@@ -78,8 +85,27 @@ export const Storefront: React.FC<StorefrontProps> = ({
   const [newPrice, setNewPrice] = useState<number>(5.0);
   const [newCategory, setNewCategory] = useState<Product['category']>('digital_art');
   const [newFormat, setNewFormat] = useState('ZIP (.blend, .png)');
+  const [newPreviewUrl, setNewPreviewUrl] = useState('');
+  const [newDownloadUrl, setNewDownloadUrl] = useState('');
   const [isPublishing, setIsPublishing] = useState(false);
   const [publishError, setPublishError] = useState('');
+
+  // Edit Product modal state
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editDesc, setEditDesc] = useState('');
+  const [editPrice, setEditPrice] = useState<number>(5.0);
+  const [editCategory, setEditCategory] = useState<Product['category']>('digital_art');
+  const [editFormat, setEditFormat] = useState('');
+  const [editPreviewUrl, setEditPreviewUrl] = useState('');
+  const [editDownloadUrl, setEditDownloadUrl] = useState('');
+  const [editFileSize, setEditFileSize] = useState('');
+  const [editCodeSnippet, setEditCodeSnippet] = useState('');
+  const [editFeatured, setEditFeatured] = useState(false);
+  const [isUpdatingProduct, setIsUpdatingProduct] = useState(false);
+  const [editError, setEditError] = useState('');
+  const [isDeletingProductId, setIsDeletingProductId] = useState<string | null>(null);
 
   const filteredProducts = products.filter((p) => {
     if (creatorHandle && p.creatorHandle !== creatorHandle) return false;
@@ -205,6 +231,123 @@ export const Storefront: React.FC<StorefrontProps> = ({
     }
   };
 
+  const handleOpenEditProduct = (product: Product) => {
+    setEditingProduct(product);
+    setEditTitle(product.title);
+    setEditDesc(product.description || '');
+    setEditPrice(product.priceCook);
+    setEditCategory(product.category);
+    setEditFormat(product.fileFormat || '');
+    setEditPreviewUrl(product.previewUrl || '');
+    setEditDownloadUrl(product.downloadUrl || '');
+    setEditFileSize(product.fileSize || '');
+    setEditCodeSnippet(product.codeSnippet || '');
+    setEditFeatured(Boolean(product.featured));
+    setEditError('');
+    setShowEditModal(true);
+  };
+
+  const handleSaveEditProduct = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingProduct) return;
+    if (!editTitle.trim()) {
+      setEditError('Product title is required.');
+      return;
+    }
+
+    setIsUpdatingProduct(true);
+    setEditError('');
+
+    try {
+      const activeToken = sessionToken || (typeof window !== 'undefined' ? localStorage.getItem('social_wtf_session_token') : null);
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (activeToken) {
+        headers['Authorization'] = `Bearer ${activeToken}`;
+      }
+
+      const res = await fetch('/api/products', {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify({
+          id: editingProduct.id,
+          title: editTitle.trim(),
+          description: editDesc.trim() || 'Exclusive creator digital item.',
+          priceCook: Number(editPrice),
+          category: editCategory,
+          fileFormat: editFormat || 'Digital',
+          previewUrl: editPreviewUrl.trim() || undefined,
+          downloadUrl: editDownloadUrl.trim() || undefined,
+          fileSize: editFileSize.trim() || undefined,
+          codeSnippet: editCodeSnippet.trim() || undefined,
+          featured: editFeatured,
+        }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok || !data.success || !data.product) {
+        throw new Error(data?.error || 'Failed to update product');
+      }
+
+      if (onUpdateProduct) {
+        onUpdateProduct(data.product);
+      }
+      setShowEditModal(false);
+      setEditingProduct(null);
+    } catch (err: any) {
+      console.error('[Storefront] Update product error:', err);
+      setEditError(err.message || 'Error updating product.');
+    } finally {
+      setIsUpdatingProduct(false);
+    }
+  };
+
+  const handleDeleteProduct = async (productId: string) => {
+    if (!confirm('Are you sure you want to permanently remove this product from your storefront?')) {
+      return;
+    }
+
+    setIsDeletingProductId(productId);
+    try {
+      const activeToken = sessionToken || (typeof window !== 'undefined' ? localStorage.getItem('social_wtf_session_token') : null);
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (activeToken) {
+        headers['Authorization'] = `Bearer ${activeToken}`;
+      }
+
+      const res = await fetch('/api/products', {
+        method: 'DELETE',
+        headers,
+        body: JSON.stringify({ id: productId }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success) {
+        throw new Error(data?.error || 'Failed to delete product');
+      }
+
+      if (onDeleteProduct) {
+        onDeleteProduct(productId);
+      }
+    } catch (err: any) {
+      alert(err.message || 'Failed to delete product.');
+    } finally {
+      setIsDeletingProductId(null);
+    }
+  };
+
+  const isProductOwner = (product: Product) => {
+    return (
+      (walletAddress && product.creatorWallet && walletAddress.toLowerCase() === product.creatorWallet.toLowerCase()) ||
+      product.creatorHandle === 'you' ||
+      (creatorHandle && product.creatorHandle === creatorHandle)
+    );
+  };
+
   const split = selectedProduct ? calculateFeeSplit(selectedProduct.priceCook) : null;
 
   return (
@@ -297,6 +440,27 @@ export const Storefront: React.FC<StorefrontProps> = ({
                       <h3 className="font-bold text-slate-900 dark:text-slate-100 text-base line-clamp-1 group-hover:text-amber-600 dark:group-hover:text-amber-300 transition-colors">
                         {product.title}
                       </h3>
+                      {isProductOwner(product) && (
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEditProduct(product)}
+                            title="Edit Product"
+                            className="p-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-amber-500/10 transition-colors"
+                          >
+                            <Edit3 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            disabled={isDeletingProductId === product.id}
+                            onClick={() => handleDeleteProduct(product.id)}
+                            title="Delete Product"
+                            className="p-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      )}
                     </div>
                     <p className="text-xs text-slate-600 dark:text-slate-400 line-clamp-2 mb-3 leading-relaxed">
                       {product.description}
@@ -605,6 +769,161 @@ export const Storefront: React.FC<StorefrontProps> = ({
                     ? 'Authenticating Wallet...'
                     : 'Publish to Creator Storefront'}
                 </button>
+              </form>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Edit Product Modal */}
+      {showEditModal && editingProduct && mounted && createPortal(
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowEditModal(false);
+          }}
+          className="fixed inset-0 z-[99999] overflow-y-auto bg-black/80 backdrop-blur-md p-3 sm:p-6 animate-fade-in"
+        >
+          <div className="min-h-full flex items-center justify-center py-4 sm:py-8">
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="relative w-full max-w-md bg-white dark:bg-[#0d1527] border border-slate-200 dark:border-slate-700/80 rounded-3xl p-6 shadow-2xl ring-1 ring-white/10 my-auto"
+            >
+              <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-100 dark:border-slate-800">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-xl bg-amber-500/15 text-amber-600 dark:text-amber-400">
+                    <Edit3 className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-slate-900 dark:text-slate-100 text-sm">Edit Digital Product</h3>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">Update listing details, pricing, and specs</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowEditModal(false)}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white transition-colors"
+                  aria-label="Close edit product modal"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveEditProduct} className="space-y-3.5 text-xs">
+                {editError && (
+                  <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs font-semibold leading-relaxed animate-fade-in">
+                    {editError}
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-slate-600 dark:text-slate-400 mb-1">Product Title</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Product Title"
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-slate-900 dark:text-slate-200 focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-600 dark:text-slate-400 mb-1">Category</label>
+                  <select
+                    value={editCategory}
+                    onChange={(e) => setEditCategory(e.target.value as any)}
+                    className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-slate-900 dark:text-slate-200 focus:outline-none focus:border-amber-500"
+                  >
+                    <option value="code_script">Code Snippet / Smart Contract / Script</option>
+                    <option value="digital_art">3D Asset / Digital Art</option>
+                    <option value="music_stem">Music WAV Stems / Audio</option>
+                    <option value="vip_pass">VIP Access Pass / Token</option>
+                    <option value="preset">Preset / LUT Pack</option>
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-slate-600 dark:text-slate-400 mb-1">Price (in $COOK)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.5"
+                      required
+                      value={editPrice}
+                      onChange={(e) => setEditPrice(parseFloat(e.target.value) || 0)}
+                      className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-slate-900 dark:text-slate-200 font-mono focus:outline-none focus:border-amber-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-slate-600 dark:text-slate-400 mb-1">File Format / Spec</label>
+                    <input
+                      type="text"
+                      value={editFormat}
+                      onChange={(e) => setEditFormat(e.target.value)}
+                      className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-slate-900 dark:text-slate-200 focus:outline-none focus:border-amber-500"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-slate-600 dark:text-slate-400 mb-1">Description</label>
+                  <textarea
+                    rows={3}
+                    placeholder="Describe your digital goods..."
+                    value={editDesc}
+                    onChange={(e) => setEditDesc(e.target.value)}
+                    className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-slate-900 dark:text-slate-200 focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-600 dark:text-slate-400 mb-1">Preview Image URL (HTTPS / IPFS)</label>
+                  <input
+                    type="url"
+                    placeholder="https://..."
+                    value={editPreviewUrl}
+                    onChange={(e) => setEditPreviewUrl(e.target.value)}
+                    className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-slate-900 dark:text-slate-200 focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between pt-1">
+                  <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-700 dark:text-slate-300">
+                    <input
+                      type="checkbox"
+                      checked={editFeatured}
+                      onChange={(e) => setEditFeatured(e.target.checked)}
+                      className="rounded border-slate-300 text-amber-500 focus:ring-amber-500 w-4 h-4"
+                    />
+                    <span>Feature this product on storefront top banner</span>
+                  </label>
+                </div>
+
+                <div className="flex justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
+                  <button
+                    type="button"
+                    onClick={() => setShowEditModal(false)}
+                    className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isUpdatingProduct}
+                    className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition-all shadow-md shadow-amber-500/20 flex items-center gap-1.5"
+                  >
+                    {isUpdatingProduct ? (
+                      <span>Saving...</span>
+                    ) : (
+                      <>
+                        <Check className="w-4 h-4" />
+                        <span>Save Changes</span>
+                      </>
+                    )}
+                  </button>
+                </div>
               </form>
             </div>
           </div>

@@ -50,7 +50,10 @@ interface CreatorProfileProps {
   posts: Post[];
   products: Product[];
   onAddProduct: (prod: Product) => void;
+  onUpdateProduct?: (prod: Product) => void;
+  onDeleteProduct?: (prodId: string) => void;
   onPostUpdated: (post: Post, meta?: { tipAmount?: number; signature?: string }) => void;
+  onPostDeleted?: (postId: string) => void;
   onOpenVerifyModal?: (tab?: 'card_auth' | 'video_liveness' | 'id_upload') => void;
   onTransactionRecorded?: (tx: TransactionRecord) => void;
   onUpdateCreator?: (updatedCreator: User) => Promise<{ success: boolean; error?: string } | void> | void;
@@ -62,7 +65,10 @@ export const CreatorProfile: React.FC<CreatorProfileProps> = ({
   posts,
   products,
   onAddProduct,
+  onUpdateProduct,
+  onDeleteProduct,
   onPostUpdated,
+  onPostDeleted,
   onOpenVerifyModal,
   onTransactionRecorded,
   onUpdateCreator,
@@ -647,6 +653,8 @@ setInterval(() => {
           products={products}
           creatorHandle={creator.handle}
           onAddProduct={onAddProduct}
+          onUpdateProduct={onUpdateProduct}
+          onDeleteProduct={onDeleteProduct}
         />
       )}
 
@@ -895,6 +903,7 @@ setInterval(() => {
               key={post.id}
               post={post}
               onPostUpdated={onPostUpdated}
+              onPostDeleted={onPostDeleted}
             />
           ))}
         </div>

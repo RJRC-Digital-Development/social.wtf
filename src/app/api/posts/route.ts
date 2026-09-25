@@ -7,6 +7,8 @@ import {
   getPostsByAuthorAsync,
   getPostByIdAsync,
   savePostAsync,
+  updatePostAsync,
+  deletePostAsync,
   PostStoreUnavailableError,
 } from '../../../lib/data/postsStore.ts';
 import { getProfileByWalletAsync } from '../../../lib/data/profileStore.ts';
@@ -349,6 +351,184 @@ export async function POST(req: Request) {
     }
     return NextResponse.json(
       { error: 'Failed to persist post', code: 'POST_PERSIST_ERROR' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PUT(req: Request) {
+  return handleUpdatePost(req);
+}
+
+export async function PATCH(req: Request) {
+  return handleUpdatePost(req);
+}
+
+async function handleUpdatePost(req: Request) {
+  const ip = getClientIp(req);
+
+  // Rate limiting: 20 updates per minute per IP
+  const rateCheck = await globalRateLimiter.checkAsync(`post:update:${ip}`, 20, 60_000);
+  if (!rateCheck.allowed) {
+    return NextResponse.json(
+      { error: 'Rate limit exceeded. Please wait a moment.' },
+      { status: 429 }
+    );
+  }
+
+  // Authorization: Must be authenticated via SIWS
+  const sessionResult = await validateRequestSessionAsync(req);
+  if (!sessionResult.authenticated) {
+    return NextResponse.json(
+      { error: sessionResult.reason || 'Authentication required.', code: 'AUTH_REQUIRED' },
+      { status: 401 }
+    );
+  }
+
+  const walletAddress = sessionResult.payload.walletAddress || sessionResult.payload.accountId;
+  const body = await req.json().catch(() => ({}));
+  const postId = body.id || body.postId;
+
+  if (!postId || typeof postId !== 'string') {
+    return NextResponse.json(
+      { error: 'Post ID is required.', code: 'POST_ID_REQUIRED' },
+      { status: 400 }
+    );
+  }
+
+  const content = body.content !== undefined ? sanitizeString(body.content || '', 2000) : undefined;
+  if (content !== undefined && !content.trim()) {
+    return NextResponse.json(
+      { error: 'Post content cannot be empty.', code: 'CONTENT_REQUIRED' },
+      { status: 400 }
+    );
+  }
+
+  let isShielded = body.isShielded;
+  let shieldCategory: ShieldClassification | undefined = undefined;
+  let shieldReason: string | undefined = undefined;
+
+  if (content) {
+    const classificationResult = classifyContent(content);
+    if (classificationResult.classification === 'rejected') {
+      return NextResponse.json(
+        { error: 'Edited content violates safety policy and was rejected.', code: 'PROHIBITED_CONTENT' },
+        { status: 400 }
+      );
+    }
+    const isServerSensitive = classificationResult.classification === 'sensitive';
+    const isClientShielded = Boolean(body.isShielded);
+    const isSensitive = isServerSensitive || isClientShielded;
+    const isUncertain = classificationResult.classification === 'uncertain';
+
+    if (isUncertain) {
+      isShielded = true;
+      shieldCategory = 'quarantined';
+      shieldReason = classificationResult.reason;
+    } else if (isSensitive) {
+      isShielded = true;
+      shieldCategory = 'age_restricted';
+    } else {
+      shieldCategory = 'safe';
+      isShielded = false;
+    }
+  }
+
+  try {
+    const updatedPost = await updatePostAsync(postId, walletAddress, {
+      content,
+      tags: Array.isArray(body.tags) ? body.tags.map((t: string) => sanitizeString(t, 50)) : undefined,
+      isShielded,
+      shieldCategory,
+      shieldReason,
+    });
+
+    return NextResponse.json({
+      success: true,
+      post: updatedPost,
+    });
+  } catch (err: any) {
+    if (err instanceof PostStoreUnavailableError || err?.code === 'POST_STORE_UNAVAILABLE') {
+      return NextResponse.json(
+        { error: 'Post service temporarily unavailable', code: 'POST_STORE_UNAVAILABLE' },
+        { status: 503 }
+      );
+    }
+    if (err?.message?.includes('Unauthorized')) {
+      return NextResponse.json(
+        { error: err.message, code: 'UNAUTHORIZED' },
+        { status: 403 }
+      );
+    }
+    if (err?.message?.includes('not found')) {
+      return NextResponse.json(
+        { error: 'Post not found', code: 'POST_NOT_FOUND' },
+        { status: 404 }
+      );
+    }
+    return NextResponse.json(
+      { error: err?.message || 'Failed to update post', code: 'POST_UPDATE_ERROR' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(req: Request) {
+  // Authorization: Must be authenticated
+  const sessionResult = await validateRequestSessionAsync(req);
+  if (!sessionResult.authenticated) {
+    return NextResponse.json(
+      { error: sessionResult.reason || 'Authentication required.', code: 'AUTH_REQUIRED' },
+      { status: 401 }
+    );
+  }
+
+  const walletAddress = sessionResult.payload.walletAddress || sessionResult.payload.accountId;
+  const isAdmin = sessionResult.payload.scope === 'admin';
+
+  const url = new URL(req.url);
+  let postId = url.searchParams.get('id') || url.searchParams.get('postId');
+
+  if (!postId) {
+    const body = await req.json().catch(() => ({}));
+    postId = body.id || body.postId;
+  }
+
+  if (!postId || typeof postId !== 'string') {
+    return NextResponse.json(
+      { error: 'Post ID is required.', code: 'POST_ID_REQUIRED' },
+      { status: 400 }
+    );
+  }
+
+  try {
+    const deleted = await deletePostAsync(postId, walletAddress, isAdmin);
+    if (!deleted) {
+      return NextResponse.json(
+        { error: 'Post not found or already deleted', code: 'POST_NOT_FOUND' },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      deletedId: postId,
+    });
+  } catch (err: any) {
+    if (err instanceof PostStoreUnavailableError || err?.code === 'POST_STORE_UNAVAILABLE') {
+      return NextResponse.json(
+        { error: 'Post service temporarily unavailable', code: 'POST_STORE_UNAVAILABLE' },
+        { status: 503 }
+      );
+    }
+    if (err?.message?.includes('Unauthorized')) {
+      return NextResponse.json(
+        { error: err.message, code: 'UNAUTHORIZED' },
+        { status: 403 }
+      );
+    }
+    return NextResponse.json(
+      { error: err?.message || 'Failed to delete post', code: 'POST_DELETE_ERROR' },
       { status: 500 }
     );
   }

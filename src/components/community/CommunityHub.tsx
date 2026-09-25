@@ -29,6 +29,10 @@ import {
   Share2,
   Gift,
   Heart,
+  Edit3,
+  Trash2,
+  X,
+  AlertCircle,
 } from 'lucide-react';
 
 interface CommunityHubProps {
@@ -52,6 +56,18 @@ export const CommunityHub: React.FC<CommunityHubProps> = ({
   const [expandedTopicId, setExpandedTopicId] = useState<string | null>('disc-1');
   const [newReplyText, setNewReplyText] = useState<{ [key: string]: string }>({});
 
+  // Topic Edit State
+  const [showEditTopicModal, setShowEditTopicModal] = useState(false);
+  const [editingTopic, setEditingTopic] = useState<DiscussionTopic | null>(null);
+  const [editTopicTitle, setEditTopicTitle] = useState('');
+  const [editTopicCategory, setEditTopicCategory] = useState<DiscussionCategory>('wishlist');
+  const [editTopicContent, setEditTopicContent] = useState('');
+  const [editTopicTags, setEditTopicTags] = useState('');
+
+  // Reply Edit State
+  const [editingReplyId, setEditingReplyId] = useState<string | null>(null);
+  const [editReplyText, setEditReplyText] = useState('');
+
   // New Topic Modal State
   const [newTopicModalOpen, setNewTopicModalOpen] = useState(false);
   const [newTitle, setNewTitle] = useState('');
@@ -60,11 +76,18 @@ export const CommunityHub: React.FC<CommunityHubProps> = ({
   const [newTags, setNewTags] = useState('');
 
   // Wiki State
-  const [wikiArticles] = useState<WikiArticle[]>(INITIAL_WIKI_ARTICLES);
+  const [wikiArticles, setWikiArticles] = useState<WikiArticle[]>(INITIAL_WIKI_ARTICLES);
   const [wikiFilter, setWikiFilter] = useState<string>('all');
   const [wikiSearch, setWikiSearch] = useState('');
   const [selectedArticle, setSelectedArticle] = useState<WikiArticle | null>(INITIAL_WIKI_ARTICLES[0]);
   const [copiedCodeSnippet, setCopiedCodeSnippet] = useState(false);
+
+  // Wiki Edit State
+  const [showEditWikiModal, setShowEditWikiModal] = useState(false);
+  const [editingWikiArticle, setEditingWikiArticle] = useState<WikiArticle | null>(null);
+  const [editWikiTitle, setEditWikiTitle] = useState('');
+  const [editWikiSummary, setEditWikiSummary] = useState('');
+  const [editWikiContent, setEditWikiContent] = useState('');
 
   // Upvote handler
   const handleUpvote = (topicId: string) => {
@@ -165,6 +188,120 @@ export const CommunityHub: React.FC<CommunityHubProps> = ({
     );
 
     setNewReplyText((prev) => ({ ...prev, [topicId]: '' }));
+  };
+
+  // Topic Edit handlers
+  const handleOpenEditTopic = (topic: DiscussionTopic) => {
+    setEditingTopic(topic);
+    setEditTopicTitle(topic.title);
+    setEditTopicCategory(topic.category);
+    setEditTopicContent(topic.content);
+    setEditTopicTags(topic.tags.join(', '));
+    setShowEditTopicModal(true);
+  };
+
+  const handleSaveEditTopic = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingTopic || !editTopicTitle.trim() || !editTopicContent.trim()) return;
+
+    const parsedTags = editTopicTags
+      .split(',')
+      .map((t) => t.trim().replace(/^#+/, ''))
+      .filter((t) => t.length > 0);
+
+    setDiscussions((prev) =>
+      prev.map((t) =>
+        t.id === editingTopic.id
+          ? {
+              ...t,
+              title: editTopicTitle.trim(),
+              category: editTopicCategory,
+              content: editTopicContent.trim(),
+              tags: parsedTags.length > 0 ? parsedTags : t.tags,
+            }
+          : t
+      )
+    );
+
+    setShowEditTopicModal(false);
+    setEditingTopic(null);
+  };
+
+  const handleDeleteTopic = (topicId: string) => {
+    if (!confirm('Are you sure you want to delete this discussion topic?')) return;
+    setDiscussions((prev) => prev.filter((t) => t.id !== topicId));
+  };
+
+  // Reply Edit handlers
+  const handleStartEditReply = (reply: DiscussionReply) => {
+    setEditingReplyId(reply.id);
+    setEditReplyText(reply.content);
+  };
+
+  const handleSaveEditReply = (topicId: string, replyId: string) => {
+    if (!editReplyText.trim()) return;
+
+    setDiscussions((prev) =>
+      prev.map((t) => {
+        if (t.id === topicId) {
+          const updatedReplies = (t.replies || []).map((r) =>
+            r.id === replyId ? { ...r, content: editReplyText.trim() } : r
+          );
+          return { ...t, replies: updatedReplies };
+        }
+        return t;
+      })
+    );
+
+    setEditingReplyId(null);
+    setEditReplyText('');
+  };
+
+  const handleDeleteReply = (topicId: string, replyId: string) => {
+    if (!confirm('Are you sure you want to delete this reply?')) return;
+
+    setDiscussions((prev) =>
+      prev.map((t) => {
+        if (t.id === topicId) {
+          const updatedReplies = (t.replies || []).filter((r) => r.id !== replyId);
+          return { ...t, replies: updatedReplies, repliesCount: updatedReplies.length };
+        }
+        return t;
+      })
+    );
+  };
+
+  // Wiki Edit handlers
+  const handleOpenEditWiki = (article: WikiArticle) => {
+    setEditingWikiArticle(article);
+    setEditWikiTitle(article.title);
+    setEditWikiSummary(article.summary);
+    setEditWikiContent(article.content);
+    setShowEditWikiModal(true);
+  };
+
+  const handleSaveEditWiki = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingWikiArticle || !editWikiTitle.trim()) return;
+
+    const updated: WikiArticle = {
+      ...editingWikiArticle,
+      title: editWikiTitle.trim(),
+      summary: editWikiSummary.trim(),
+      content: editWikiContent.trim(),
+      lastUpdated: 'Just now',
+    };
+
+    setWikiArticles((prev) =>
+      prev.map((a) => (a.id === editingWikiArticle.id ? updated : a))
+    );
+
+    if (selectedArticle?.id === editingWikiArticle.id) {
+      setSelectedArticle(updated);
+    }
+
+    setShowEditWikiModal(false);
+    setEditingWikiArticle(null);
   };
 
   // Filtered discussions
@@ -367,18 +504,41 @@ export const CommunityHub: React.FC<CommunityHubProps> = ({
                       <span className="text-[11px] text-slate-500 dark:text-slate-400">{topic.createdAt}</span>
                     </div>
 
-                    {/* Upvote Button */}
-                    <button
-                      onClick={() => handleUpvote(topic.id)}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                        isUpvoted
-                          ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
-                          : 'bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-amber-400 dark:hover:border-amber-500/40 hover:text-amber-700 dark:hover:text-amber-300'
-                      }`}
-                    >
-                      <ThumbsUp className={`w-3.5 h-3.5 ${isUpvoted ? 'fill-slate-950' : ''}`} />
-                      <span>{topic.upvotes}</span>
-                    </button>
+                    <div className="flex items-center gap-1.5">
+                      {(topic.author.handle === 'you' || topic.author.name.includes('You')) && (
+                        <div className="flex items-center gap-1 mr-1">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEditTopic(topic)}
+                            title="Edit Topic"
+                            className="p-1 rounded-lg bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-amber-500 dark:hover:text-amber-400 hover:border-amber-500/40 transition-colors"
+                          >
+                            <Edit3 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteTopic(topic.id)}
+                            title="Delete Topic"
+                            className="p-1 rounded-lg bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-rose-500 dark:hover:text-rose-400 hover:border-rose-500/40 transition-colors"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Upvote Button */}
+                      <button
+                        onClick={() => handleUpvote(topic.id)}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                          isUpvoted
+                            ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
+                            : 'bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-amber-400 dark:hover:border-amber-500/40 hover:text-amber-700 dark:hover:text-amber-300'
+                        }`}
+                      >
+                        <ThumbsUp className={`w-3.5 h-3.5 ${isUpvoted ? 'fill-slate-950' : ''}`} />
+                        <span>{topic.upvotes}</span>
+                      </button>
+                    </div>
                   </div>
 
                   {/* Topic Title */}
@@ -447,28 +607,83 @@ export const CommunityHub: React.FC<CommunityHubProps> = ({
                     <div className="space-y-3 pt-2 animate-fade-in">
                       {/* Replies List */}
                       {topic.replies && topic.replies.length > 0 && (
-                        <div className="space-y-2.5 pl-3 border-l-2 border-slate-800">
-                          {topic.replies.map((rep) => (
-                            <div key={rep.id} className="p-3 rounded-2xl bg-slate-900/80 border border-slate-800 space-y-1.5">
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                  <img
-                                    src={rep.author.avatar}
-                                    alt={rep.author.name}
-                                    className="w-5 h-5 rounded-full object-cover"
-                                  />
-                                  <span className="font-bold text-xs text-slate-200">{rep.author.name}</span>
-                                  {rep.author.badge && (
-                                    <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/10 text-amber-300 border border-amber-500/30">
-                                      {rep.author.badge}
-                                    </span>
-                                  )}
+                        <div className="space-y-2.5 pl-3 border-l-2 border-slate-200 dark:border-slate-800">
+                          {topic.replies.map((rep) => {
+                            const isRepAuthor = rep.author.handle === 'you' || rep.author.name === 'You';
+                            const isEditingThisRep = editingReplyId === rep.id;
+
+                            return (
+                              <div key={rep.id} className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 space-y-1.5 group">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-2">
+                                    <img
+                                      src={rep.author.avatar}
+                                      alt={rep.author.name}
+                                      className="w-5 h-5 rounded-full object-cover"
+                                    />
+                                    <span className="font-bold text-xs text-slate-900 dark:text-slate-200">{rep.author.name}</span>
+                                    {rep.author.badge && (
+                                      <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/30">
+                                        {rep.author.badge}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-[10px] text-slate-500">{rep.createdAt}</span>
+                                    {isRepAuthor && !isEditingThisRep && (
+                                      <div className="flex items-center gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
+                                        <button
+                                          type="button"
+                                          onClick={() => handleStartEditReply(rep)}
+                                          className="text-slate-400 hover:text-amber-500 p-0.5"
+                                          title="Edit reply"
+                                        >
+                                          <Edit3 className="w-3 h-3" />
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleDeleteReply(topic.id, rep.id)}
+                                          className="text-slate-400 hover:text-rose-500 p-0.5"
+                                          title="Delete reply"
+                                        >
+                                          <Trash2 className="w-3 h-3" />
+                                        </button>
+                                      </div>
+                                    )}
+                                  </div>
                                 </div>
-                                <span className="text-[10px] text-slate-500">{rep.createdAt}</span>
+
+                                {isEditingThisRep ? (
+                                  <div className="space-y-2 mt-1">
+                                    <input
+                                      type="text"
+                                      value={editReplyText}
+                                      onChange={(e) => setEditReplyText(e.target.value)}
+                                      className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-amber-500"
+                                    />
+                                    <div className="flex justify-end gap-1.5">
+                                      <button
+                                        type="button"
+                                        onClick={() => setEditingReplyId(null)}
+                                        className="px-2 py-0.5 rounded text-[10px] text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+                                      >
+                                        Cancel
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleSaveEditReply(topic.id, rep.id)}
+                                        className="px-2.5 py-0.5 rounded bg-amber-500 text-slate-950 text-[10px] font-bold hover:bg-amber-400"
+                                      >
+                                        Save
+                                      </button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed pl-7">{rep.content}</p>
+                                )}
                               </div>
-                              <p className="text-xs text-slate-300 leading-relaxed pl-7">{rep.content}</p>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       )}
 
@@ -484,7 +699,7 @@ export const CommunityHub: React.FC<CommunityHubProps> = ({
                           onChange={(e) =>
                             setNewReplyText({ ...newReplyText, [topic.id]: e.target.value })
                           }
-                          className="flex-1 bg-slate-900 border border-slate-700/80 rounded-xl px-3 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-amber-400"
+                          className="flex-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700/80 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-amber-400"
                         />
                         <button
                           type="submit"
@@ -593,17 +808,28 @@ export const CommunityHub: React.FC<CommunityHubProps> = ({
                       <span>{selectedArticle.lastUpdated}</span>
                     </div>
 
-                    <button
-                      onClick={() => {
-                        navigator.clipboard.writeText(window.location.href);
-                        setCopiedCodeSnippet(true);
-                        setTimeout(() => setCopiedCodeSnippet(false), 2000);
-                      }}
-                      className="text-xs text-slate-400 hover:text-amber-300 flex items-center gap-1 transition-colors"
-                    >
-                      {copiedCodeSnippet ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Share2 className="w-3.5 h-3.5" />}
-                      <span>{copiedCodeSnippet ? 'Link Copied' : 'Share Article'}</span>
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleOpenEditWiki(selectedArticle)}
+                        className="text-xs text-slate-400 hover:text-amber-300 flex items-center gap-1 transition-colors px-2 py-1 rounded-lg hover:bg-slate-800"
+                        title="Edit Wiki Article"
+                      >
+                        <Edit3 className="w-3.5 h-3.5" />
+                        <span>Edit Article</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(window.location.href);
+                          setCopiedCodeSnippet(true);
+                          setTimeout(() => setCopiedCodeSnippet(false), 2000);
+                        }}
+                        className="text-xs text-slate-400 hover:text-amber-300 flex items-center gap-1 transition-colors px-2 py-1 rounded-lg hover:bg-slate-800"
+                      >
+                        {copiedCodeSnippet ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Share2 className="w-3.5 h-3.5" />}
+                        <span>{copiedCodeSnippet ? 'Link Copied' : 'Share Article'}</span>
+                      </button>
+                    </div>
                   </div>
 
                   <h1 className="text-xl font-bold text-slate-100 leading-tight">
@@ -658,7 +884,7 @@ export const CommunityHub: React.FC<CommunityHubProps> = ({
                 onClick={() => setNewTopicModalOpen(false)}
                 className="p-1 rounded-lg text-slate-400 hover:text-white"
               >
-                
+                <X className="w-5 h-5" />
               </button>
             </div>
 
@@ -726,6 +952,182 @@ export const CommunityHub: React.FC<CommunityHubProps> = ({
                   className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 font-bold hover:brightness-110 active:scale-95 disabled:opacity-40 transition-all shadow-md shadow-amber-500/20"
                 >
                   Publish Proposal
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: EDIT TOPIC */}
+      {showEditTopicModal && editingTopic && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+          <div className="relative w-full max-w-lg bg-[#0d1527] border border-slate-700 rounded-3xl p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-xl bg-amber-500/20 text-amber-400">
+                  <Edit3 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-100 text-sm">Edit Discussion Topic</h3>
+                  <p className="text-[11px] text-slate-400">Update your community topic or proposal</p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setShowEditTopicModal(false);
+                  setEditingTopic(null);
+                }}
+                className="p-1 rounded-lg text-slate-400 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEditTopic} className="space-y-3 text-xs">
+              <div>
+                <label className="text-slate-300 font-medium block mb-1">Category</label>
+                <select
+                  value={editTopicCategory}
+                  onChange={(e) => setEditTopicCategory(e.target.value as DiscussionCategory)}
+                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-amber-400"
+                >
+                  <option value="sponsorship">Sponsorship &amp; Grants Proposal</option>
+                  <option value="wishlist">Feature Wishlist / Inspired Addition</option>
+                  <option value="idea">Creator Idea &amp; Feedback</option>
+                  <option value="dev_support">Creator &amp; Dev Support</option>
+                  <option value="news">Ecosystem News Alpha</option>
+                  <option value="update">Changelog / Platform Update</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-slate-300 font-medium block mb-1">Topic Title</label>
+                <input
+                  type="text"
+                  value={editTopicTitle}
+                  onChange={(e) => setEditTopicTitle(e.target.value)}
+                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-amber-400"
+                />
+              </div>
+
+              <div>
+                <label className="text-slate-300 font-medium block mb-1">Description &amp; Details</label>
+                <textarea
+                  rows={4}
+                  value={editTopicContent}
+                  onChange={(e) => setEditTopicContent(e.target.value)}
+                  className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-slate-200 focus:outline-none focus:border-amber-400 resize-none"
+                />
+              </div>
+
+              <div>
+                <label className="text-slate-300 font-medium block mb-1">Tags (Comma-separated)</label>
+                <input
+                  type="text"
+                  value={editTopicTags}
+                  onChange={(e) => setEditTopicTags(e.target.value)}
+                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-amber-400 font-mono"
+                />
+              </div>
+
+              <div className="pt-2 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowEditTopicModal(false);
+                    setEditingTopic(null);
+                  }}
+                  className="flex-1 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={!editTopicTitle.trim() || !editTopicContent.trim()}
+                  className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 font-bold hover:brightness-110 active:scale-95 disabled:opacity-40 transition-all shadow-md shadow-amber-500/20"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: EDIT WIKI ARTICLE */}
+      {showEditWikiModal && editingWikiArticle && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+          <div className="relative w-full max-w-2xl bg-[#0d1527] border border-slate-700 rounded-3xl p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-xl bg-amber-500/20 text-amber-400">
+                  <BookOpen className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-100 text-sm">Edit Wiki Article</h3>
+                  <p className="text-[11px] text-slate-400">Update documentation guide and resources</p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setShowEditWikiModal(false);
+                  setEditingWikiArticle(null);
+                }}
+                className="p-1 rounded-lg text-slate-400 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEditWiki} className="space-y-3 text-xs">
+              <div>
+                <label className="text-slate-300 font-medium block mb-1">Article Title</label>
+                <input
+                  type="text"
+                  value={editWikiTitle}
+                  onChange={(e) => setEditWikiTitle(e.target.value)}
+                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-amber-400"
+                />
+              </div>
+
+              <div>
+                <label className="text-slate-300 font-medium block mb-1">Summary</label>
+                <input
+                  type="text"
+                  value={editWikiSummary}
+                  onChange={(e) => setEditWikiSummary(e.target.value)}
+                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-amber-400"
+                />
+              </div>
+
+              <div>
+                <label className="text-slate-300 font-medium block mb-1">Full Article Content (Markdown / Text)</label>
+                <textarea
+                  rows={8}
+                  value={editWikiContent}
+                  onChange={(e) => setEditWikiContent(e.target.value)}
+                  className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-slate-200 focus:outline-none focus:border-amber-400 resize-none font-mono text-xs"
+                />
+              </div>
+
+              <div className="pt-2 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowEditWikiModal(false);
+                    setEditingWikiArticle(null);
+                  }}
+                  className="flex-1 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={!editWikiTitle.trim() || !editWikiContent.trim()}
+                  className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 font-bold hover:brightness-110 active:scale-95 disabled:opacity-40 transition-all shadow-md shadow-amber-500/20"
+                >
+                  Save Article
                 </button>
               </div>
             </form>

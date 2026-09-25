@@ -3,6 +3,8 @@ import {
   getAllProductsAsync,
   getProductsByCreatorAsync,
   saveProductAsync,
+  updateProductAsync,
+  deleteProductAsync,
 } from '../../../lib/data/productsStore.ts';
 import {
   getFriendsListAsync,
@@ -121,6 +123,124 @@ export async function POST(req: Request) {
   } catch {
     return NextResponse.json(
       { error: 'Internal server error processing product listing' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PUT(req: Request) {
+  return handleUpdateProduct(req);
+}
+
+export async function PATCH(req: Request) {
+  return handleUpdateProduct(req);
+}
+
+async function handleUpdateProduct(req: Request) {
+  try {
+    const ip = getClientIp(req);
+    const rateCheck = await globalRateLimiter.checkAsync(`product_update:${ip}`, 30, 60_000);
+    if (!rateCheck.allowed) {
+      return NextResponse.json(
+        { error: 'Rate limit exceeded. Please wait before updating products.' },
+        { status: 429 }
+      );
+    }
+
+    const auth = await validateRequestSessionAsync(req);
+    if (!auth.authenticated) {
+      return NextResponse.json(
+        { error: 'Authentication required to edit products', code: 'AUTH_REQUIRED' },
+        { status: 401 }
+      );
+    }
+
+    const authenticatedWallet = auth.payload.walletAddress || auth.payload.accountId;
+    const body = await req.json().catch(() => ({}));
+    const productId = body.id || body.productId;
+
+    if (!productId || typeof productId !== 'string') {
+      return NextResponse.json(
+        { error: 'Product ID is required', code: 'PRODUCT_ID_REQUIRED' },
+        { status: 400 }
+      );
+    }
+
+    const result = await updateProductAsync(productId, authenticatedWallet, body);
+
+    if (!result.success) {
+      const isServiceUnavailable = result.error?.toLowerCase().includes('unavailable');
+      const isUnauthorized = result.error?.toLowerCase().includes('unauthorized');
+      const isNotFound = result.error?.toLowerCase().includes('not found');
+      const status = isServiceUnavailable ? 503 : isUnauthorized ? 403 : isNotFound ? 404 : 400;
+
+      return NextResponse.json(
+        { error: result.error || 'Failed to update product' },
+        { status }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      product: result.product,
+    });
+  } catch {
+    return NextResponse.json(
+      { error: 'Internal server error processing product update' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(req: Request) {
+  try {
+    const auth = await validateRequestSessionAsync(req);
+    if (!auth.authenticated) {
+      return NextResponse.json(
+        { error: 'Authentication required to delete products', code: 'AUTH_REQUIRED' },
+        { status: 401 }
+      );
+    }
+
+    const authenticatedWallet = auth.payload.walletAddress || auth.payload.accountId;
+    const isAdmin = auth.payload.scope === 'admin';
+
+    const url = new URL(req.url);
+    let productId = url.searchParams.get('id') || url.searchParams.get('productId');
+
+    if (!productId) {
+      const body = await req.json().catch(() => ({}));
+      productId = body.id || body.productId;
+    }
+
+    if (!productId || typeof productId !== 'string') {
+      return NextResponse.json(
+        { error: 'Product ID is required', code: 'PRODUCT_ID_REQUIRED' },
+        { status: 400 }
+      );
+    }
+
+    const result = await deleteProductAsync(productId, authenticatedWallet, isAdmin);
+
+    if (!result.success) {
+      const isServiceUnavailable = result.error?.toLowerCase().includes('unavailable');
+      const isUnauthorized = result.error?.toLowerCase().includes('unauthorized');
+      const isNotFound = result.error?.toLowerCase().includes('not found');
+      const status = isServiceUnavailable ? 503 : isUnauthorized ? 403 : isNotFound ? 404 : 400;
+
+      return NextResponse.json(
+        { error: result.error || 'Failed to delete product' },
+        { status }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      deletedId: productId,
+    });
+  } catch {
+    return NextResponse.json(
+      { error: 'Internal server error processing product deletion' },
       { status: 500 }
     );
   }

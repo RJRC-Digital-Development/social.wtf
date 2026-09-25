@@ -321,6 +321,18 @@ export default function Home() {
     }));
   };
 
+  const handlePostDeleted = (postId: string) => {
+    setPosts((prev) => prev.filter((p) => p.id !== postId));
+  };
+
+  const handleProductUpdated = (updatedProd: Product) => {
+    setProducts((prev) => prev.map((p) => (p.id === updatedProd.id ? updatedProd : p)));
+  };
+
+  const handleProductDeleted = (productId: string) => {
+    setProducts((prev) => prev.filter((p) => p.id !== productId));
+  };
+
   const handleAddProduct = (newProd: Product) => {
     setProducts((prev) => {
       if (prev.some((p) => p.id === newProd.id)) return prev;
@@ -568,6 +580,7 @@ export default function Home() {
                 posts={posts}
                 onPostCreated={handlePostCreated}
                 onPostUpdated={handlePostUpdated}
+                onPostDeleted={handlePostDeleted}
                 onOpenStore={handleOpenStore}
                 onOpenVerifyModal={(tab) => {
                   setVerifyTab(tab || 'video_liveness');
@@ -580,6 +593,8 @@ export default function Home() {
               <Storefront
                 products={products}
                 onAddProduct={handleAddProduct}
+                onUpdateProduct={handleProductUpdated}
+                onDeleteProduct={handleProductDeleted}
                 onPurchaseCompleted={handleProductPurchased}
                 onOpenVerifyModal={(tab) => {
                   setVerifyTab(tab || 'card_auth');
@@ -594,7 +609,10 @@ export default function Home() {
                 posts={posts}
                 products={products}
                 onAddProduct={handleAddProduct}
+                onUpdateProduct={handleProductUpdated}
+                onDeleteProduct={handleProductDeleted}
                 onPostUpdated={handlePostUpdated}
+                onPostDeleted={handlePostDeleted}
                 onOpenVerifyModal={(tab) => {
                   setVerifyTab(tab || 'card_auth');
                   setVerifyModalOpen(true);

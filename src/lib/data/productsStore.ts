@@ -678,6 +678,182 @@ export async function getProductByIdAsync(
 }
 
 /**
+ * Authoritative Asynchronous Product Update
+ */
+export async function updateProductAsync(
+  productId: string,
+  authenticatedWallet: string,
+  input: Partial<CreateProductInput>
+): Promise<{ success: boolean; product?: Product; error?: string }> {
+  if (!productId || typeof productId !== 'string') {
+    return { success: false, error: 'Valid product ID is required' };
+  }
+  if (!authenticatedWallet || typeof authenticatedWallet !== 'string') {
+    return { success: false, error: 'Valid authenticated wallet is required' };
+  }
+
+  const lookup = await getProductByIdAsync(productId);
+  if (!lookup.success || !lookup.product) {
+    return { success: false, error: lookup.error || 'Product not found' };
+  }
+
+  const existing = lookup.product;
+
+  const canonicalCreator = await resolveCanonicalIdentityAsync(existing.creatorWallet);
+  const canonicalUpdater = await resolveCanonicalIdentityAsync(authenticatedWallet);
+
+  if (canonicalCreator !== canonicalUpdater && existing.creatorWallet !== authenticatedWallet) {
+    return { success: false, error: 'Unauthorized: You can only edit your own products' };
+  }
+
+  const updatedTitle = typeof input.title === 'string' && input.title.trim().length >= 3
+    ? sanitizeString(input.title.trim(), 100)
+    : existing.title;
+
+  let updatedPrice = existing.priceCook;
+  if (typeof input.priceCook === 'number' && !isNaN(input.priceCook) && isFinite(input.priceCook) && input.priceCook >= 0 && input.priceCook <= 1_000_000) {
+    updatedPrice = Math.round(input.priceCook * 10000) / 10000;
+  }
+
+  let updatedCategory = existing.category;
+  if (typeof input.category === 'string' && VALID_PRODUCT_CATEGORIES.includes(input.category.toLowerCase() as ProductCategory)) {
+    updatedCategory = input.category.toLowerCase() as Product['category'];
+  }
+
+  const updatedDesc = typeof input.description === 'string'
+    ? sanitizeString(input.description.trim(), 2000)
+    : existing.description;
+
+  let updatedPreview = existing.previewUrl;
+  if (typeof input.previewUrl === 'string' && input.previewUrl.trim().length > 0) {
+    if (isValidProductUrl(input.previewUrl.trim())) {
+      updatedPreview = input.previewUrl.trim().slice(0, 500);
+    }
+  }
+
+  let updatedDownload = existing.downloadUrl;
+  if (typeof input.downloadUrl === 'string' && input.downloadUrl.trim().length > 0) {
+    if (isValidProductUrl(input.downloadUrl.trim())) {
+      updatedDownload = input.downloadUrl.trim().slice(0, 500);
+    }
+  }
+
+  const updatedFileSize = typeof input.fileSize === 'string' ? sanitizePlainText(input.fileSize, 50) : existing.fileSize;
+  const updatedFileFormat = typeof input.fileFormat === 'string' ? sanitizePlainText(input.fileFormat, 50) : existing.fileFormat;
+  const updatedCodeSnippet = typeof input.codeSnippet === 'string' ? sanitizeString(input.codeSnippet, 4000) : existing.codeSnippet;
+  const updatedFeatured = input.featured !== undefined ? Boolean(input.featured) : existing.featured;
+
+  const updatedProduct: Product = {
+    ...existing,
+    title: updatedTitle,
+    description: updatedDesc,
+    priceCook: updatedPrice,
+    category: updatedCategory,
+    previewUrl: updatedPreview,
+    downloadUrl: updatedDownload,
+    fileSize: updatedFileSize,
+    fileFormat: updatedFileFormat,
+    codeSnippet: updatedCodeSnippet,
+    featured: updatedFeatured,
+  };
+
+  if (distributedStore.isConfigured()) {
+    try {
+      const productKey = `${PRODUCT_PREFIX}${productId}`;
+      const written = await distributedStore.set(productKey, JSON.stringify(updatedProduct));
+      if (!written) {
+        return { success: false, error: 'Authoritative persistence service unavailable. Please retry.' };
+      }
+      productsCache.set(productId, updatedProduct);
+      return { success: true, product: updatedProduct };
+    } catch (err) {
+      console.error('[ProductsStore] Update failure:', err);
+      return { success: false, error: 'Authoritative product store is unavailable' };
+    }
+  }
+
+  if (process.env.NODE_ENV === 'production') {
+    return { success: false, error: 'Authoritative product store is unavailable' };
+  }
+
+  return acquireLocalLock(async () => {
+    ensureLocalInitialized();
+    productsCache.set(productId, updatedProduct);
+    saveToLocalDisk();
+    return { success: true, product: updatedProduct };
+  });
+}
+
+/**
+ * Authoritative Asynchronous Product Deletion
+ */
+export async function deleteProductAsync(
+  productId: string,
+  authenticatedWallet: string,
+  isAdmin: boolean = false
+): Promise<{ success: boolean; error?: string }> {
+  if (!productId || typeof productId !== 'string') {
+    return { success: false, error: 'Valid product ID is required' };
+  }
+  if (!authenticatedWallet || typeof authenticatedWallet !== 'string') {
+    return { success: false, error: 'Valid authenticated wallet is required' };
+  }
+
+  const lookup = await getProductByIdAsync(productId);
+  if (!lookup.success || !lookup.product) {
+    return { success: false, error: 'Product not found or already deleted' };
+  }
+
+  const existing = lookup.product;
+  const canonicalCreator = await resolveCanonicalIdentityAsync(existing.creatorWallet);
+  const canonicalCaller = await resolveCanonicalIdentityAsync(authenticatedWallet);
+
+  if (!isAdmin && canonicalCreator !== canonicalCaller && existing.creatorWallet !== authenticatedWallet) {
+    return { success: false, error: 'Unauthorized: You can only delete your own products' };
+  }
+
+  if (distributedStore.isConfigured()) {
+    const productKey = `${PRODUCT_PREFIX}${productId}`;
+    const creatorSetKey = `${CREATOR_PRODUCTS_SET_PREFIX}${canonicalCreator}`;
+
+    try {
+      await Promise.allSettled([
+        distributedStore.del(productKey),
+        distributedStore.srem(creatorSetKey, productId),
+        distributedStore.srem(DISTRIBUTED_PRODUCTS_SET_KEY, productId),
+        distributedStore.srem(`${CREATOR_PRODUCTS_SET_PREFIX}${existing.creatorWallet}`, productId),
+      ]);
+
+      productsCache.delete(productId);
+      const creatorSet = creatorProductsCache.get(canonicalCreator);
+      if (creatorSet) creatorSet.delete(productId);
+      const legacySet = creatorProductsCache.get(existing.creatorWallet);
+      if (legacySet) legacySet.delete(productId);
+
+      return { success: true };
+    } catch (err) {
+      console.error('[ProductsStore] Delete failure:', err);
+      return { success: false, error: 'Authoritative product store is unavailable' };
+    }
+  }
+
+  if (process.env.NODE_ENV === 'production') {
+    return { success: false, error: 'Authoritative product store is unavailable' };
+  }
+
+  return acquireLocalLock(async () => {
+    ensureLocalInitialized();
+    productsCache.delete(productId);
+    const creatorSet = creatorProductsCache.get(canonicalCreator);
+    if (creatorSet) creatorSet.delete(productId);
+    const legacySet = creatorProductsCache.get(existing.creatorWallet);
+    if (legacySet) legacySet.delete(productId);
+    saveToLocalDisk();
+    return { success: true };
+  });
+}
+
+/**
  * Synchronous wrapper for test fixtures
  */
 export function saveProduct(

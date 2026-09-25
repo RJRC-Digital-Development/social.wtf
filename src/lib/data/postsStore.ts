@@ -392,6 +392,145 @@ export async function quarantinePostAsync(postId: string, reason: string): Promi
 }
 
 /**
+ * Updates an existing post by ID
+ */
+export async function updatePostAsync(
+  postId: string,
+  updaterWallet: string,
+  updates: {
+    content?: string;
+    tags?: string[];
+    isShielded?: boolean;
+    shieldCategory?: ShieldClassification;
+    shieldReason?: string;
+  }
+): Promise<Post> {
+  if (!postId || typeof postId !== 'string') {
+    throw new Error('Invalid post ID');
+  }
+  if (!updaterWallet || typeof updaterWallet !== 'string') {
+    throw new Error('Authenticated updater wallet is required');
+  }
+
+  const existing = await getPostByIdAsync(postId);
+  if (!existing) {
+    throw new Error('Post not found');
+  }
+
+  const canonicalUpdater = await resolveCanonicalIdentityAsync(updaterWallet);
+  const canonicalAuthor = await resolveCanonicalIdentityAsync(existing.author.walletAddress);
+
+  if (canonicalUpdater !== canonicalAuthor && updaterWallet !== existing.author.walletAddress) {
+    throw new Error('Unauthorized: You can only edit your own posts');
+  }
+
+  const updatedContent = typeof updates.content === 'string'
+    ? sanitizeString(updates.content, 2000)
+    : existing.content;
+
+  const updatedTags = Array.isArray(updates.tags)
+    ? updates.tags.map((t) => sanitizeString(t, 50))
+    : existing.tags;
+
+  const updatedPost: Post = {
+    ...existing,
+    content: updatedContent,
+    tags: updatedTags,
+    isShielded: updates.isShielded !== undefined ? Boolean(updates.isShielded) : existing.isShielded,
+    shieldCategory: updates.shieldCategory || existing.shieldCategory,
+    shieldReason: updates.shieldReason !== undefined ? updates.shieldReason : existing.shieldReason,
+  };
+
+  const isProduction = process.env.NODE_ENV === 'production';
+
+  if (distributedStore.isConfigured()) {
+    const postKey = `${POST_PREFIX}${postId}`;
+    const setSuccess = await distributedStore.set(postKey, JSON.stringify(updatedPost));
+    if (!setSuccess) {
+      throw new PostStoreUnavailableError('Failed to persist post updates');
+    }
+    postsCache.set(postId, updatedPost);
+    return updatedPost;
+  }
+
+  if (isProduction) {
+    throw new PostStoreUnavailableError('Distributed post store is not configured in production environment');
+  }
+
+  return acquireLocalLock(async () => {
+    ensureLocalInitialized();
+    postsCache.set(postId, updatedPost);
+    flushToLocalDisk();
+    return updatedPost;
+  });
+}
+
+/**
+ * Deletes an existing post by ID
+ */
+export async function deletePostAsync(
+  postId: string,
+  callerWallet: string,
+  isAdmin: boolean = false
+): Promise<boolean> {
+  if (!postId || typeof postId !== 'string') {
+    throw new Error('Invalid post ID');
+  }
+  if (!callerWallet || typeof callerWallet !== 'string') {
+    throw new Error('Authenticated caller wallet is required');
+  }
+
+  const existing = await getPostByIdAsync(postId);
+  if (!existing) {
+    return false;
+  }
+
+  const canonicalCaller = await resolveCanonicalIdentityAsync(callerWallet);
+  const canonicalAuthor = await resolveCanonicalIdentityAsync(existing.author.walletAddress);
+
+  if (!isAdmin && canonicalCaller !== canonicalAuthor && callerWallet !== existing.author.walletAddress) {
+    throw new Error('Unauthorized: You can only delete your own posts');
+  }
+
+  const isProduction = process.env.NODE_ENV === 'production';
+
+  if (distributedStore.isConfigured()) {
+    const postKey = `${POST_PREFIX}${postId}`;
+    const authorKey = `${AUTHOR_POSTS_SET_PREFIX}${canonicalAuthor}`;
+
+    await Promise.allSettled([
+      distributedStore.del(postKey),
+      distributedStore.srem(DISTRIBUTED_POSTS_SET_KEY, postId),
+      distributedStore.srem(authorKey, postId),
+      distributedStore.srem(`${AUTHOR_POSTS_SET_PREFIX}${existing.author.walletAddress}`, postId),
+    ]);
+
+    postsCache.delete(postId);
+    const authorSet = authorPostsCache.get(canonicalAuthor);
+    if (authorSet) authorSet.delete(postId);
+    const legacySet = authorPostsCache.get(existing.author.walletAddress);
+    if (legacySet) legacySet.delete(postId);
+
+    return true;
+  }
+
+  if (isProduction) {
+    throw new PostStoreUnavailableError('Distributed post store is not configured in production environment');
+  }
+
+  return acquireLocalLock(async () => {
+    ensureLocalInitialized();
+    postsCache.delete(postId);
+    const authorSet = authorPostsCache.get(canonicalAuthor);
+    if (authorSet) authorSet.delete(postId);
+    const legacySet = authorPostsCache.get(existing.author.walletAddress);
+    if (legacySet) legacySet.delete(postId);
+    flushToLocalDisk();
+    return true;
+  });
+}
+
+/**
  * Test harness reset helper
  */
 export function clearPostsCacheForTests(): void {
@@ -416,6 +555,22 @@ export class PostsStore {
   }
   public async addPost(post: Post): Promise<Post> {
     return savePostAsync(post);
+  }
+  public async updatePost(
+    postId: string,
+    updaterWallet: string,
+    updates: {
+      content?: string;
+      tags?: string[];
+      isShielded?: boolean;
+      shieldCategory?: ShieldClassification;
+      shieldReason?: string;
+    }
+  ): Promise<Post> {
+    return updatePostAsync(postId, updaterWallet, updates);
+  }
+  public async deletePost(postId: string, callerWallet: string, isAdmin?: boolean): Promise<boolean> {
+    return deletePostAsync(postId, callerWallet, isAdmin);
   }
   public async quarantinePost(postId: string, reason: string): Promise<boolean> {
     return quarantinePostAsync(postId, reason);

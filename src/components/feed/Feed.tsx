@@ -24,6 +24,7 @@ interface FeedProps {
   onOpenStore?: (creatorHandle: string) => void;
   onPostCreated?: (newPost: Post) => void;
   onPostUpdated?: (updatedPost: Post, meta?: { tipAmount?: number; signature?: string }) => void;
+  onPostDeleted?: (postId: string) => void;
   onOpenVerifyModal?: (tab?: 'card_auth' | 'video_liveness' | 'id_upload') => void;
 }
 
@@ -35,6 +36,7 @@ export const Feed: React.FC<FeedProps> = ({
   onOpenStore,
   onPostCreated,
   onPostUpdated,
+  onPostDeleted,
   onOpenVerifyModal,
 }) => {
   const { filterFeedPosts, canAccessAdultContent, isVideoVerified, isAgeVerified, isIdVerified } = useShield();
@@ -308,6 +310,7 @@ export const Feed: React.FC<FeedProps> = ({
               post={post}
               onOpenStore={onOpenStore}
               onPostUpdated={onPostUpdated}
+              onPostDeleted={onPostDeleted}
             />
           ))
         )}
