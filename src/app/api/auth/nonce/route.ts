@@ -4,7 +4,7 @@ import { globalRateLimiter } from '../../../../lib/security/rateLimiter.ts';
 import { getClientIp } from '../../../../lib/security/ipHelper.ts';
 import { PublicKey } from '@solana/web3.js';
 
-async function handleNonceRequest(walletAddress: string | null, ip: string) {
+async function handleNonceRequest(walletAddress: string | null, ip: string, domainCandidate?: string | null) {
   // Distributed Rate Limit: 15 nonce requests per minute per IP
   const rateCheck = await globalRateLimiter.checkAsync(`nonce:${ip}`, 15, 60_000);
   if (!rateCheck.allowed) {
@@ -25,7 +25,8 @@ async function handleNonceRequest(walletAddress: string | null, ip: string) {
     return NextResponse.json({ error: 'Malformed Solana wallet public key' }, { status: 400 });
   }
 
-  const challenge = await generateAuthChallengeAsync(walletAddress);
+  const effectiveDomain = domainCandidate?.trim() || 'socialwtf.vercel.app';
+  const challenge = await generateAuthChallengeAsync(walletAddress, effectiveDomain);
   const message = formatChallengeMessage(challenge);
 
   return NextResponse.json({
@@ -40,7 +41,8 @@ export async function GET(req: Request) {
     const ip = getClientIp(req);
     const { searchParams } = new URL(req.url);
     const walletAddress = searchParams.get('walletAddress');
-    return await handleNonceRequest(walletAddress, ip);
+    const domain = searchParams.get('domain') || req.headers.get('host') || 'socialwtf.vercel.app';
+    return await handleNonceRequest(walletAddress, ip, domain);
   } catch {
     return NextResponse.json({ error: 'Failed to generate authentication challenge' }, { status: 500 });
   }
@@ -50,8 +52,10 @@ export async function POST(req: Request) {
   try {
     const ip = getClientIp(req);
     const body = await req.json().catch(() => ({}));
-    const { walletAddress } = body;
-    return await handleNonceRequest(walletAddress, ip);
+    const { walletAddress, domain } = body;
+    const reqHost = req.headers.get('host') || req.headers.get('x-forwarded-host') || 'socialwtf.vercel.app';
+    const effectiveDomain = domain || reqHost;
+    return await handleNonceRequest(walletAddress, ip, effectiveDomain);
   } catch {
     return NextResponse.json({ error: 'Failed to generate authentication challenge' }, { status: 500 });
   }

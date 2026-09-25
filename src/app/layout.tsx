@@ -7,6 +7,7 @@ import { Analytics } from '@vercel/analytics/next';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://socialwtf.vercel.app'),
   title: 'Social.wtf | Decentralized Social Ecosystem & Storefronts on Cookie Chain (SVM)',
   description:
     'Unified decentralized Web3 social ecosystem built on Cookie Chain featuring multi-format feeds, creator storefront mini-apps, automated 0.05% platform treasury fee splits, real-time AI multimodal content shielding, and privacy-first ephemeral age verification.',

@@ -608,10 +608,11 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
 
       // If not an account session or fallback needed, request direct SIWS sign-in challenge
       if (!isAccountSession || endpointType !== 'bind') {
+        const clientDomain = typeof window !== 'undefined' ? window.location.host : 'socialwtf.vercel.app';
         const nonceRes = await fetch('/api/auth/nonce', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ walletAddress: targetAddress }),
+          body: JSON.stringify({ walletAddress: targetAddress, domain: clientDomain }),
         });
 
         if (!nonceRes.ok) {

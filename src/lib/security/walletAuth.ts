@@ -41,12 +41,14 @@ export function clearActiveChallenges(): void {
   activeChallenges.clear();
 }
 
+export const DEFAULT_AUTH_DOMAIN = 'socialwtf.vercel.app';
+
 /**
  * Generate a secure cryptographic challenge message for a wallet to sign.
  */
 export function generateAuthChallenge(
   walletAddress: string,
-  domain: string = 'social.wtf'
+  domain: string = DEFAULT_AUTH_DOMAIN
 ): AuthChallenge {
   // Validate public key format
   new PublicKey(walletAddress);
@@ -68,11 +70,12 @@ export function generateAuthChallenge(
   const nonce = crypto.randomBytes(24).toString('hex');
   const expiresAt = now + NONCE_TTL_MS;
   const statement = 'Sign this message to authenticate your wallet identity and session on Social.wtf.';
+  const effectiveDomain = domain?.trim() || DEFAULT_AUTH_DOMAIN;
 
   const challenge: AuthChallenge = {
     nonce,
     walletAddress,
-    domain,
+    domain: effectiveDomain,
     statement,
     issuedAt: now,
     expiresAt,
@@ -92,7 +95,7 @@ export function generateAuthChallenge(
  */
 export async function generateAuthChallengeAsync(
   walletAddress: string,
-  domain: string = 'social.wtf'
+  domain: string = DEFAULT_AUTH_DOMAIN
 ): Promise<AuthChallenge> {
   const challenge = generateAuthChallenge(walletAddress, domain);
 
@@ -112,8 +115,9 @@ export async function generateAuthChallengeAsync(
  * Formats a challenge object into the canonical human-readable SIWS message format.
  */
 export function formatChallengeMessage(challenge: AuthChallenge): string {
+  const domain = challenge.domain || DEFAULT_AUTH_DOMAIN;
   return [
-    `${challenge.domain} wants you to sign in with your Solana account:`,
+    `${domain} wants you to sign in with your Solana account:`,
     `${challenge.walletAddress}`,
     '',
     `${challenge.statement}`,
@@ -157,12 +161,21 @@ export function verifyWalletChallenge({
   }
 
   try {
-    // 5. Reconstruct canonical message and variations
+    // 5. Reconstruct canonical message and cross-domain fallback variations
     const canonicalMsg = formatChallengeMessage(challenge);
+    const altDomain =
+      challenge.domain === 'socialwtf.vercel.app'
+        ? 'social.wtf'
+        : 'socialwtf.vercel.app';
+    const altMsg = formatChallengeMessage({ ...challenge, domain: altDomain });
+
     const msgVariations = [
       canonicalMsg.replace(/\r\n/g, '\n'),
       canonicalMsg.replace(/\n/g, '\r\n'),
       canonicalMsg,
+      altMsg.replace(/\r\n/g, '\n'),
+      altMsg.replace(/\n/g, '\r\n'),
+      altMsg,
     ];
 
     // 6. Decode public key and signature
