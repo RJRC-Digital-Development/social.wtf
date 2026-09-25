@@ -253,7 +253,7 @@ export function createSession(
     walletAddress,
     issuedAt: now,
     expiresAt: now + durationMs,
-    roles: scope === 'admin' ? ['ROLE_ADMIN', 'ROLE_USER'] : ['ROLE_USER'],
+    roles: scope === 'admin' ? ['ROLE_PLATFORM_OWNER', 'ROLE_ADMIN', 'ROLE_USER'] : ['ROLE_USER'],
     scope,
   };
 

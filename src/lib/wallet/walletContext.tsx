@@ -157,7 +157,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
   const [roles, setRoles] = useState<string[]>([]);
   const [capabilities, setCapabilities] = useState<string[]>([]);
 
-  const isOwner = sessionScope === 'admin';
+  const isOwner = sessionScope === 'admin' || roles.includes('ROLE_PLATFORM_OWNER') || roles.includes('ROLE_ADMIN');
 
   // Load persisted sessionToken from localStorage on mount
   useEffect(() => {

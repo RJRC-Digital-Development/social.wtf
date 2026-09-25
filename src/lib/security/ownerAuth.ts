@@ -37,9 +37,17 @@ export function isPlatformOwner(walletAddress: string): boolean {
   }
 
   const configuredOwner = getPlatformOwnerWallet();
-  if (!configuredOwner) {
-    return false;
+  if (configuredOwner && walletAddress.trim().toLowerCase() === configuredOwner.toLowerCase()) {
+    return true;
   }
 
-  return walletAddress.trim() === configuredOwner;
+  const raw = process.env.PLATFORM_OWNER_WALLET?.trim();
+  if (raw) {
+    const list = raw.split(',').map((w) => w.trim().toLowerCase());
+    if (list.includes(walletAddress.trim().toLowerCase())) {
+      return true;
+    }
+  }
+
+  return false;
 }

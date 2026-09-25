@@ -18,6 +18,7 @@ import {
   Bot,
   Sparkles,
   BookOpen,
+  ShieldAlert,
 } from 'lucide-react';
 
 interface NavbarProps {
@@ -40,7 +41,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenMyPage,
 }) => {
   const { isAdultContentUnlocked, unshieldedMode, toggleUnshieldedMode } = useShield();
-  const { connected, walletAddress } = useWallet();
+  const { connected, walletAddress, isOwner } = useWallet();
   const { theme, isNight, isDay, toggleTheme } = useTheme();
 
   const navItems = [
@@ -92,8 +93,18 @@ export const Navbar: React.FC<NavbarProps> = ({
           ))}
         </nav>
 
-        {/* Right: theme + wallet */}
+        {/* Right: theme + wallet + owner */}
         <div className="social-navbar-wallet flex items-center gap-2 shrink-0">
+          {isOwner && (
+            <Link
+              href="/owner"
+              className="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 border border-amber-500/30 transition-all flex items-center gap-1.5 shadow-sm"
+              title="Platform Owner Console"
+            >
+              <ShieldAlert className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Owner Console</span>
+            </Link>
+          )}
           <button
             onClick={toggleTheme}
             className="w-8 h-8 rounded-md flex items-center justify-center transition-colors"

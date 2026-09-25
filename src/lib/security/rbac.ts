@@ -1,8 +1,9 @@
 import crypto from 'crypto';
 import { distributedStore } from './distributedStore.ts';
-import { getAccountRolesAsync, verifyAccountPasswordByIdAsync } from '../data/accountStore.ts';
+import { getAccountRolesAsync, getAccountByIdAsync, getWalletBindingAsync, verifyAccountPasswordByIdAsync } from '../data/accountStore.ts';
 import { recordAuditLogAsync } from '../data/auditStore.ts';
 import { sessionRegistry } from './session.ts';
+import { getPlatformOwnerWallet, isPlatformOwner } from './ownerAuth.ts';
 import type { AccountRole } from '../../types/account.ts';
 
 const STEP_UP_CHALLENGE_PREFIX = 'stepup:challenge:';
@@ -123,14 +124,38 @@ export async function resolveEffectiveAuthorizationAsync(accountId: string): Pro
 }> {
   if (!accountId) throw new Error('ACCOUNT_ID_REQUIRED');
   const roleRecord = await getAccountRolesAsync(accountId);
-  let roles = roleRecord.roles;
-  if (roles.includes('ROLE_PLATFORM_OWNER')) {
-    const configuredOwnerId = process.env.PLATFORM_OWNER_ACCOUNT_ID?.trim() || '';
-    const ownerConfigurationMatches =
-      /^acc_[a-f0-9]{32}$/.test(configuredOwnerId) && configuredOwnerId === accountId;
-    if (!ownerConfigurationMatches) {
-      roles = ['ROLE_USER'];
+  let roles = [...roleRecord.roles];
+
+  const configuredOwnerId = process.env.PLATFORM_OWNER_ACCOUNT_ID?.trim() || '';
+  const configuredOwnerWallet = getPlatformOwnerWallet();
+
+  let isOwner = false;
+  if (configuredOwnerId && /^acc_[a-f0-9]{32}$/.test(configuredOwnerId) && configuredOwnerId === accountId) {
+    isOwner = true;
+  } else if (configuredOwnerWallet) {
+    const rawWallet = accountId.startsWith('user-') ? accountId.substring(5) : accountId;
+    if (isPlatformOwner(rawWallet)) {
+      isOwner = true;
+    } else {
+      const account = await getAccountByIdAsync(accountId);
+      if (account?.primaryWalletAddress && isPlatformOwner(account.primaryWalletAddress)) {
+        isOwner = true;
+      } else {
+        const binding = await getWalletBindingAsync(configuredOwnerWallet);
+        if (binding && binding.accountId === accountId && binding.status === 'VERIFIED') {
+          isOwner = true;
+        }
+      }
     }
+  }
+
+  if (isOwner) {
+    if (!roles.includes('ROLE_PLATFORM_OWNER')) {
+      roles = ['ROLE_PLATFORM_OWNER', 'ROLE_ADMIN', ...roles.filter((r) => r !== 'ROLE_PLATFORM_OWNER' && r !== 'ROLE_ADMIN')];
+    }
+  } else if (roles.includes('ROLE_PLATFORM_OWNER')) {
+    roles = roles.filter((r) => r !== 'ROLE_PLATFORM_OWNER');
+    if (roles.length === 0) roles = ['ROLE_USER'];
   }
 
   const directCapabilities = roles === roleRecord.roles ? roleRecord.directCapabilities : [];
@@ -259,8 +284,8 @@ export async function completeStepUpAsync(
   }
 
   // Requirement A: Ordinary user check. Ordinary users cannot create privileged owner elevation.
-  const roleRecord = await getAccountRolesAsync(accountId);
-  const isPrivileged = roleRecord.roles.includes('ROLE_ADMIN') || roleRecord.roles.includes('ROLE_PLATFORM_OWNER');
+  const authSnapshot = await resolveEffectiveAuthorizationAsync(accountId);
+  const isPrivileged = authSnapshot.roles.includes('ROLE_ADMIN') || authSnapshot.roles.includes('ROLE_PLATFORM_OWNER');
   if (!isPrivileged) {
     return {
       success: false,
