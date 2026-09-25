@@ -42,7 +42,6 @@
     color: var(--text-main);
     @apply antialiased;
     font-feature-settings: 'rlig' 1, 'calt' 1;
-    transition: background-color 0.2s ease, color 0.2s ease;
     line-height: 1.6;
     font-size: 15px;
   }

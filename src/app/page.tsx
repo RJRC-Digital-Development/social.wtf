@@ -393,12 +393,18 @@ export default function Home() {
     });
   };
 
+  const handleSelectView = (view: 'feed' | 'store' | 'creator' | 'community' | 'analytics') => {
+    React.startTransition(() => {
+      setActiveView(view);
+    });
+  };
+
   const handleOpenStore = (creatorHandle: string) => {
     const clean = creatorHandle.toLowerCase().replace(/^@+/, '');
     const found = creators.find((c) => c.handle.toLowerCase() === clean);
     if (found) {
       setSelectedCreator(found);
-      setActiveView('creator');
+      handleSelectView('creator');
       if (typeof window !== 'undefined' && window.history) {
         window.history.replaceState(null, '', `/?u=${clean}`);
       }
@@ -408,7 +414,7 @@ export default function Home() {
   const handleOpenMyPage = () => {
     if (userProfile) {
       setSelectedCreator(userProfile);
-      setActiveView('creator');
+      handleSelectView('creator');
       if (typeof window !== 'undefined' && window.history) {
         window.history.replaceState(null, '', `/?u=${userProfile.handle}`);
       }
@@ -499,11 +505,11 @@ export default function Home() {
   const activeSelected = selectedCreator || activeUser;
 
   return (
-    <div className="min-h-screen flex flex-col transition-colors duration-200" style={{background: 'var(--bg-main)', color: 'var(--text-main)'}}>
+    <div className="min-h-screen flex flex-col" style={{background: 'var(--bg-main)', color: 'var(--text-main)'}}>
       {/* Top Navbar */}
       <Navbar
         activeView={activeView}
-        onSelectView={setActiveView}
+        onSelectView={handleSelectView}
         onOpenVerifyModal={(tab) => {
           setVerifyTab(tab || 'video_liveness');
           setVerifyModalOpen(true);
@@ -541,7 +547,7 @@ export default function Home() {
                 onClick={() => {
                   const ownerProfile = buildDefaultProfileForWallet('2AhP2bqFHd35v5Vhzu4T9MJe7EY7ytNLJ7GJimQ3CUqL', 'thepros2014');
                   setSelectedCreator(ownerProfile);
-                  setActiveView('creator');
+                  handleSelectView('creator');
                 }}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-400 font-semibold text-xs transition-all shadow-sm"
                 title="Switch to @thepros2014 Owner Profile"
@@ -600,7 +606,7 @@ export default function Home() {
                     onClick={() => {
                       const ownerProfile = buildDefaultProfileForWallet('2AhP2bqFHd35v5Vhzu4T9MJe7EY7ytNLJ7GJimQ3CUqL', 'thepros2014');
                       setSelectedCreator(ownerProfile);
-                      setActiveView('creator');
+                      handleSelectView('creator');
                     }}
                     className="w-full flex items-center justify-center gap-2 py-1.5 px-3 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-400 font-semibold text-xs transition-all shadow-sm"
                   >
@@ -647,7 +653,7 @@ export default function Home() {
               ] as const).map(({ id, label, Icon }) => (
                 <button
                   key={id}
-                  onClick={() => setActiveView(id)}
+                  onClick={() => handleSelectView(id)}
                   className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
                     activeView === id
                       ? 'bg-amber-500 text-white shadow-sm'
@@ -788,7 +794,7 @@ export default function Home() {
       {/* Mobile Bottom Navigation */}
       <MobileBottomNav
         activeView={activeView}
-        onSelectView={setActiveView}
+        onSelectView={handleSelectView}
         onOpenMyPage={handleOpenMyPage}
       />
 
@@ -813,7 +819,7 @@ export default function Home() {
           setVerifyModalOpen(true);
         }}
         onOpenStore={handleOpenStore}
-        onSelectView={setActiveView}
+        onSelectView={handleSelectView}
       />
     </div>
   );

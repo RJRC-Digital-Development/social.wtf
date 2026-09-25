@@ -188,7 +188,7 @@ export const LoginGate: React.FC<LoginGateProps> = ({ onAuthenticated }) => {
   const isBusy = connecting || authenticating || isSubmitting || !!authStep;
 
   return (
-    <div className="min-h-screen flex flex-col transition-colors duration-200" style={{background: 'var(--bg-main)', color: 'var(--text-main)'}}>
+    <div className="min-h-screen flex flex-col" style={{background: 'var(--bg-main)', color: 'var(--text-main)'}}>
       <header className="w-full border-b border-[--border-main] backdrop-blur-md px-6 py-3.5 flex items-center justify-between transition-colors" style={{background: 'var(--bg-card)'}}>
         <div className="flex items-center gap-3">
           <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{background: 'var(--accent)'}}>

@@ -43,7 +43,7 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body className="min-h-screen flex flex-col transition-colors duration-200" style={{fontFamily: "'Plus Jakarta Sans', 'Inter', system-ui, sans-serif"}}>
+      <body className="min-h-screen flex flex-col" style={{fontFamily: "'Plus Jakarta Sans', 'Inter', system-ui, sans-serif"}}>
         <ThemeProvider>
           <WalletProvider>
             <ShieldProvider>

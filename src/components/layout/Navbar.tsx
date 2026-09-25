@@ -53,7 +53,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   ];
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-[--border-main] bg-[--bg-card]/95 backdrop-blur-md transition-colors duration-200">
+    <header className="sticky top-0 z-40 w-full border-b border-[--border-main] bg-[--bg-card]/95 backdrop-blur-md">
       <div className="social-navbar-shell max-w-[1400px] mx-auto px-5 sm:px-8 lg:px-10 py-3">
 
         {/* Logo */}
@@ -149,7 +149,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
   return (
     <nav
       aria-label="Mobile navigation"
-      className="fixed bottom-0 left-0 right-0 z-40 lg:hidden backdrop-blur-md border-t flex items-center justify-around px-2 py-2 transition-colors duration-200"
+      className="fixed bottom-0 left-0 right-0 z-40 lg:hidden backdrop-blur-md border-t flex items-center justify-around px-2 py-2"
       style={{ background: 'var(--bg-card)', borderColor: 'var(--border-main)' }}
     >
       {items.map(({ id, label, Icon }) => {
