@@ -42,3 +42,9 @@ next-env.d.ts
 
 .vercel
 .images
+
+# review and audit notes
+nova-*.txt
+*-review.txt
+*.scratch.*
+*.log
