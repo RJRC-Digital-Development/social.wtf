@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import { User, Product, Post, CreatorWidget, TransactionRecord } from '@/types';
 import { useShield } from '@/lib/shield/shieldContext';
 import { useWallet } from '@/lib/wallet/walletContext';
@@ -363,10 +364,20 @@ setInterval(() => {
                   </span>
                 )}
                 {creator.isAdmin ? (
-                  <span className="px-2 py-0.5 rounded-lg bg-blue-500/20 border border-blue-500/40 text-[10px] font-bold text-blue-300 flex items-center gap-1 shrink-0">
-                    <ShieldCheck className="w-3 h-3 text-blue-400" />
-                    <span>PROTOCOL OWNER</span>
-                  </span>
+                  <>
+                    <span className="px-2 py-0.5 rounded-lg bg-blue-500/20 border border-blue-500/40 text-[10px] font-bold text-blue-300 flex items-center gap-1 shrink-0">
+                      <ShieldCheck className="w-3 h-3 text-blue-400" />
+                      <span>PROTOCOL OWNER</span>
+                    </span>
+                    <Link
+                      href="/owner"
+                      className="px-2 py-0.5 rounded-lg bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/40 text-[10px] font-bold text-blue-300 flex items-center gap-1 transition-colors shrink-0"
+                      title="Open Platform Owner Console"
+                    >
+                      <ShieldCheck className="w-3 h-3 text-blue-400" />
+                      <span>Owner Console</span>
+                    </Link>
+                  </>
                 ) : (
                   <span className="px-2 py-0.5 rounded-lg bg-amber-500/15 border border-amber-500/30 text-[10px] font-bold text-amber-300 shrink-0">
                     CREATOR MINI-APP

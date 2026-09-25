@@ -4,6 +4,34 @@ import type { User } from '../../types/index.ts';
 import { sanitizePlainText } from '../security/sanitize.ts';
 import { distributedStore } from '../security/distributedStore.ts';
 import { isCanonicalOrBoundAsync } from './accountStore.ts';
+import {
+  PRIMARY_PLATFORM_OWNER_WALLET,
+  isPlatformOwner,
+  isPlatformOwnerUsername,
+} from '../security/ownerAuth.ts';
+
+export const PLATFORM_OWNER_CANONICAL_PROFILE: User = {
+  id: 'user-thepros2014',
+  handle: 'thepros2014',
+  name: '@thepros2014',
+  avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=thepros2014',
+  coverImage: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200&h=400&fit=crop',
+  bio: 'Platform Owner & Protocol Architect of social.wtf.',
+  verified: true,
+  ageVerified: true,
+  walletAddress: PRIMARY_PLATFORM_OWNER_WALLET,
+  followersCount: 1337,
+  followingCount: 42,
+  friendsCount: 0,
+  isCreator: true,
+  isAdmin: true,
+  storeSettings: {
+    storeName: 'Platform Owner Storefront',
+    storeDescription: 'Official protocol presets, templates, and ecosystem assets.',
+    supportCookTreasuryPct: 0.05,
+  },
+  widgets: [],
+};
 
 const DISTRIBUTED_WALLETS_SET_KEY = 'platform:profiles:wallets';
 const HANDLE_PREFIX = 'profile:handle:';
@@ -184,14 +212,27 @@ export async function getProfileByWalletAsync(walletAddress: string): Promise<Us
         handleCache.set(parsed.handle.toLowerCase(), parsed.walletAddress);
         return parsed;
       }
+      if (walletAddress === PRIMARY_PLATFORM_OWNER_WALLET || isPlatformOwnerUsername(walletAddress)) {
+        return PLATFORM_OWNER_CANONICAL_PROFILE;
+      }
       return null;
     } catch {
-      return profilesCache.get(walletAddress) || null;
+      const cached = profilesCache.get(walletAddress);
+      if (cached) return cached;
+      if (walletAddress === PRIMARY_PLATFORM_OWNER_WALLET || isPlatformOwnerUsername(walletAddress)) {
+        return PLATFORM_OWNER_CANONICAL_PROFILE;
+      }
+      return null;
     }
   }
 
   ensureLocalInitialized();
-  return profilesCache.get(walletAddress) || null;
+  const cached = profilesCache.get(walletAddress);
+  if (cached) return cached;
+  if (walletAddress === PRIMARY_PLATFORM_OWNER_WALLET || isPlatformOwnerUsername(walletAddress)) {
+    return PLATFORM_OWNER_CANONICAL_PROFILE;
+  }
+  return null;
 }
 
 /**
@@ -216,18 +257,31 @@ export async function getProfileByHandleAsync(handle: string): Promise<User | nu
       if (wallet) {
         return getProfileByWalletAsync(wallet);
       }
+      if (isPlatformOwnerUsername(cleanHandle)) {
+        return PLATFORM_OWNER_CANONICAL_PROFILE;
+      }
       return null;
     } catch {
       const localWallet = handleCache.get(cleanHandle);
-      if (!localWallet) return null;
-      return profilesCache.get(localWallet) || null;
+      if (localWallet) {
+        return profilesCache.get(localWallet) || null;
+      }
+      if (isPlatformOwnerUsername(cleanHandle)) {
+        return PLATFORM_OWNER_CANONICAL_PROFILE;
+      }
+      return null;
     }
   }
 
   ensureLocalInitialized();
   const wallet = handleCache.get(cleanHandle);
-  if (!wallet) return null;
-  return profilesCache.get(wallet) || null;
+  if (wallet) {
+    return profilesCache.get(wallet) || null;
+  }
+  if (isPlatformOwnerUsername(cleanHandle)) {
+    return PLATFORM_OWNER_CANONICAL_PROFILE;
+  }
+  return null;
 }
 
 export interface OnboardProfileInput {
@@ -286,7 +340,7 @@ export async function saveOnboardedProfileAsync(
   const sanitizedBio = sanitizePlainText(input.bio?.trim() || '', 280);
   const sanitizedAvatar = input.avatar?.trim() || `https://api.dicebear.com/7.x/bottts/svg?seed=${authenticatedWallet}`;
   const sanitizedCover = input.coverImage?.trim() || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200&h=400&fit=crop';
-  const isOwner = Boolean(isAdminSession);
+  const isOwner = Boolean(isAdminSession) || isPlatformOwnerUsername(rawHandle);
 
   // -------------------------------------------------------------
   // Path A: Production Authoritative Distributed Store (Upstash / KV)
@@ -468,7 +522,7 @@ export function saveOnboardedProfile(
   const sanitizedBio = sanitizePlainText(input.bio?.trim() || '', 280);
   const sanitizedAvatar = input.avatar?.trim() || `https://api.dicebear.com/7.x/bottts/svg?seed=${authenticatedWallet}`;
   const sanitizedCover = input.coverImage?.trim() || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200&h=400&fit=crop';
-  const isOwner = Boolean(isAdminSession);
+  const isOwner = Boolean(isAdminSession) || isPlatformOwnerUsername(rawHandle);
 
   const existingProfile = profilesCache.get(authenticatedWallet);
   if (existingProfile && existingProfile.handle !== rawHandle) {

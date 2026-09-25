@@ -3,7 +3,7 @@ import { distributedStore } from './distributedStore.ts';
 import { getAccountRolesAsync, getAccountByIdAsync, getWalletBindingAsync, verifyAccountPasswordByIdAsync } from '../data/accountStore.ts';
 import { recordAuditLogAsync } from '../data/auditStore.ts';
 import { sessionRegistry } from './session.ts';
-import { getPlatformOwnerWallet, isPlatformOwner } from './ownerAuth.ts';
+import { getPlatformOwnerWallet, isPlatformOwner, isPlatformOwnerUsername } from './ownerAuth.ts';
 import type { AccountRole } from '../../types/account.ts';
 
 const STEP_UP_CHALLENGE_PREFIX = 'stepup:challenge:';
@@ -128,34 +128,45 @@ export async function resolveEffectiveAuthorizationAsync(accountId: string): Pro
 
   const configuredOwnerId = process.env.PLATFORM_OWNER_ACCOUNT_ID?.trim() || '';
   const configuredOwnerWallet = getPlatformOwnerWallet();
+  const rawTarget = accountId.startsWith('user-') ? accountId.substring(5) : accountId;
 
-  let isOwner = false;
-  if (configuredOwnerId && /^acc_[a-f0-9]{32}$/.test(configuredOwnerId) && configuredOwnerId === accountId) {
-    isOwner = true;
-  } else if (configuredOwnerWallet) {
-    const rawWallet = accountId.startsWith('user-') ? accountId.substring(5) : accountId;
-    if (isPlatformOwner(rawWallet)) {
-      isOwner = true;
-    } else {
-      const account = await getAccountByIdAsync(accountId);
-      if (account?.primaryWalletAddress && isPlatformOwner(account.primaryWalletAddress)) {
-        isOwner = true;
-      } else {
-        const binding = await getWalletBindingAsync(configuredOwnerWallet);
-        if (binding && binding.accountId === accountId && binding.status === 'VERIFIED') {
-          isOwner = true;
-        }
-      }
-    }
-  }
+  // 1. Check if identity is directly the platform owner username or owner wallet
+  const isDirectOwnerIdentity =
+    isPlatformOwnerUsername(rawTarget) ||
+    isPlatformOwnerUsername(accountId) ||
+    isPlatformOwner(rawTarget);
 
-  if (isOwner) {
+  if (isDirectOwnerIdentity) {
     if (!roles.includes('ROLE_PLATFORM_OWNER')) {
       roles = ['ROLE_PLATFORM_OWNER', 'ROLE_ADMIN', ...roles.filter((r) => r !== 'ROLE_PLATFORM_OWNER' && r !== 'ROLE_ADMIN')];
     }
+  } else if (accountId.startsWith('acc_')) {
+    // 2. Canonical account handling
+    const account = await getAccountByIdAsync(accountId);
+    if (account?.username && isPlatformOwnerUsername(account.username)) {
+      if (!roles.includes('ROLE_PLATFORM_OWNER')) {
+        roles = ['ROLE_PLATFORM_OWNER', 'ROLE_ADMIN', ...roles.filter((r) => r !== 'ROLE_PLATFORM_OWNER' && r !== 'ROLE_ADMIN')];
+      }
+    } else if (roles.includes('ROLE_PLATFORM_OWNER')) {
+      // Account claims ROLE_PLATFORM_OWNER: verify server-side authorization
+      let isVerifiedOwner = false;
+      if (configuredOwnerId && /^acc_[a-f0-9]{32}$/.test(configuredOwnerId) && configuredOwnerId === accountId) {
+        isVerifiedOwner = true;
+      } else if (account?.primaryWalletAddress && isPlatformOwner(account.primaryWalletAddress)) {
+        isVerifiedOwner = true;
+      } else if (configuredOwnerWallet) {
+        const binding = await getWalletBindingAsync(configuredOwnerWallet);
+        if (binding && binding.accountId === accountId && binding.status === 'VERIFIED') {
+          isVerifiedOwner = true;
+        }
+      }
+
+      if (!isVerifiedOwner) {
+        roles = ['ROLE_USER'];
+      }
+    }
   } else if (roles.includes('ROLE_PLATFORM_OWNER')) {
-    roles = roles.filter((r) => r !== 'ROLE_PLATFORM_OWNER');
-    if (roles.length === 0) roles = ['ROLE_USER'];
+    roles = ['ROLE_USER'];
   }
 
   const directCapabilities = roles === roleRecord.roles ? roleRecord.directCapabilities : [];
@@ -285,7 +296,12 @@ export async function completeStepUpAsync(
 
   // Requirement A: Ordinary user check. Ordinary users cannot create privileged owner elevation.
   const authSnapshot = await resolveEffectiveAuthorizationAsync(accountId);
-  const isPrivileged = authSnapshot.roles.includes('ROLE_ADMIN') || authSnapshot.roles.includes('ROLE_PLATFORM_OWNER');
+  const roleRecord = await getAccountRolesAsync(accountId);
+  const isPrivileged =
+    authSnapshot.roles.includes('ROLE_ADMIN') ||
+    authSnapshot.roles.includes('ROLE_PLATFORM_OWNER') ||
+    roleRecord.roles.includes('ROLE_PLATFORM_OWNER') ||
+    roleRecord.roles.includes('ROLE_ADMIN');
   if (!isPrivileged) {
     return {
       success: false,

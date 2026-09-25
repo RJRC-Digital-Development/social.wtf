@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { Navbar, MobileBottomNav } from '@/components/layout/Navbar';
 import { Feed } from '@/components/feed/Feed';
 import { Storefront } from '@/components/store/Storefront';
@@ -37,10 +38,41 @@ import {
   Copy,
   Check,
   Shield,
+  ShieldAlert,
 } from 'lucide-react';
 
-function buildDefaultProfileForWallet(address: string): User {
-  const shortAddr = `${address.slice(0, 4)}...${address.slice(-4)}`;
+function buildDefaultProfileForWallet(address: string, username?: string): User {
+  const isOwnerIdentity =
+    (username && username.toLowerCase().replace(/^@+/, '') === 'thepros2014') ||
+    address.toLowerCase().replace(/^@+/, '') === 'thepros2014' ||
+    address.toLowerCase() === 'user-thepros2014' ||
+    address.toLowerCase() === '2ahp2bqfhd35v5vhzu4t9mje7ey7ytnlj7gjimq3cuql';
+
+  if (isOwnerIdentity) {
+    return {
+      id: 'user-thepros2014',
+      handle: 'thepros2014',
+      name: '@thepros2014',
+      avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=thepros2014',
+      bio: 'Platform Owner & Protocol Architect of social.wtf.',
+      verified: true,
+      ageVerified: true,
+      walletAddress: address.length >= 32 ? address : '2AhP2bqFHd35v5Vhzu4T9MJe7EY7ytNLJ7GJimQ3CUqL',
+      coverImage: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200&h=400&fit=crop',
+      followersCount: 1337,
+      followingCount: 42,
+      friendsCount: 0,
+      isCreator: true,
+      isAdmin: true,
+      storeSettings: {
+        storeName: 'Platform Owner Storefront',
+        storeDescription: 'Official protocol presets, templates, and ecosystem assets on Cookie Chain.',
+        supportCookTreasuryPct: 0.05,
+      },
+    };
+  }
+
+  const shortAddr = address.length >= 8 ? `${address.slice(0, 4)}...${address.slice(-4)}` : address;
   const cleanHandle = `user_${address.slice(0, 4).toLowerCase()}${address.slice(-4).toLowerCase()}`;
   return {
     id: `user-${address}`,
@@ -93,6 +125,7 @@ export default function Home() {
     authStatus,
     refreshAccountAuth,
     logoutSession,
+    isOwner,
   } = useWallet();
 
   // Clear protected client state if unauthenticated
@@ -116,6 +149,21 @@ export default function Home() {
 
     let isMounted = true;
     const activeIdentity = account?.primaryWalletAddress || walletAddress || account?.accountId || 'user';
+    const isOwnerUser =
+      account?.username?.toLowerCase().replace(/^@+/, '') === 'thepros2014' ||
+      activeIdentity.toLowerCase().replace(/^@+/, '') === 'thepros2014' ||
+      activeIdentity.toLowerCase() === '2ahp2bqfhd35v5vhzu4t9mje7ey7ytnlj7gjimq3cuql';
+
+    // Check if query params explicitly ask to view owner profile
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const targetUser = params.get('u') || params.get('profile');
+      if (targetUser && targetUser.toLowerCase().replace(/^@+/, '') === 'thepros2014') {
+        const ownerProfile = buildDefaultProfileForWallet('2AhP2bqFHd35v5Vhzu4T9MJe7EY7ytNLJ7GJimQ3CUqL', 'thepros2014');
+        setSelectedCreator(ownerProfile);
+        setActiveView('creator');
+      }
+    }
 
     // 1. Fetch Authoritative Server Profile
     fetch('/api/profile')
@@ -126,13 +174,18 @@ export default function Home() {
           const data = await res.json();
           if (data?.success && data.profile) {
             const canonicalProfile: User = data.profile;
+            if (isOwnerUser) {
+              canonicalProfile.isAdmin = true;
+              canonicalProfile.handle = canonicalProfile.handle || 'thepros2014';
+              canonicalProfile.name = canonicalProfile.name || '@thepros2014';
+            }
             setUserProfile(canonicalProfile);
             if (!selectedCreator) {
               setSelectedCreator(canonicalProfile);
             }
           }
         } else if (res.status === 404) {
-          const freshDefaults = buildDefaultProfileForWallet(activeIdentity);
+          const freshDefaults = buildDefaultProfileForWallet(activeIdentity, account?.username);
           setUserProfile(freshDefaults);
           if (!selectedCreator) {
             setSelectedCreator(freshDefaults);
@@ -140,12 +193,12 @@ export default function Home() {
         } else if (res.status === 401) {
           await logoutSession();
         } else {
-          setUserProfile(buildDefaultProfileForWallet(activeIdentity));
+          setUserProfile(buildDefaultProfileForWallet(activeIdentity, account?.username));
         }
       })
       .catch(() => {
         if (!isMounted) return;
-        setUserProfile(buildDefaultProfileForWallet(activeIdentity));
+        setUserProfile(buildDefaultProfileForWallet(activeIdentity, account?.username));
       });
 
     // 2. Fetch Directory of Self + Accepted Friends
@@ -483,6 +536,21 @@ export default function Home() {
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
+            {(activeUser.isAdmin || isOwner) && (
+              <button
+                onClick={() => {
+                  const ownerProfile = buildDefaultProfileForWallet('2AhP2bqFHd35v5Vhzu4T9MJe7EY7ytNLJ7GJimQ3CUqL', 'thepros2014');
+                  setSelectedCreator(ownerProfile);
+                  setActiveView('creator');
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-400 font-semibold text-xs transition-all shadow-sm"
+                title="Switch to @thepros2014 Owner Profile"
+              >
+                <ShieldCheck className="w-3.5 h-3.5 text-blue-400" />
+                <span className="hidden sm:inline">Owner Profile</span>
+              </button>
+            )}
+
             <button
               onClick={handleOpenMyPage}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-white font-semibold text-xs transition-all shadow-sm hover:shadow-amber-500/20 hover:shadow-md active:scale-95"
@@ -516,11 +584,31 @@ export default function Home() {
                 <div className="overflow-hidden">
                   <div className="font-semibold text-slate-900 dark:text-white text-sm truncate">{activeUser.name}</div>
                   <div className="text-[11px] text-amber-500 font-mono">@{activeUser.handle}</div>
+                  {activeUser.isAdmin && (
+                    <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-500/20 text-blue-400 border border-blue-500/40">
+                      <ShieldCheck className="w-3 h-3 text-blue-400" />
+                      <span>PROTOCOL OWNER</span>
+                    </span>
+                  )}
                   <div className="text-[10px] text-slate-400 dark:text-slate-500 truncate mt-0.5 font-mono">{activeUser.walletAddress ? `${activeUser.walletAddress.slice(0, 4)}...${activeUser.walletAddress.slice(-4)}` : ''}</div>
                 </div>
               </div>
 
               <div className="pt-2 border-t border-slate-100 dark:border-white/[0.05] space-y-1.5">
+                {(activeUser.isAdmin || isOwner) && (
+                  <button
+                    onClick={() => {
+                      const ownerProfile = buildDefaultProfileForWallet('2AhP2bqFHd35v5Vhzu4T9MJe7EY7ytNLJ7GJimQ3CUqL', 'thepros2014');
+                      setSelectedCreator(ownerProfile);
+                      setActiveView('creator');
+                    }}
+                    className="w-full flex items-center justify-center gap-2 py-1.5 px-3 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-400 font-semibold text-xs transition-all shadow-sm"
+                  >
+                    <ShieldCheck className="w-3.5 h-3.5 text-blue-400" />
+                    <span>Switch to Owner Profile</span>
+                  </button>
+                )}
+
                 <button
                   onClick={handleOpenMyPage}
                   className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-lg bg-amber-500 hover:bg-amber-400 text-white font-semibold text-xs active:scale-95 transition-all shadow-sm"
@@ -570,6 +658,16 @@ export default function Home() {
                   <span>{label}</span>
                 </button>
               ))}
+
+              {(activeUser.isAdmin || isOwner) && (
+                <Link
+                  href="/owner"
+                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-bold text-amber-500 hover:bg-amber-500/10 transition-all border border-amber-500/20 mt-1"
+                >
+                  <ShieldAlert className="w-3.5 h-3.5 shrink-0 text-amber-500" />
+                  <span>Owner Console</span>
+                </Link>
+              )}
             </div>
           </aside>
 

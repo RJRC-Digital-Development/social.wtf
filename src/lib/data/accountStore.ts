@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import { distributedStore } from '../security/distributedStore.ts';
 import { hashPassword, verifyPassword } from '../security/password.ts';
+import { isPlatformOwner, isPlatformOwnerUsername } from '../security/ownerAuth.ts';
 import type {
   Account,
   AccountCredential,
@@ -91,7 +92,9 @@ export async function registerAccountAsync(
 
   const initialRole: AccountRoleRecord = {
     accountId,
-    roles: ['ROLE_USER'],
+    roles: isPlatformOwnerUsername(cleanUsername)
+      ? ['ROLE_PLATFORM_OWNER', 'ROLE_ADMIN', 'ROLE_USER']
+      : ['ROLE_USER'],
     directCapabilities: [],
     assignedAt: now,
   };
@@ -484,8 +487,21 @@ export async function bootstrapPlatformOwnerAsync(): Promise<{
 export async function reconcilePlatformOwnerLoginAsync(accountId: string): Promise<void> {
   const configuredId = process.env.PLATFORM_OWNER_ACCOUNT_ID?.trim() || '';
   const configurationValid = /^acc_[a-f0-9]{32}$/.test(configuredId);
-  if (!configurationValid || configuredId !== accountId) return;
-  await bootstrapPlatformOwnerAsync();
+  if (configurationValid && configuredId === accountId) {
+    await bootstrapPlatformOwnerAsync();
+    return;
+  }
+
+  const account = await getAccountByIdAsync(accountId);
+  if (account) {
+    if (
+      isPlatformOwnerUsername(account.username) ||
+      (account.primaryWalletAddress && isPlatformOwner(account.primaryWalletAddress))
+    ) {
+      const requiredRoles: AccountRole[] = ['ROLE_PLATFORM_OWNER', 'ROLE_ADMIN', 'ROLE_USER'];
+      await setAccountRolesAsync(accountId, requiredRoles);
+    }
+  }
 }
 
 /**
