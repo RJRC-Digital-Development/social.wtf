@@ -162,11 +162,10 @@ export const LoginGate: React.FC<LoginGateProps> = ({ onAuthenticated }) => {
     setSuccessMessage(null);
     setAuthStep('Connecting to wallet...');
     try {
-      if (!connected || walletType !== type) {
-        await connect(type);
-      }
-      setAuthStep('Requesting SIWS challenge & signature...');
-      const success = await authenticateWallet();
+      const connectedAddr = await connect(type);
+      const addr = connectedAddr || walletAddress;
+      setAuthStep('Please approve the cryptographic sign-in request in your wallet...');
+      const success = await authenticateWallet(addr || undefined);
       if (success) {
         setAuthStep(null);
         if (onAuthenticated) onAuthenticated();
@@ -282,20 +281,56 @@ export const LoginGate: React.FC<LoginGateProps> = ({ onAuthenticated }) => {
 
           {/* Form 1: Account Login / Register */}
           {(mode === 'login' || mode === 'register') && (
-            <form onSubmit={handleAccountAuth} className="space-y-4">
-              {connected && walletAddress && (
-                <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Wallet className="w-4 h-4 text-amber-400 shrink-0" />
-                    <span className="text-slate-300">
-                      Wallet Attached: <span className="font-mono text-amber-300 font-bold">{walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}</span>
-                    </span>
+            <div className="space-y-4">
+              {mode === 'login' && (
+                <div className="space-y-3">
+                  <button
+                    type="button"
+                    disabled={isBusy}
+                    onClick={() => handleConnectAndAuth('nightly')}
+                    className="w-full flex items-center justify-between p-3.5 rounded-2xl bg-amber-500/15 border border-amber-500/50 hover:bg-amber-500/25 hover:border-amber-400 transition-all text-left group shadow-lg shadow-amber-500/10"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center font-bold text-amber-400 shrink-0">
+                        N
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-slate-100 group-hover:text-amber-300 text-sm">
+                            Sign in with Nightly Wallet
+                          </span>
+                          <span className="px-1.5 py-0.5 text-[9px] font-bold rounded bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                            ONE-CLICK
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-400">Zero password needed &bull; Sovereign Web3</p>
+                      </div>
+                    </div>
+                    <ArrowRight className="w-4 h-4 text-amber-400 group-hover:translate-x-0.5 transition-transform" />
+                  </button>
+
+                  <div className="flex items-center gap-3 my-2">
+                    <div className="flex-1 h-px bg-slate-800" />
+                    <span className="text-[10px] font-bold tracking-widest text-slate-500 uppercase">OR WITH USERNAME</span>
+                    <div className="flex-1 h-px bg-slate-800" />
                   </div>
-                  <span className="px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 font-semibold text-[10px]">
-                    STRAPPED
-                  </span>
                 </div>
               )}
+
+              <form onSubmit={handleAccountAuth} className="space-y-4">
+                {connected && walletAddress && (
+                  <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Wallet className="w-4 h-4 text-amber-400 shrink-0" />
+                      <span className="text-slate-300">
+                        Wallet Attached: <span className="font-mono text-amber-300 font-bold">{walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}</span>
+                      </span>
+                    </div>
+                    <span className="px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 font-semibold text-[10px]">
+                      STRAPPED
+                    </span>
+                  </div>
+                )}
 
               <div>
                 <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
@@ -365,6 +400,7 @@ export const LoginGate: React.FC<LoginGateProps> = ({ onAuthenticated }) => {
                 )}
               </button>
             </form>
+            </div>
           )}
 
           {/* Form 2: Forgot Password */}

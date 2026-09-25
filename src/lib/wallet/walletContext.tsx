@@ -115,12 +115,12 @@ export interface WalletContextType {
   account: AuthenticatedAccount | null;
   roles: string[];
   capabilities: string[];
-  refreshAccountAuth: () => Promise<boolean>;
-  connect: (type?: 'trust' | 'nightly' | 'solana' | 'demo') => Promise<void>;
+  refreshAccountAuth: (tokenOverride?: string) => Promise<boolean>;
+  connect: (type?: 'trust' | 'nightly' | 'solana' | 'demo') => Promise<string | void>;
   disconnect: () => Promise<void>;
   refreshBalance: () => Promise<void>;
   signAndSendTransaction: (transaction: any) => Promise<string>;
-  authenticateWallet: () => Promise<boolean>;
+  authenticateWallet: (overrideAddress?: string) => Promise<boolean>;
   logoutSession: () => Promise<void>;
   networkName: string;
 }
@@ -197,9 +197,10 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
   }, []);
 
   // Synchronize authoritative account authentication from server using cookies and Bearer tokens
-  const refreshAccountAuth = useCallback(async (): Promise<boolean> => {
+  const refreshAccountAuth = useCallback(async (tokenOverride?: string): Promise<boolean> => {
     try {
       const activeToken =
+        tokenOverride ||
         sessionToken ||
         (typeof window !== 'undefined' ? localStorage.getItem(SESSION_TOKEN_STORAGE_KEY) : null);
 
@@ -442,7 +443,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
           setWalletType('nightly');
           setConnected(true);
           localStorage.setItem(WALLET_CONNECTED_KEY, 'nightly');
-          return;
+          return pubkeyStr;
         } catch (providerErr: any) {
           clearWalletState();
           throw classifyWalletError(providerErr, 'Nightly Wallet');
@@ -481,7 +482,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
           setWalletType('trust');
           setConnected(true);
           localStorage.setItem(WALLET_CONNECTED_KEY, 'trust');
-          return;
+          return pubkeyStr;
         } catch (providerErr: any) {
           clearWalletState();
           throw classifyWalletError(providerErr, 'Trust Wallet');
@@ -517,7 +518,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
           setWalletType('solana');
           setConnected(true);
           localStorage.setItem(WALLET_CONNECTED_KEY, 'solana');
-          return;
+          return pubkeyStr;
         } catch (providerErr: any) {
           clearWalletState();
           throw classifyWalletError(providerErr, 'Solana Wallet');
@@ -554,6 +555,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
 
         const storedBalance = localStorage.getItem('social_wtf_demo_balance');
         setCookBalance(storedBalance ? parseFloat(storedBalance) : 88.50);
+        return demoPubkeyStr;
       }
     } finally {
       setConnecting(false);
@@ -561,8 +563,9 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   // SIWS wallet binding / direct challenge authentication
-  const authenticateWallet = async (): Promise<boolean> => {
-    if (!walletAddress) {
+  const authenticateWallet = async (overrideAddress?: string): Promise<boolean> => {
+    const targetAddress = overrideAddress || walletAddress;
+    if (!targetAddress) {
       throw new Error('Please connect your wallet before authenticating.');
     }
 
@@ -580,7 +583,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
-            body: JSON.stringify({ walletAddress }),
+            body: JSON.stringify({ walletAddress: targetAddress }),
           });
 
           if (challengeRes.ok) {
@@ -608,7 +611,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
         const nonceRes = await fetch('/api/auth/nonce', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ walletAddress }),
+          body: JSON.stringify({ walletAddress: targetAddress }),
         });
 
         if (!nonceRes.ok) {
@@ -727,6 +730,8 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
         }
       }
 
+      let tokenToRefresh: string | undefined;
+
       if (endpointType === 'bind') {
         const bindRes = await fetch('/api/auth/wallet/bind', {
           method: 'POST',
@@ -736,7 +741,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
           },
           credentials: 'include',
           body: JSON.stringify({
-            walletAddress,
+            walletAddress: targetAddress,
             nonce,
             signatureBase58,
           }),
@@ -749,6 +754,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
 
         const bindData = await bindRes.json();
         if (bindData?.sessionToken) {
+          tokenToRefresh = bindData.sessionToken;
           setSessionToken(bindData.sessionToken);
           if (typeof window !== 'undefined') {
             localStorage.setItem(SESSION_TOKEN_STORAGE_KEY, bindData.sessionToken);
@@ -760,7 +766,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
           body: JSON.stringify({
-            walletAddress,
+            walletAddress: targetAddress,
             nonce,
             signatureBase58,
           }),
@@ -773,6 +779,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
 
         const verifyData = await verifyRes.json();
         if (verifyData?.sessionToken) {
+          tokenToRefresh = verifyData.sessionToken;
           setSessionToken(verifyData.sessionToken);
           if (typeof window !== 'undefined') {
             localStorage.setItem(SESSION_TOKEN_STORAGE_KEY, verifyData.sessionToken);
@@ -780,7 +787,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
         }
       }
 
-      await refreshAccountAuth();
+      await refreshAccountAuth(tokenToRefresh);
       return true;
     } finally {
       setAuthenticating(false);

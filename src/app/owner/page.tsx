@@ -400,11 +400,21 @@ export default function OwnerDashboardPage() {
               <div className="space-y-2 pt-1">
                 <button
                   type="button"
-                  onClick={() => connect('nightly')}
+                  onClick={async () => {
+                    try {
+                      const addr = await connect('nightly');
+                      if (addr) {
+                        await authenticateWallet(addr);
+                        await verifyAuth();
+                      }
+                    } catch (err: any) {
+                      alert(err?.message || 'Connection failed');
+                    }
+                  }}
                   className="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition-all flex items-center justify-center gap-2 shadow-md shadow-amber-500/20"
                 >
                   <LogIn className="w-4 h-4" />
-                  <span>Connect Nightly Wallet</span>
+                  <span>Connect & Sign In with Nightly</span>
                 </button>
               </div>
             ) : (
