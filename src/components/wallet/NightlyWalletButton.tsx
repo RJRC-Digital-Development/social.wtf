@@ -125,10 +125,59 @@ export const NightlyWalletButton: React.FC = () => {
                     Supported Web3 Wallets
                   </div>
 
+                  {/* Nightly Wallet Option (PRIMARY) */}
+                  <button
+                    onClick={() => handleConnect('nightly')}
+                    className="w-full flex items-center justify-between p-3.5 rounded-xl border border-amber-500/60 bg-amber-500/10 hover:bg-amber-500/20 hover:border-amber-400 transition-all text-left group shadow-lg shadow-amber-500/10"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-lg bg-amber-500/20 border border-amber-500/40 flex items-center justify-center font-bold text-amber-400 shrink-0">
+                        N
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-slate-100 group-hover:text-amber-300 text-sm">
+                            Nightly Wallet
+                          </span>
+                          <span className="px-1.5 py-0.5 text-[9px] font-extrabold rounded bg-amber-500/30 text-amber-300 border border-amber-500/50 tracking-wider">
+                            PRIMARY SVM
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-300">Official Cookie Chain SVM Multi-chain Wallet</p>
+                      </div>
+                    </div>
+                    {isNightlyInstalled ? (
+                      <span className="text-xs text-emerald-400 flex items-center gap-1 font-semibold">
+                        <CheckCircle className="w-3.5 h-3.5" /> Ready
+                      </span>
+                    ) : (
+                      <span className="text-xs text-amber-400 font-medium group-hover:underline">Install / Connect</span>
+                    )}
+                  </button>
+
+                  {/* Solana / Phantom Standard Adapter */}
+                  <button
+                    onClick={() => handleConnect('solana')}
+                    className="w-full flex items-center justify-between p-3 rounded-xl border border-slate-700/60 bg-slate-800/40 hover:bg-slate-800 hover:border-purple-500/50 transition-all text-left group"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-lg bg-purple-600/20 border border-purple-500/30 flex items-center justify-center font-bold text-purple-400 shrink-0">
+                        S
+                      </div>
+                      <div>
+                        <span className="font-semibold text-slate-200 group-hover:text-purple-300 text-sm">
+                          Phantom / Solana Wallet
+                        </span>
+                        <p className="text-[11px] text-slate-400">Standard Solana SVM Extension</p>
+                      </div>
+                    </div>
+                    <span className="text-xs text-slate-400">SVM Standard</span>
+                  </button>
+
                   {/* Trust Wallet Option */}
                   <button
                     onClick={() => handleConnect('trust')}
-                    className="w-full flex items-center justify-between p-3 rounded-xl border border-blue-500/40 bg-blue-950/20 hover:bg-blue-900/30 hover:border-blue-400 transition-all text-left group"
+                    className="w-full flex items-center justify-between p-3 rounded-xl border border-slate-700/60 bg-slate-800/40 hover:bg-slate-800 hover:border-blue-400/50 transition-all text-left group"
                   >
                     <div className="flex items-center gap-3">
                       <div className="w-9 h-9 rounded-lg bg-[#0500FF]/20 border border-[#0500FF]/40 flex items-center justify-center font-bold text-blue-400 shrink-0">
@@ -139,11 +188,11 @@ export const NightlyWalletButton: React.FC = () => {
                           <span className="font-semibold text-slate-200 group-hover:text-blue-300 text-sm">
                             Trust Wallet
                           </span>
-                          <span className="px-1.5 py-0.5 text-[9px] font-bold rounded bg-blue-500/20 text-blue-300 border border-blue-500/30">
-                            WEB3 & MOBILE
+                          <span className="px-1.5 py-0.5 text-[9px] font-medium rounded bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                            MOBILE & EXT
                           </span>
                         </div>
-                        <p className="text-[11px] text-slate-400">Official Extension & Mobile dApp Browser</p>
+                        <p className="text-[11px] text-slate-400">Solana SVM Extension / Mobile Browser</p>
                       </div>
                     </div>
                     {isTrustWalletInstalled ? (
@@ -151,59 +200,8 @@ export const NightlyWalletButton: React.FC = () => {
                         <CheckCircle className="w-3.5 h-3.5" /> Ready
                       </span>
                     ) : (
-                      <span className="text-xs text-slate-400 flex items-center gap-1 group-hover:text-blue-300">
-                        Auto-Detect / Install
-                      </span>
-                    )}
-                  </button>
-
-                  {/* Nightly Wallet Option */}
-                  <button
-                    onClick={() => handleConnect('nightly')}
-                    className="w-full flex items-center justify-between p-3 rounded-xl border border-slate-700/60 bg-slate-800/40 hover:bg-slate-800 hover:border-amber-500/50 transition-all text-left group"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-lg bg-blue-600/20 border border-blue-500/30 flex items-center justify-center font-bold text-blue-400 shrink-0">
-                        N
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold text-slate-200 group-hover:text-amber-400 text-sm">
-                            Nightly Wallet
-                          </span>
-                          <span className="px-1.5 py-0.5 text-[9px] font-bold rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                            RECOMMENDED
-                          </span>
-                        </div>
-                        <p className="text-[11px] text-slate-400">Official Cookie Chain SVM Wallet</p>
-                      </div>
-                    </div>
-                    {isNightlyInstalled ? (
-                      <span className="text-xs text-emerald-400 flex items-center gap-1 font-medium">
-                        <CheckCircle className="w-3.5 h-3.5" /> Ready
-                      </span>
-                    ) : (
                       <span className="text-xs text-slate-500">Auto-Detect</span>
                     )}
-                  </button>
-
-                  {/* Solana / Standard Adapter */}
-                  <button
-                    onClick={() => handleConnect('solana')}
-                    className="w-full flex items-center justify-between p-3 rounded-xl border border-slate-700/60 bg-slate-800/40 hover:bg-slate-800 hover:border-amber-500/50 transition-all text-left group"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-lg bg-purple-600/20 border border-purple-500/30 flex items-center justify-center font-bold text-purple-400 shrink-0">
-                        S
-                      </div>
-                      <div>
-                        <span className="font-semibold text-slate-200 group-hover:text-amber-400 text-sm">
-                          Solana / Phantom
-                        </span>
-                        <p className="text-[11px] text-slate-400">Connect custom SVM RPC</p>
-                      </div>
-                    </div>
-                    <span className="text-xs text-slate-500">SVM Standard</span>
                   </button>
 
                   {/* Secondary / Evaluation Mode */}

@@ -470,58 +470,66 @@ export const LoginGate: React.FC<LoginGateProps> = ({ onAuthenticated }) => {
           {/* Form 4: Wallet Connect */}
           {mode === 'wallet' && (
             <div className="space-y-3">
-              <button
-                type="button"
-                disabled={isBusy}
-                onClick={() => handleConnectAndAuth('solana')}
-                className="w-full flex items-center justify-between p-4 rounded-2xl bg-slate-900/80 border border-slate-700/80 hover:border-amber-500/50 hover:bg-slate-800/80 transition-all text-left group"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-xl bg-purple-500/20 flex items-center justify-center text-purple-400">
-                    <Wallet className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <div className="font-bold text-sm text-white">Phantom / Solana Wallet</div>
-                    <div className="text-xs text-slate-400">Standard Solana SVM Extension</div>
-                  </div>
-                </div>
-                <ArrowRight className="w-4 h-4 text-slate-500 group-hover:text-amber-400 transition-colors" />
-              </button>
-
-              <button
-                type="button"
-                disabled={isBusy}
-                onClick={() => handleConnectAndAuth('trust')}
-                className="w-full flex items-center justify-between p-4 rounded-2xl bg-slate-900/80 border border-slate-700/80 hover:border-amber-500/50 hover:bg-slate-800/80 transition-all text-left group"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-xl bg-blue-600/20 flex items-center justify-center text-blue-400">
-                    <Shield className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <div className="font-bold text-sm text-white">Trust Wallet</div>
-                    <div className="text-xs text-slate-400">Solana SVM Extension / Mobile</div>
-                  </div>
-                </div>
-                <ArrowRight className="w-4 h-4 text-slate-500 group-hover:text-amber-400 transition-colors" />
-              </button>
-
+              {/* Option 1: Nightly Wallet (PRIMARY) */}
               <button
                 type="button"
                 disabled={isBusy}
                 onClick={() => handleConnectAndAuth('nightly')}
-                className="w-full flex items-center justify-between p-4 rounded-2xl bg-slate-900/80 border border-slate-700/80 hover:border-amber-500/50 hover:bg-slate-800/80 transition-all text-left group"
+                className="w-full flex items-center justify-between p-4 rounded-2xl bg-amber-500/10 border border-amber-500/50 hover:border-amber-400 hover:bg-amber-500/20 transition-all text-left group shadow-lg shadow-amber-500/10"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-xl bg-purple-600/20 flex items-center justify-center text-purple-400">
+                  <div className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center font-bold text-amber-400 shrink-0">
+                    N
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-sm text-white group-hover:text-amber-300">Nightly Wallet</span>
+                      <span className="px-1.5 py-0.5 text-[9px] font-extrabold rounded bg-amber-500/30 text-amber-300 border border-amber-500/50">
+                        PRIMARY
+                      </span>
+                    </div>
+                    <div className="text-xs text-slate-300">Official Cookie Chain SVM Multi-chain Wallet</div>
+                  </div>
+                </div>
+                <ArrowRight className="w-4 h-4 text-amber-400 group-hover:translate-x-0.5 transition-transform" />
+              </button>
+
+              {/* Option 2: Phantom / Solana */}
+              <button
+                type="button"
+                disabled={isBusy}
+                onClick={() => handleConnectAndAuth('solana')}
+                className="w-full flex items-center justify-between p-4 rounded-2xl bg-slate-900/80 border border-slate-700/80 hover:border-purple-500/50 hover:bg-slate-800/80 transition-all text-left group"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-purple-500/20 flex items-center justify-center text-purple-400 shrink-0">
                     <Wallet className="w-4 h-4" />
                   </div>
                   <div>
-                    <div className="font-bold text-sm text-white">Nightly Wallet</div>
-                    <div className="text-xs text-slate-400">Multi-chain Solana SVM</div>
+                    <div className="font-bold text-sm text-white group-hover:text-purple-300">Phantom / Solana Wallet</div>
+                    <div className="text-xs text-slate-400">Standard Solana SVM Extension</div>
                   </div>
                 </div>
-                <ArrowRight className="w-4 h-4 text-slate-500 group-hover:text-amber-400 transition-colors" />
+                <ArrowRight className="w-4 h-4 text-slate-500 group-hover:text-purple-400 transition-colors" />
+              </button>
+
+              {/* Option 3: Trust Wallet */}
+              <button
+                type="button"
+                disabled={isBusy}
+                onClick={() => handleConnectAndAuth('trust')}
+                className="w-full flex items-center justify-between p-4 rounded-2xl bg-slate-900/80 border border-slate-700/80 hover:border-blue-400/50 hover:bg-slate-800/80 transition-all text-left group"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-blue-600/20 flex items-center justify-center text-blue-400 shrink-0">
+                    <Shield className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="font-bold text-sm text-white group-hover:text-blue-300">Trust Wallet</div>
+                    <div className="text-xs text-slate-400">Solana SVM Extension / Mobile Browser</div>
+                  </div>
+                </div>
+                <ArrowRight className="w-4 h-4 text-slate-500 group-hover:text-blue-400 transition-colors" />
               </button>
 
               <button

@@ -405,13 +405,49 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
     };
   }, [connected, walletType, walletAddress, clearWalletState]);
 
-  // Connect handler supporting Trust Wallet, Nightly, general Solana, and Demo Web3 wallet
-  const connect = async (type: 'trust' | 'nightly' | 'solana' | 'demo' = 'trust') => {
+  // Connect handler supporting Nightly (Primary), Solana/Phantom, Trust Wallet, and Demo Web3 wallet
+  const connect = async (type: 'trust' | 'nightly' | 'solana' | 'demo' = 'nightly') => {
     setConnecting(true);
     try {
       if (typeof window === 'undefined') return;
 
-      if (type === 'trust') {
+      if (type === 'nightly') {
+        const nightly = getNightlyProvider();
+        if (!nightly) {
+          if (typeof window !== 'undefined') {
+            window.open('https://nightly.app/', '_blank');
+          }
+          throw new Error('Nightly Wallet not detected. Please install Nightly Wallet.');
+        }
+
+        try {
+          const resp = await nightly.connect();
+          const pubkeyCandidate = resp?.publicKey?.toString() || nightly.publicKey?.toString();
+
+          if (!pubkeyCandidate || typeof pubkeyCandidate !== 'string') {
+            throw new Error('Nightly Wallet did not return a valid account address.');
+          }
+
+          let pk: PublicKey;
+          try {
+            pk = new PublicKey(pubkeyCandidate);
+          } catch {
+            throw new Error('Nightly Wallet returned an invalid Solana public key.');
+          }
+
+          const pubkeyStr = pk.toBase58();
+
+          setPublicKey(pk);
+          setWalletAddress(pubkeyStr);
+          setWalletType('nightly');
+          setConnected(true);
+          localStorage.setItem(WALLET_CONNECTED_KEY, 'nightly');
+          return;
+        } catch (providerErr: any) {
+          clearWalletState();
+          throw classifyWalletError(providerErr, 'Nightly Wallet');
+        }
+      } else if (type === 'trust') {
         const trust = getTrustWalletProvider();
         if (!trust) {
           if (typeof window !== 'undefined') {
@@ -449,42 +485,6 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
         } catch (providerErr: any) {
           clearWalletState();
           throw classifyWalletError(providerErr, 'Trust Wallet');
-        }
-      } else if (type === 'nightly') {
-        const nightly = getNightlyProvider();
-        if (!nightly) {
-          if (typeof window !== 'undefined') {
-            window.open('https://nightly.app/', '_blank');
-          }
-          throw new Error('Nightly Wallet not detected. Please install Nightly Wallet.');
-        }
-
-        try {
-          const resp = await nightly.connect();
-          const pubkeyCandidate = resp?.publicKey?.toString() || nightly.publicKey?.toString();
-
-          if (!pubkeyCandidate || typeof pubkeyCandidate !== 'string') {
-            throw new Error('Nightly Wallet did not return a valid account address.');
-          }
-
-          let pk: PublicKey;
-          try {
-            pk = new PublicKey(pubkeyCandidate);
-          } catch {
-            throw new Error('Nightly Wallet returned an invalid Solana public key.');
-          }
-
-          const pubkeyStr = pk.toBase58();
-
-          setPublicKey(pk);
-          setWalletAddress(pubkeyStr);
-          setWalletType('nightly');
-          setConnected(true);
-          localStorage.setItem(WALLET_CONNECTED_KEY, 'nightly');
-          return;
-        } catch (providerErr: any) {
-          clearWalletState();
-          throw classifyWalletError(providerErr, 'Nightly Wallet');
         }
       } else if (type === 'solana') {
         const solana = getSolanaProvider();

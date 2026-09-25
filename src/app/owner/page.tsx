@@ -400,11 +400,11 @@ export default function OwnerDashboardPage() {
               <div className="space-y-2 pt-1">
                 <button
                   type="button"
-                  onClick={() => connect('trust')}
+                  onClick={() => connect('nightly')}
                   className="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition-all flex items-center justify-center gap-2 shadow-md shadow-amber-500/20"
                 >
                   <LogIn className="w-4 h-4" />
-                  <span>Connect Wallet</span>
+                  <span>Connect Nightly Wallet</span>
                 </button>
               </div>
             ) : (
