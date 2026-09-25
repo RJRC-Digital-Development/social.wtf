@@ -424,7 +424,7 @@ export default function OwnerDashboardPage() {
                   disabled={authenticating}
                   onClick={async () => {
                     try {
-                      await authenticateWallet();
+                      await authenticateWallet(walletAddress || undefined);
                       await verifyAuth();
                     } catch (err: any) {
                       alert(err?.message || 'Authentication failed');
